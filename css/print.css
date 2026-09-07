@@ -1,0 +1,145 @@
+/*
+  Receipt paper is 58mm wide (57.5mm ± 0.5mm actual roll, 58mm print head).
+  Printers usually reserve ~2-3mm of dead margin on each side, so the safe
+  printable width is set to 54mm. Change PAPER_WIDTH below if a wider
+  roll is used.
+*/
+
+@media print {
+  @page {
+    size: 58mm auto;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 58mm;
+    background: #fff !important;
+  }
+
+  /* Hide the whole app; only the printable receipts show. */
+  body * {
+    visibility: hidden;
+  }
+
+  #print-area,
+  #print-area * {
+    visibility: visible;
+  }
+
+  #print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 58mm;
+  }
+
+  .receipt {
+    width: 54mm;
+    margin: 0 2mm;
+    padding: 2mm 0 4mm;
+    font-family: "Courier New", monospace;
+    color: #000;
+    page-break-after: always;
+  }
+
+  .receipt:last-child {
+    page-break-after: auto;
+  }
+
+  .receipt .center {
+    text-align: center;
+  }
+
+  .receipt .logo-print {
+    width: 20mm;
+    height: 20mm;
+    object-fit: cover;
+    border-radius: 50%;
+    margin: 0 auto 1.5mm;
+    display: block;
+  }
+
+  .receipt h1 {
+    font-size: 12pt;
+    margin: 0 0 1mm;
+  }
+
+  .receipt .sub {
+    font-size: 7.5pt;
+    margin: 0 0 0.5mm;
+  }
+
+  .receipt .rule {
+    border-top: 1px dashed #000;
+    margin: 1.5mm 0;
+  }
+
+  .receipt .meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8pt;
+    margin: 0.5mm 0;
+  }
+
+  .receipt .copy-label {
+    font-size: 8.5pt;
+    font-weight: bold;
+    text-align: center;
+    margin: 1mm 0;
+  }
+
+  .receipt table.receipt-items {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8pt;
+    margin-top: 1mm;
+  }
+
+  .receipt table.receipt-items td {
+    padding: 0.8mm 0;
+    vertical-align: top;
+  }
+
+  .receipt table.receipt-items td.qty {
+    width: 14%;
+    text-align: left;
+  }
+
+  .receipt table.receipt-items td.item-name {
+    width: 56%;
+    text-align: left;
+  }
+
+  .receipt table.receipt-items td.item-price {
+    width: 30%;
+    text-align: right;
+  }
+
+  .receipt .totals {
+    margin-top: 1.5mm;
+    font-size: 9pt;
+  }
+
+  .receipt .totals .grand {
+    font-weight: bold;
+    font-size: 11pt;
+  }
+
+  .receipt .totals-row {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .receipt .footer-note {
+    text-align: center;
+    font-size: 7.5pt;
+    margin-top: 2mm;
+  }
+}
+
+@media screen {
+  #print-area {
+    display: none;
+  }
+}

@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Your current rules block ALL reads and writes, which is why nothing will
+// load until you paste this in (Firebase Console → Firestore Database →
+// Rules → publish).
+//
+// The app signs every device in anonymously (no password) just so it has
+// *a* Firebase Auth identity — these rules simply require that identity to
+// exist. This keeps randos on the open internet from reading/editing your
+// menu or sales, while staying simple enough for a small single-branch
+// café with no per-employee accounts. Access to the app itself (cashier vs
+// admin) is controlled by the PIN screen, not by these rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

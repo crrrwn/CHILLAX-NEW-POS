@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Chillax Café POS — Admin</title>
+<link rel="icon" href="assets/logo.jpg" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <img class="logo" src="assets/logo.jpg" alt="Chillax logo" />
+    <div class="titles">
+      <strong>Chillax Café</strong>
+      <span>Admin</span>
+    </div>
+    <span class="role-pill">Admin</span>
+    <a href="pos.html" class="icon-btn" title="Go to cashier screen">🧾</a>
+    <button class="icon-btn" id="logout-btn" title="Sign out">⏻</button>
+  </header>
+
+  <main class="admin-layout">
+    <nav class="admin-nav">
+      <button class="active" data-tab="dashboard">📈 Sales</button>
+      <button data-tab="menu">🍽️ Menu</button>
+      <button data-tab="settings">⚙️ Settings</button>
+    </nav>
+
+    <section class="admin-main">
+
+      <!-- ===== DASHBOARD ===== -->
+      <div id="section-dashboard">
+        <div class="section-head">
+          <h2>Sales overview</h2>
+          <div class="range-tabs">
+            <button class="active" data-range="today">Today</button>
+            <button data-range="week">This week</button>
+            <button data-range="month">This month</button>
+            <button data-range="all">All time</button>
+          </div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="label">Total sales</div>
+            <div class="value" id="stat-sales">₱0</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Orders</div>
+            <div class="value" id="stat-orders">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Average ticket</div>
+            <div class="value" id="stat-avg">₱0</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:22px;">
+          <h3 style="margin-bottom:14px;color:var(--brown-dark);">Best sellers</h3>
+          <div id="best-sellers"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:22px;">
+          <h3 style="margin-bottom:14px;color:var(--brown-dark);">Full breakdown, by item</h3>
+          <table class="data-table">
+            <thead><tr><th>Item</th><th>Qty sold</th><th>Revenue</th></tr></thead>
+            <tbody id="sales-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-bottom:14px;color:var(--brown-dark);">Recent orders</h3>
+          <table class="data-table">
+            <thead><tr><th>#</th><th>Time</th><th>Items</th><th>Total</th></tr></thead>
+            <tbody id="recent-orders-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== MENU ===== -->
+      <div id="section-menu" class="hidden">
+        <div class="section-head">
+          <h2>Menu management</h2>
+          <button class="btn btn-primary btn-sm" id="add-category-btn">+ Category</button>
+        </div>
+        <p style="font-size:.85rem;color:var(--brown);margin-top:-8px;margin-bottom:16px;">
+          Changes here update the cashier screen instantly — no app restart needed.
+        </p>
+        <div id="menu-admin-root"></div>
+      </div>
+
+      <!-- ===== SETTINGS ===== -->
+      <div id="section-settings" class="hidden">
+        <div class="section-head"><h2>Settings</h2></div>
+        <div class="card" style="max-width:420px;">
+          <h3 style="margin-bottom:14px;color:var(--brown-dark);">Login PINs</h3>
+          <div class="modal-form">
+            <div class="field">
+              <span class="field-label">Admin PIN</span>
+              <input type="text" id="admin-pin-input" inputmode="numeric" />
+            </div>
+            <div class="field">
+              <span class="field-label">Cashier PIN</span>
+              <input type="text" id="staff-pin-input" inputmode="numeric" />
+            </div>
+          </div>
+          <button class="btn btn-primary" id="save-pins-btn">Save PINs</button>
+          <div id="settings-msg" style="margin-top:10px;font-size:.85rem;font-weight:700;"></div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <div id="modal-root"></div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
