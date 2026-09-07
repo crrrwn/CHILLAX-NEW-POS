@@ -55,8 +55,60 @@ tabButtons.forEach((btn) => {
 
 /* ================= DASHBOARD ================= */
 
+const PAGE_SIZE = 5;
+
 let allOrders = [];
 let currentRange = "today";
+let customDateFrom = null;
+let customDateTo = null;
+let pagination = {
+  salesBreakdown: 1,
+  recentOrders: 1,
+  menuCats: {},
+};
+
+function paginate(items, page) {
+  const totalItems = items.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  return {
+    items: items.slice(start, start + PAGE_SIZE),
+    totalPages,
+    currentPage,
+    totalItems,
+  };
+}
+
+function renderPagination(containerId, totalItems, currentPage, onPageChange, containerEl = null) {
+  const el = containerEl || document.getElementById(containerId);
+  if (!el) return;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  if (totalItems <= PAGE_SIZE) {
+    el.innerHTML = "";
+    el.classList.add("hidden");
+    return;
+  }
+  el.classList.remove("hidden");
+  el.innerHTML = `
+    <span class="pagination-info">Page ${currentPage} of ${totalPages} (${totalItems} total)</span>
+    <div class="pagination-controls">
+      <button class="btn btn-sm btn-outline" data-page="prev" ${currentPage <= 1 ? "disabled" : ""}>Prev</button>
+      <button class="btn btn-sm btn-outline" data-page="next" ${currentPage >= totalPages ? "disabled" : ""}>Next</button>
+    </div>
+  `;
+  el.querySelectorAll("[data-page]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.disabled) return;
+      const nextPage = btn.dataset.page === "prev" ? currentPage - 1 : currentPage + 1;
+      onPageChange(nextPage);
+    });
+  });
+}
+
+function orderDate(order) {
+  return order.createdAt?.toDate ? order.createdAt.toDate() : null;
+}
 
 function rangeStart(range) {
   const now = new Date();
@@ -92,21 +144,69 @@ document.querySelectorAll(".range-tabs button").forEach((btn) => {
     document.querySelectorAll(".range-tabs button").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     currentRange = btn.dataset.range;
+    customDateFrom = null;
+    customDateTo = null;
+    document.getElementById("date-from").value = "";
+    document.getElementById("date-to").value = "";
+    pagination.salesBreakdown = 1;
+    pagination.recentOrders = 1;
     renderDashboard();
   });
 });
+
+document.getElementById("date-filter-apply").addEventListener("click", () => {
+  const fromVal = document.getElementById("date-from").value;
+  const toVal = document.getElementById("date-to").value;
+  if (!fromVal && !toVal) return;
+  customDateFrom = fromVal ? new Date(fromVal + "T00:00:00") : null;
+  customDateTo = toVal ? new Date(toVal + "T23:59:59.999") : null;
+  if (customDateFrom && customDateTo && customDateFrom > customDateTo) {
+    alert("The start date must be before the end date.");
+    return;
+  }
+  document.querySelectorAll(".range-tabs button").forEach((b) => b.classList.remove("active"));
+  pagination.salesBreakdown = 1;
+  pagination.recentOrders = 1;
+  renderDashboard();
+});
+
+document.getElementById("date-filter-clear").addEventListener("click", () => {
+  customDateFrom = null;
+  customDateTo = null;
+  document.getElementById("date-from").value = "";
+  document.getElementById("date-to").value = "";
+  document.querySelectorAll(".range-tabs button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.range === currentRange);
+  });
+  pagination.salesBreakdown = 1;
+  pagination.recentOrders = 1;
+  renderDashboard();
+});
+
+function getFilteredOrders() {
+  if (customDateFrom || customDateTo) {
+    return allOrders.filter((o) => {
+      const created = orderDate(o);
+      if (!created) return false;
+      if (customDateFrom && created < customDateFrom) return false;
+      if (customDateTo && created > customDateTo) return false;
+      return true;
+    });
+  }
+  const start = rangeStart(currentRange);
+  return allOrders.filter((o) => {
+    if (!start) return true;
+    const created = orderDate(o);
+    return created && created >= start;
+  });
+}
 
 function peso(n) {
   return "₱" + Number(n).toLocaleString("en-PH", { maximumFractionDigits: 2 });
 }
 
 function renderDashboard() {
-  const start = rangeStart(currentRange);
-  const orders = allOrders.filter((o) => {
-    if (!start) return true;
-    const created = o.createdAt?.toDate ? o.createdAt.toDate() : null;
-    return created && created >= start;
-  });
+  const orders = getFilteredOrders();
 
   const totalSales = orders.reduce((s, o) => s + (o.total || 0), 0);
   const orderCount = orders.length;
@@ -150,8 +250,10 @@ function renderDashboard() {
   });
 
   // Full breakdown table.
+  const salesPage = paginate(ranked, pagination.salesBreakdown);
+  pagination.salesBreakdown = salesPage.currentPage;
   const tbody = document.getElementById("sales-table-body");
-  tbody.innerHTML = ranked
+  tbody.innerHTML = salesPage.items
     .map(
       (r) => `
       <tr>
@@ -161,13 +263,18 @@ function renderDashboard() {
       </tr>`,
     )
     .join("") || `<tr><td colspan="3" style="opacity:.6;">No data yet.</td></tr>`;
+  renderPagination("sales-table-pagination", ranked.length, salesPage.currentPage, (page) => {
+    pagination.salesBreakdown = page;
+    renderDashboard();
+  });
 
   // Recent orders list.
+  const ordersPage = paginate(orders, pagination.recentOrders);
+  pagination.recentOrders = ordersPage.currentPage;
   const recentBody = document.getElementById("recent-orders-body");
-  recentBody.innerHTML = orders
-    .slice(0, 25)
+  recentBody.innerHTML = ordersPage.items
     .map((o) => {
-      const created = o.createdAt?.toDate ? o.createdAt.toDate() : null;
+      const created = orderDate(o);
       const timeStr = created
         ? created.toLocaleString("en-PH", { dateStyle: "short", timeStyle: "short" })
         : "—";
@@ -183,6 +290,10 @@ function renderDashboard() {
         </tr>`;
     })
     .join("") || `<tr><td colspan="4" style="opacity:.6;">No orders yet.</td></tr>`;
+  renderPagination("recent-orders-pagination", orders.length, ordersPage.currentPage, (page) => {
+    pagination.recentOrders = page;
+    renderDashboard();
+  });
 }
 
 /* ================= MENU MANAGEMENT ================= */
@@ -208,6 +319,9 @@ function renderMenuAdmin() {
   root.innerHTML = "";
   categories.forEach((cat) => {
     const items = menuItems.filter((i) => i.category === cat.name);
+    if (!pagination.menuCats[cat.id]) pagination.menuCats[cat.id] = 1;
+    const itemsPage = paginate(items, pagination.menuCats[cat.id]);
+    pagination.menuCats[cat.id] = itemsPage.currentPage;
     const block = document.createElement("div");
     block.className = "menu-cat-block";
     block.innerHTML = `
@@ -226,7 +340,7 @@ function renderMenuAdmin() {
           <thead><tr><th>Item</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
             ${
-              items
+              itemsPage.items
                 .map(
                   (it) => `
             <tr class="${it.available === false ? "row-unavailable" : ""}">
@@ -253,8 +367,19 @@ function renderMenuAdmin() {
           </tbody>
         </table>
       </div>
+      <div class="table-pagination" data-cat-pagination="${cat.id}"></div>
     `;
     root.appendChild(block);
+    renderPagination(
+      null,
+      items.length,
+      itemsPage.currentPage,
+      (page) => {
+        pagination.menuCats[cat.id] = page;
+        renderMenuAdmin();
+      },
+      block.querySelector(`[data-cat-pagination="${cat.id}"]`),
+    );
   });
 
   root.querySelectorAll("[data-add-item]").forEach((b) =>

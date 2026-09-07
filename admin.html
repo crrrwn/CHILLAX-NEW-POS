@@ -15,28 +15,55 @@
       <span>Admin</span>
     </div>
     <span class="role-pill">Admin</span>
-    <a href="pos.html" class="icon-btn" title="Go to cashier screen">🧾</a>
-    <button class="icon-btn" id="logout-btn" title="Sign out">⏻</button>
+    <a href="pos.html" class="icon-btn" title="Go to cashier screen">
+      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 4v12h10V6H7zm2 2h6v2H9V8zm0 4h6v2H9v-2z" fill="currentColor"/></svg>
+    </a>
+    <button class="icon-btn" id="logout-btn" title="Sign out" aria-label="Sign out">
+      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z" fill="currentColor"/></svg>
+    </button>
   </header>
 
   <main class="admin-layout">
     <nav class="admin-nav">
-      <button class="active" data-tab="dashboard">📈 Sales</button>
-      <button data-tab="menu">🍽️ Menu</button>
-      <button data-tab="settings">⚙️ Settings</button>
+      <button class="active" data-tab="dashboard">
+        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h2v8H3v-8zm7 0h2v8h-2v-8zm7 0h2v8h-2v-8zM3 3h2v6H3V3zm7 0h2v6h-2V3zm7 0h2v6h-2V3z" fill="currentColor"/></svg>
+        <span>Sales</span>
+      </button>
+      <button data-tab="menu">
+        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" fill="currentColor"/></svg>
+        <span>Menu</span>
+      </button>
+      <button data-tab="settings">
+        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 13a7.9 7.9 0 0 0 .1-2l2-1.6-2-3.4-2.4 1a8.1 8.1 0 0 0-1.7-1L15 3h-6l-.4 2.4a8.1 8.1 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.9 7.9 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1L9 21h6l.4-2.4c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.6z" fill="currentColor"/></svg>
+        <span>Settings</span>
+      </button>
     </nav>
 
     <section class="admin-main">
 
       <!-- ===== DASHBOARD ===== -->
       <div id="section-dashboard">
-        <div class="section-head">
+        <div class="section-head dashboard-section-head">
           <h2>Sales overview</h2>
-          <div class="range-tabs">
-            <button class="active" data-range="today">Today</button>
-            <button data-range="week">This week</button>
-            <button data-range="month">This month</button>
-            <button data-range="all">All time</button>
+          <div class="dashboard-filters">
+            <div class="range-tabs">
+              <button class="active" data-range="today">Today</button>
+              <button data-range="week">This week</button>
+              <button data-range="month">This month</button>
+              <button data-range="all">All time</button>
+            </div>
+            <div class="date-filter">
+              <label class="date-field">
+                <span class="field-label">From</span>
+                <input type="date" id="date-from" />
+              </label>
+              <label class="date-field">
+                <span class="field-label">To</span>
+                <input type="date" id="date-to" />
+              </label>
+              <button class="btn btn-sm btn-outline" type="button" id="date-filter-apply">Apply</button>
+              <button class="btn btn-sm btn-outline" type="button" id="date-filter-clear">Clear</button>
+            </div>
           </div>
         </div>
 
@@ -66,6 +93,7 @@
             <thead><tr><th>Item</th><th>Qty sold</th><th>Revenue</th></tr></thead>
             <tbody id="sales-table-body"></tbody>
           </table>
+          <div class="table-pagination" id="sales-table-pagination"></div>
         </div>
 
         <div class="card">
@@ -74,6 +102,7 @@
             <thead><tr><th>#</th><th>Time</th><th>Items</th><th>Total</th></tr></thead>
             <tbody id="recent-orders-body"></tbody>
           </table>
+          <div class="table-pagination" id="recent-orders-pagination"></div>
         </div>
       </div>
 
