@@ -197,6 +197,16 @@ a {
   border-radius: 8px;
 }
 
+.btn-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.btn-icon-only {
+  padding: 6px 10px;
+  min-width: 34px;
+}
+
 /* ---------- Cards / surfaces ---------- */
 
 .card {
@@ -602,6 +612,13 @@ a {
   margin-bottom: 14px;
 }
 
+.modal-subtitle {
+  margin: -8px 0 16px;
+  font-size: 0.85rem;
+  color: var(--brown);
+  line-height: 1.45;
+}
+
 .size-options {
   display: flex;
   gap: 10px;
@@ -823,26 +840,139 @@ table.data-table tr:last-child td {
 
 /* Menu management */
 
-.menu-cat-block {
-  margin-bottom: 22px;
+.menu-section-head {
+  align-items: flex-start;
 }
 
-.menu-cat-block h3 {
-  font-size: 0.95rem;
+.menu-section-intro {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--brown);
+  line-height: 1.45;
+  max-width: 520px;
+}
+
+.menu-admin-root {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 8px;
+}
+
+.menu-cat-block {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  border: 1px solid var(--line);
+}
+
+.menu-cat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.menu-cat-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.menu-cat-title h3 {
+  font-size: 1rem;
   color: var(--brown-dark);
-  margin-bottom: 8px;
+  margin: 0;
+}
+
+.menu-cat-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
-.menu-cat-block h3 .count {
+.menu-cat-block h3 .count,
+.menu-cat-title .count {
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--brown);
   background: var(--cream);
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 999px;
+  white-space: nowrap;
+}
+
+.table-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+}
+
+table.data-table.menu-table {
+  min-width: 520px;
+}
+
+table.data-table.menu-table tr.row-unavailable td:first-child {
+  opacity: 0.65;
+}
+
+table.data-table.menu-table .empty-row td {
+  opacity: 0.6;
+  text-align: center;
+  padding: 20px 14px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.status-badge.status-on {
+  background: rgba(47, 122, 79, 0.12);
+  color: var(--green);
+}
+
+.status-badge.status-off {
+  background: rgba(179, 38, 30, 0.1);
+  color: var(--red);
+}
+
+.action-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.category-modal .modal-form input {
+  width: 100%;
+}
+
+.menu-admin-root:empty::after {
+  content: "No categories yet. Add your first category above.";
+  display: block;
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--brown);
+  opacity: 0.65;
+  font-size: 0.9rem;
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1.5px dashed var(--line);
 }
 
 .form-row {
@@ -911,6 +1041,129 @@ table.data-table tr:last-child td {
     margin-bottom: 0;
     white-space: nowrap;
   }
+  .admin-main {
+    padding: 16px 14px 48px;
+  }
+  .menu-section-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .menu-section-head .btn {
+    width: 100%;
+  }
+  .menu-cat-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .menu-cat-actions {
+    width: 100%;
+  }
+  .menu-cat-actions .btn:not(.btn-icon-only) {
+    flex: 1;
+  }
+  .section-head {
+    gap: 12px;
+  }
+  .range-tabs {
+    flex-wrap: wrap;
+  }
+  .bar-row .bar-label {
+    width: 120px;
+  }
+}
+
+@media (max-width: 640px) {
+  table.data-table.menu-table thead {
+    display: none;
+  }
+
+  table.data-table.menu-table,
+  table.data-table.menu-table tbody,
+  table.data-table.menu-table tr,
+  table.data-table.menu-table td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  table.data-table.menu-table tr {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  table.data-table.menu-table tr:last-child {
+    border-bottom: none;
+  }
+
+  table.data-table.menu-table td {
+    padding: 4px 0;
+    border-bottom: none;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: right;
+  }
+
+  table.data-table.menu-table td::before {
+    content: attr(data-label);
+    font-weight: 800;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--brown);
+    text-align: left;
+    flex-shrink: 0;
+  }
+
+  table.data-table.menu-table td[data-label="Item"] {
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px dashed var(--line);
+    text-align: left;
+  }
+
+  table.data-table.menu-table td[data-label="Item"]::before {
+    display: none;
+  }
+
+  table.data-table.menu-table td[data-label="Actions"] {
+    flex-direction: column;
+    align-items: stretch;
+    padding-top: 10px;
+  }
+
+  table.data-table.menu-table td[data-label="Actions"]::before {
+    margin-bottom: 4px;
+  }
+
+  table.data-table.menu-table .action-btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  table.data-table.menu-table .action-btn-group .btn {
+    width: 100%;
+  }
+
+  table.data-table.menu-table .empty-row td {
+    display: block;
+    text-align: center;
+  }
+
+  table.data-table.menu-table .empty-row td::before {
+    display: none;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card .value {
+    font-size: 1.35rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -919,5 +1172,22 @@ table.data-table tr:last-child td {
   }
   .login-card {
     padding: 26px 18px;
+  }
+  .topbar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .topbar .titles strong {
+    font-size: 0.95rem;
+  }
+  .admin-nav button {
+    padding: 10px 12px;
+    font-size: 0.82rem;
+  }
+  .menu-cat-block {
+    padding: 14px 12px;
+  }
+  .modal-sheet {
+    padding: 18px 16px;
   }
 }

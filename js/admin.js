@@ -211,39 +211,51 @@ function renderMenuAdmin() {
     const block = document.createElement("div");
     block.className = "menu-cat-block";
     block.innerHTML = `
-      <h3>${escapeHtml(cat.name)} <span class="count">${items.length} item${items.length === 1 ? "" : "s"}</span>
-        <button class="btn btn-sm btn-outline" data-add-item="${escapeHtml(cat.name)}" style="margin-left:auto;">+ Item</button>
-        <button class="btn btn-sm btn-outline" data-del-cat="${cat.id}" title="Delete empty category">🗑</button>
-      </h3>
-      <table class="data-table">
-        <thead><tr><th>Item</th><th>Price</th><th>Status</th><th></th></tr></thead>
-        <tbody>
-          ${
-            items
-              .map(
-                (it) => `
-            <tr>
-              <td>${escapeHtml(it.name)}</td>
-              <td>${it.priceLarge ? peso(it.price) + " / " + peso(it.priceLarge) + " (M/L)" : peso(it.price)}</td>
-              <td>${it.available === false ? "Unavailable" : "Available"}</td>
-              <td style="white-space:nowrap;">
-                <button class="btn btn-sm btn-outline" data-edit="${it.id}">Edit</button>
-                <button class="btn btn-sm ${it.available === false ? "btn-secondary" : "btn-outline"}" data-toggle="${it.id}">
-                  ${it.available === false ? "Enable" : "86 it"}
-                </button>
-                <button class="btn btn-sm btn-danger" data-del="${it.id}">Delete</button>
+      <div class="menu-cat-header">
+        <div class="menu-cat-title">
+          <h3>${escapeHtml(cat.name)}</h3>
+          <span class="count">${items.length} item${items.length === 1 ? "" : "s"}</span>
+        </div>
+        <div class="menu-cat-actions">
+          <button class="btn btn-sm btn-outline" data-add-item="${escapeHtml(cat.name)}">+ Add item</button>
+          <button class="btn btn-sm btn-icon-only btn-outline" data-del-cat="${cat.id}" title="Delete empty category" aria-label="Delete category">🗑</button>
+        </div>
+      </div>
+      <div class="table-scroll-wrap">
+        <table class="data-table menu-table">
+          <thead><tr><th>Item</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${
+              items
+                .map(
+                  (it) => `
+            <tr class="${it.available === false ? "row-unavailable" : ""}">
+              <td data-label="Item">${escapeHtml(it.name)}</td>
+              <td data-label="Price">${it.priceLarge ? peso(it.price) + " / " + peso(it.priceLarge) + " (M/L)" : peso(it.price)}</td>
+              <td data-label="Status">
+                <span class="status-badge ${it.available === false ? "status-off" : "status-on"}">
+                  ${it.available === false ? "Unavailable" : "Available"}
+                </span>
+              </td>
+              <td data-label="Actions">
+                <div class="action-btn-group">
+                  <button class="btn btn-sm btn-outline" data-edit="${it.id}">Edit</button>
+                  <button class="btn btn-sm ${it.available === false ? "btn-secondary" : "btn-outline"}" data-toggle="${it.id}">
+                    ${it.available === false ? "Enable" : "Disable"}
+                  </button>
+                  <button class="btn btn-sm btn-danger" data-del="${it.id}">Delete</button>
+                </div>
               </td>
             </tr>`,
-              )
-              .join("") || `<tr><td colspan="4" style="opacity:.6;">No items yet — add one above.</td></tr>`
-          }
-        </tbody>
-      </table>
+                )
+                .join("") || `<tr class="empty-row"><td colspan="4">No items yet — add one above.</td></tr>`
+            }
+          </tbody>
+        </table>
+      </div>
     `;
     root.appendChild(block);
   });
-
-  root.style.marginTop = "6px";
 
   root.querySelectorAll("[data-add-item]").forEach((b) =>
     b.addEventListener("click", () => openItemModal(null, b.dataset.addItem)),
@@ -290,16 +302,42 @@ function escapeHtml(s) {
 
 /* ---- Add category ---- */
 
-document.getElementById("add-category-btn").addEventListener("click", async () => {
-  const name = prompt("New category name (e.g. \"Seasonal Drinks\")");
-  if (!name || !name.trim()) return;
-  if (categories.some((c) => c.name.toLowerCase() === name.trim().toLowerCase())) {
-    alert("A category with that name already exists.");
-    return;
-  }
-  const nextOrder = categories.length ? Math.max(...categories.map((c) => c.order)) + 1 : 0;
-  await addDoc(collection(db, "categories"), { name: name.trim(), order: nextOrder });
-});
+function openCategoryModal() {
+  modalRoot.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal-sheet category-modal">
+        <h3>Add category</h3>
+        <p class="modal-subtitle">Create a new menu group for your items.</p>
+        <form id="category-form" class="modal-form">
+          <div class="field">
+            <span class="field-label">Category name</span>
+            <input type="text" id="category-name" required placeholder="e.g. Seasonal Drinks" autofocus />
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline btn-block" id="modal-cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-block">Add category</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  modalRoot.querySelector("#modal-cancel").addEventListener("click", () => (modalRoot.innerHTML = ""));
+  modalRoot.querySelector("#category-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("category-name").value.trim();
+    if (!name) return;
+    if (categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+      alert("A category with that name already exists.");
+      return;
+    }
+    const nextOrder = categories.length ? Math.max(...categories.map((c) => c.order)) + 1 : 0;
+    await addDoc(collection(db, "categories"), { name, order: nextOrder });
+    modalRoot.innerHTML = "";
+  });
+}
+
+document.getElementById("add-category-btn").addEventListener("click", openCategoryModal);
 
 /* ---- Item add/edit modal ---- */
 

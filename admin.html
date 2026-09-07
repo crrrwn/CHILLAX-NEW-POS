@@ -79,14 +79,16 @@
 
       <!-- ===== MENU ===== -->
       <div id="section-menu" class="hidden">
-        <div class="section-head">
-          <h2>Menu management</h2>
-          <button class="btn btn-primary btn-sm" id="add-category-btn">+ Category</button>
+        <div class="section-head menu-section-head">
+          <div>
+            <h2>Menu management</h2>
+            <p class="menu-section-intro">Changes here update the cashier screen instantly — no app restart needed.</p>
+          </div>
+          <button class="btn btn-primary" id="add-category-btn">
+            <span class="btn-icon">+</span> Add category
+          </button>
         </div>
-        <p style="font-size:.85rem;color:var(--brown);margin-top:-8px;margin-bottom:16px;">
-          Changes here update the cashier screen instantly — no app restart needed.
-        </p>
-        <div id="menu-admin-root"></div>
+        <div id="menu-admin-root" class="menu-admin-root"></div>
       </div>
 
       <!-- ===== SETTINGS ===== -->
