@@ -1,63 +1,779 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>Chillax Café POS — Cashier</title>
-<link rel="icon" href="assets/logo.jpg" />
-<link rel="stylesheet" href="css/style.css" />
-<link rel="stylesheet" href="css/print.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Chillax Café POS — Cashier</title>
+
+  <link rel="icon" href="assets/logo.jpg" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/print.css" />
+
+  <style>
+    @media screen {
+      .pos-layout {
+        min-width: 0;
+      }
+
+      .menu-pane {
+        min-width: 0;
+      }
+
+      .cart-pane {
+        min-width: 0;
+      }
+
+      .cart-items {
+        min-height: 0;
+      }
+
+      .order-close,
+      .order-mobile-bar,
+      .order-backdrop {
+        display: none;
+      }
+
+      .order-close {
+        border: 0;
+        background: #f7f2ee;
+        color: #50362b;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+
+      .cart-header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .cart-header h2 {
+        margin: 0;
+      }
+
+      .order-options label {
+        min-width: 0;
+      }
+
+      .order-options input,
+      .order-options select {
+        max-width: 100%;
+      }
+    }
+
+    /* DESKTOP */
+    @media screen and (min-width: 901px) {
+      .pos-layout {
+        height: calc(100dvh - 68px);
+        min-height: 500px;
+      }
+
+      .cart-pane {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .cart-items {
+        flex: 1 1 auto;
+        overflow-y: auto;
+      }
+
+      .cart-footer {
+        flex-shrink: 0;
+      }
+    }
+
+    /* MOBILE & TABLET */
+    @media screen and (max-width: 900px) {
+      .pos-layout {
+        display: block !important;
+        height: auto !important;
+        min-height: calc(100dvh - 62px) !important;
+      }
+
+      .menu-pane {
+        overflow: visible !important;
+        padding-bottom: 112px !important;
+      }
+
+      .order-backdrop:not([hidden]) {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(29, 21, 18, 0.58);
+        z-index: 80;
+      }
+
+      .cart-pane {
+        display: flex !important;
+        flex-direction: column;
+        position: fixed !important;
+        inset: 0 0 0 auto !important;
+        width: min(100%, 430px);
+        max-width: 100%;
+        height: 100dvh !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        border: 0 !important;
+        border-radius: 20px 0 0 20px !important;
+        box-shadow: -10px 0 40px rgba(32, 21, 17, 0.22);
+        z-index: 90;
+        overflow: hidden;
+        transform: translateX(105%);
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          transform 0.22s ease,
+          visibility 0.22s ease;
+      }
+
+      .cart-pane.is-open {
+        transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
+      }
+
+      .cart-header {
+        flex-shrink: 0;
+        padding: 15px 18px 12px;
+      }
+
+      .order-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        font-size: 24px;
+      }
+
+      .order-options {
+        flex-shrink: 0;
+        padding: 12px 18px;
+        gap: 8px;
+      }
+
+      .order-options input,
+      .order-options select {
+        min-height: 38px;
+      }
+
+      .cart-items {
+        flex: 1 1 auto;
+        min-height: 60px !important;
+        max-height: none !important;
+        overflow-y: auto;
+        padding: 4px 18px;
+      }
+
+      .cart-footer {
+        flex-shrink: 0;
+        padding:
+          12px 18px
+          max(15px, env(safe-area-inset-bottom));
+      }
+
+      /* CURRENT ORDER BUTTON */
+      .order-mobile-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: fixed;
+        bottom: max(12px, env(safe-area-inset-bottom));
+        left: 12px;
+        right: 12px;
+        width: calc(100% - 24px);
+        min-height: 66px;
+        padding: 12px 17px;
+        background: #563626;
+        color: #fff;
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 12px 32px rgba(38, 23, 18, 0.25);
+        text-align: left;
+        cursor: pointer;
+        z-index: 70;
+      }
+
+      .order-mobile-bar strong {
+        display: block;
+        font-size: 15px;
+      }
+
+      .order-mobile-bar small {
+        display: block;
+        margin-top: 3px;
+        opacity: 0.82;
+      }
+
+      .order-mobile-bar .mobile-order-price {
+        font-size: 19px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      body.order-drawer-open {
+        overflow: hidden;
+      }
+    }
+
+    @media screen and (max-width: 380px) {
+      .cart-header {
+        padding: 12px;
+      }
+
+      .order-options {
+        padding: 10px 12px;
+      }
+
+      .cart-items {
+        padding: 4px 12px;
+      }
+
+      .cart-footer {
+        padding: 10px 12px 12px;
+      }
+    }
+
+    @media screen and (max-height: 590px)
+      and (max-width: 900px) {
+      .cart-pane {
+        overflow-y: auto;
+      }
+
+      .cart-items {
+        flex: 0 0 auto;
+        overflow: visible;
+      }
+
+      .cart-footer {
+        position: sticky;
+        bottom: 0;
+      }
+    }
+
+    @media screen and (prefers-reduced-motion: reduce) {
+      .cart-pane {
+        transition: none !important;
+      }
+    }
+
+    /* KEEP RECEIPT PRINTING CLEAN */
+    @media print {
+      .order-mobile-bar,
+      .order-backdrop,
+      .order-close {
+        display: none !important;
+      }
+    }
+  </style>
 </head>
+
 <body>
+
+  <!-- HEADER -->
   <header class="topbar">
-    <img class="logo" src="assets/logo.jpg" alt="Chillax logo" />
+    <img
+      class="logo"
+      src="assets/logo.jpg"
+      alt="Chillax Café logo"
+    />
+
     <div class="titles">
       <strong>Chillax Café</strong>
       <span>Point of Sale</span>
     </div>
-    <span class="role-pill" id="role-pill">Cashier</span>
-    <a href="admin.html" class="icon-btn" title="Admin" id="admin-link">
-      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h2v8H3v-8zm7 0h2v8h-2v-8zm7 0h2v8h-2v-8zM3 3h2v6H3V3zm7 0h2v6h-2V3zm7 0h2v6h-2V3z" fill="currentColor"/></svg>
+
+    <span class="role-pill" id="role-pill">
+      Cashier
+    </span>
+
+    <a
+      href="admin.html"
+      class="icon-btn"
+      title="Admin"
+      id="admin-link"
+      aria-label="Admin Dashboard"
+    >
+      <svg
+        class="icon-svg"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          d="M3 13h2v8H3v-8zm7 0h2v8h-2v-8zm7 0h2v8h-2v-8zM3 3h2v6H3V3zm7 0h2v6h-2V3zm7 0h2v6h-2V3z"
+          fill="currentColor"
+        />
+      </svg>
     </a>
-    <button class="icon-btn" id="logout-btn" title="Sign out" aria-label="Sign out">
-      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z" fill="currentColor"/></svg>
+
+    <button
+      type="button"
+      class="icon-btn"
+      id="logout-btn"
+      title="Sign out"
+      aria-label="Sign out"
+    >
+      <svg
+        class="icon-svg"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z"
+          fill="currentColor"
+        />
+      </svg>
     </button>
   </header>
 
+  <!-- MAIN POS LAYOUT -->
   <main class="pos-layout">
-    <section class="menu-pane">
-      <div class="menu-heading"><div><p class="eyebrow">CASHIER · MENU</p><h1>Choose a favorite</h1><p class="section-description">Tap a product to add it to the order.</p></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="menu-search" type="search" placeholder="Search menu..." autocomplete="off" aria-label="Search menu" /></label></div>
-      <div class="menu-result-bar"><span id="item-count">Loading menu...</span></div>
-      <div class="category-tabs" id="category-tabs"></div>
-      <div class="item-grid" id="item-grid"></div>
+
+    <!-- MENU SECTION -->
+    <section
+      class="menu-pane"
+      aria-label="Product menu"
+    >
+
+      <div class="menu-heading">
+        <div>
+          <p class="eyebrow">
+            CASHIER · MENU
+          </p>
+
+          <h1>Choose a favorite</h1>
+
+          <p class="section-description">
+            Tap a product to add it to the current order.
+          </p>
+        </div>
+
+        <label class="search-box">
+          <span aria-hidden="true">⌕</span>
+
+          <input
+            id="menu-search"
+            type="search"
+            placeholder="Search menu..."
+            autocomplete="off"
+            aria-label="Search menu"
+          />
+        </label>
+      </div>
+
+      <div class="menu-result-bar">
+        <span id="item-count">
+          Loading menu...
+        </span>
+      </div>
+
+      <!-- CATEGORY BUTTONS -->
+      <div
+        class="category-tabs"
+        id="category-tabs"
+      ></div>
+
+      <!-- PRODUCTS -->
+      <div
+        class="item-grid"
+        id="item-grid"
+      ></div>
+
     </section>
 
-    <aside class="cart-pane">
+    <!-- CURRENT ORDER SECTION -->
+    <aside
+      class="cart-pane"
+      id="current-order-panel"
+      aria-label="Current order"
+    >
+
+      <!-- ORDER HEADER -->
       <div class="cart-header">
-        <h2>Current order <span class="cart-count" id="cart-count">0</span></h2>
-        <div class="order-no">Order number is assigned at checkout</div>
-      </div>
-      <div class="order-options"><label>Customer / Order name<input id="customer-name" placeholder="Customer name (optional)"></label><label>Order type<select id="order-type"><option value="Dine In">Dine In</option><option value="Take Out">Take Out</option></select></label><label>Payment<select id="payment-method"><option>Cash</option><option>GCash</option></select></label><small>Take out: ₱15 per food item; drinks exempt.</small></div><div class="cart-items" id="cart-items"></div>
-      <div class="cart-footer">
-        <div class="cart-total-row">
-          <span class="label">Total <small id="box-fee-label"></small></span>
-          <span class="amount" id="cart-total">₱0</span>
+        <div class="cart-header-top">
+          <h2>
+            Current Order
+            <span
+              class="cart-count"
+              id="cart-count"
+            >0</span>
+          </h2>
+
+          <button
+            type="button"
+            class="order-close"
+            id="close-current-order"
+            aria-label="Close current order"
+          >
+            &times;
+          </button>
         </div>
-        <button class="btn btn-primary btn-block" id="checkout-btn" disabled>
+
+        <div class="order-no">
+          Order number will be assigned at checkout.
+        </div>
+      </div>
+
+      <!-- CUSTOMER DETAILS -->
+      <div class="order-options">
+
+        <label for="customer-name">
+          Customer / Order Name
+
+          <input
+            type="text"
+            id="customer-name"
+            placeholder="Customer name (optional)"
+            autocomplete="off"
+          />
+        </label>
+
+        <label for="order-type">
+          Order Type
+
+          <select id="order-type">
+            <option value="Dine In">
+              Dine In
+            </option>
+
+            <option value="Take Out">
+              Take Out
+            </option>
+          </select>
+        </label>
+
+        <label for="payment-method">
+          Payment
+
+          <select id="payment-method">
+            <option value="Cash">Cash</option>
+            <option value="GCash">GCash</option>
+          </select>
+        </label>
+
+        <small>
+          Take out: ₱15 per food item;
+          drinks are exempt.
+        </small>
+
+      </div>
+
+      <!-- CURRENT ORDER ITEMS -->
+      <!-- js/pos.js renders selected products here -->
+      <div
+        class="cart-items"
+        id="cart-items"
+        aria-live="polite"
+      >
+        <div class="cart-empty">
+          Tap a product to start a new order.
+        </div>
+      </div>
+
+      <!-- TOTAL AND CHECKOUT -->
+      <div class="cart-footer">
+
+        <div class="cart-total-row">
+          <span class="label">
+            Total
+            <small id="box-fee-label"></small>
+          </span>
+
+          <span
+            class="amount"
+            id="cart-total"
+          >
+            ₱0
+          </span>
+        </div>
+
+        <button
+          type="button"
+          class="btn btn-primary btn-block"
+          id="checkout-btn"
+          disabled
+        >
           Place order &amp; print
         </button>
-        <button class="btn btn-outline btn-block reprint-btn" id="reprint-last-btn" type="button" disabled>Reprint last receipt (58mm)</button>
+
+        <button
+          type="button"
+          class="btn btn-outline btn-block reprint-btn"
+          id="reprint-last-btn"
+          disabled
+        >
+          Reprint last receipt (58mm)
+        </button>
+
       </div>
+
     </aside>
+
   </main>
 
-  <div id="modal-root"></div>
-  <div class="status-banner hidden" role="status" id="connection-banner"></div>
-  <div class="toast hidden" id="toast"></div>
+  <!-- MOBILE ORDER BACKDROP -->
+  <div
+    class="order-backdrop"
+    id="order-backdrop"
+    hidden
+  ></div>
 
-  <!-- Printable area (only visible when printing, see print.css) -->
+  <!-- MOBILE CURRENT ORDER BUTTON -->
+  <button
+    type="button"
+    class="order-mobile-bar"
+    id="mobile-order-toggle"
+    aria-controls="current-order-panel"
+    aria-expanded="false"
+  >
+    <span>
+      <strong>
+        View Current Order
+        (<span id="mobile-cart-count">0</span>)
+      </strong>
+
+      <small>
+        Tap to check items and checkout
+      </small>
+    </span>
+
+    <span
+      class="mobile-order-price"
+      id="mobile-cart-total"
+    >
+      ₱0
+    </span>
+  </button>
+
+  <!-- MODALS -->
+  <div id="modal-root"></div>
+
+  <!-- CONNECTION ERROR -->
+  <div
+    class="status-banner hidden"
+    role="status"
+    id="connection-banner"
+  ></div>
+
+  <!-- NOTIFICATION -->
+  <div
+    class="toast hidden"
+    id="toast"
+  ></div>
+
+  <!-- 58MM PRINT AREA -->
   <div id="print-area"></div>
 
-  <script type="module" src="js/pos.js"></script>
+  <!-- MAIN POS SCRIPT -->
+  <script
+    type="module"
+    src="js/pos.js"
+  ></script>
+
+  <!-- MOBILE CURRENT ORDER CONTROLLER -->
+  <script>
+    (() => {
+
+      const panel = document.getElementById(
+        "current-order-panel"
+      );
+
+      const toggle = document.getElementById(
+        "mobile-order-toggle"
+      );
+
+      const close = document.getElementById(
+        "close-current-order"
+      );
+
+      const backdrop = document.getElementById(
+        "order-backdrop"
+      );
+
+      const count = document.getElementById(
+        "cart-count"
+      );
+
+      const total = document.getElementById(
+        "cart-total"
+      );
+
+      const mobileCount = document.getElementById(
+        "mobile-cart-count"
+      );
+
+      const mobileTotal = document.getElementById(
+        "mobile-cart-total"
+      );
+
+      const mobileScreen = window.matchMedia(
+        "(max-width: 900px)"
+      );
+
+      let previousCount = 0;
+
+      /* OPEN CURRENT ORDER */
+      function openOrder() {
+        if (!mobileScreen.matches) return;
+
+        panel.classList.add("is-open");
+
+        document.body.classList.add(
+          "order-drawer-open"
+        );
+
+        backdrop.hidden = false;
+
+        toggle.setAttribute(
+          "aria-expanded",
+          "true"
+        );
+
+        panel.removeAttribute("aria-hidden");
+
+        close.focus();
+      }
+
+      /* CLOSE CURRENT ORDER */
+      function closeOrder() {
+        panel.classList.remove("is-open");
+
+        document.body.classList.remove(
+          "order-drawer-open"
+        );
+
+        backdrop.hidden = true;
+
+        toggle.setAttribute(
+          "aria-expanded",
+          "false"
+        );
+
+        if (mobileScreen.matches) {
+          panel.setAttribute(
+            "aria-hidden",
+            "true"
+          );
+
+          toggle.focus();
+        } else {
+          panel.removeAttribute(
+            "aria-hidden"
+          );
+        }
+      }
+
+      /* UPDATE MOBILE ORDER COUNT AND TOTAL */
+      function refreshMobileBar() {
+
+        const qty = Math.max(
+          0,
+          parseInt(count.textContent, 10) || 0
+        );
+
+        mobileCount.textContent = qty;
+
+        mobileTotal.textContent =
+          total.textContent || "₱0";
+
+        /* AUTO OPEN WHEN FIRST PRODUCT IS ADDED */
+        if (
+          qty > 0 &&
+          previousCount === 0 &&
+          mobileScreen.matches
+        ) {
+          openOrder();
+        }
+
+        previousCount = qty;
+      }
+
+      /* BUTTON EVENTS */
+      toggle.addEventListener(
+        "click",
+        openOrder
+      );
+
+      close.addEventListener(
+        "click",
+        closeOrder
+      );
+
+      backdrop.addEventListener(
+        "click",
+        closeOrder
+      );
+
+      /* ESCAPE KEY */
+      document.addEventListener(
+        "keydown",
+        event => {
+
+          if (
+            event.key === "Escape" &&
+            panel.classList.contains("is-open") &&
+            !document.getElementById(
+              "modal-root"
+            ).hasChildNodes()
+          ) {
+            closeOrder();
+          }
+
+        }
+      );
+
+      /* SCREEN SIZE CHANGE */
+      mobileScreen.addEventListener(
+        "change",
+        () => {
+
+          if (!mobileScreen.matches) {
+            closeOrder();
+          } else if (
+            !panel.classList.contains("is-open")
+          ) {
+            panel.setAttribute(
+              "aria-hidden",
+              "true"
+            );
+          }
+
+        }
+      );
+
+      /* WATCH CART UPDATES FROM js/pos.js */
+      new MutationObserver(
+        refreshMobileBar
+      ).observe(count, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+
+      new MutationObserver(
+        refreshMobileBar
+      ).observe(total, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+
+      if (mobileScreen.matches) {
+        panel.setAttribute(
+          "aria-hidden",
+          "true"
+        );
+      }
+
+      refreshMobileBar();
+
+    })();
+  </script>
+
 </body>
 </html>
