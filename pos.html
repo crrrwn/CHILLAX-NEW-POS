@@ -11,21 +11,39 @@
   <link rel="stylesheet" href="css/print.css" />
 
   <style>
+    /* GENERAL */
     @media screen {
-      .pos-layout {
-        min-width: 0;
-      }
-
-      .menu-pane {
-        min-width: 0;
-      }
-
+      .pos-layout,
+      .menu-pane,
       .cart-pane {
         min-width: 0;
       }
 
+      .cart-pane {
+        display: flex;
+        flex-direction: column;
+      }
+
       .cart-items {
+        flex: 1 1 auto;
         min-height: 0;
+        overflow-y: auto;
+      }
+
+      .cart-footer,
+      .cart-header {
+        flex-shrink: 0;
+      }
+
+      .cart-header-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .cart-header-top h2 {
+        margin: 0;
       }
 
       .order-close,
@@ -35,76 +53,96 @@
       }
 
       .order-close {
+        width: 38px;
+        height: 38px;
+        flex: 0 0 38px;
         border: 0;
-        background: #f7f2ee;
-        color: #50362b;
         border-radius: 10px;
+        background: #f4efea;
+        color: #50362b;
+        font-size: 25px;
         cursor: pointer;
-      }
-
-      .cart-header-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-      }
-
-      .cart-header h2 {
-        margin: 0;
-      }
-
-      .order-options label {
-        min-width: 0;
-      }
-
-      .order-options input,
-      .order-options select {
-        max-width: 100%;
       }
     }
 
-    /* DESKTOP */
-    @media screen and (min-width: 901px) {
+    /*
+      DESKTOP AND TABLET LANDSCAPE
+      Menu left, Current Order right.
+    */
+    @media screen and (min-width: 901px),
+           screen and (min-width: 700px) and (orientation: landscape) {
+
       .pos-layout {
-        height: calc(100dvh - 68px);
-        min-height: 500px;
+        display: grid !important;
+        grid-template-columns:
+          minmax(0, 1fr)
+          clamp(315px, 35%, 390px) !important;
+
+        height: calc(100dvh - 68px) !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+      }
+
+      .menu-pane {
+        min-width: 0;
+        min-height: 0;
+        overflow-y: auto !important;
+        padding-bottom: 24px !important;
       }
 
       .cart-pane {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        overflow: hidden;
+        display: flex !important;
+        position: static !important;
+        inset: auto !important;
+        width: 100% !important;
+        max-width: none !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        transform: none !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        overflow: hidden !important;
       }
 
       .cart-items {
-        flex: 1 1 auto;
-        overflow-y: auto;
+        flex: 1 1 auto !important;
+        max-height: none !important;
+        overflow-y: auto !important;
       }
 
-      .cart-footer {
-        flex-shrink: 0;
+      .order-close,
+      .order-mobile-bar,
+      .order-backdrop {
+        display: none !important;
       }
     }
 
-    /* MOBILE & TABLET */
-    @media screen and (max-width: 900px) {
+    /*
+      MOBILE AND PORTRAIT TABLET
+      Slide-out Current Order panel.
+    */
+    @media screen and (max-width: 699px),
+           screen and (max-width: 900px) and (orientation: portrait) {
+
       .pos-layout {
         display: block !important;
         height: auto !important;
         min-height: calc(100dvh - 62px) !important;
+        overflow: visible !important;
       }
 
       .menu-pane {
         overflow: visible !important;
-        padding-bottom: 112px !important;
+        padding-bottom: 105px !important;
       }
 
       .order-backdrop:not([hidden]) {
-        display: block;
+        display: block !important;
         position: fixed;
         inset: 0;
-        background: rgba(29, 21, 18, 0.58);
+        background: rgba(30, 20, 15, 0.58);
         z-index: 80;
       }
 
@@ -113,47 +151,43 @@
         flex-direction: column;
         position: fixed !important;
         inset: 0 0 0 auto !important;
-        width: min(100%, 430px);
-        max-width: 100%;
+        width: min(100%, 430px) !important;
+        max-width: 100% !important;
         height: 100dvh !important;
         min-height: 0 !important;
         margin: 0 !important;
         border: 0 !important;
-        border-radius: 20px 0 0 20px !important;
-        box-shadow: -10px 0 40px rgba(32, 21, 17, 0.22);
+        border-radius: 18px 0 0 18px !important;
         z-index: 90;
-        overflow: hidden;
-        transform: translateX(105%);
-        visibility: hidden;
-        pointer-events: none;
+        background: #fff;
+        box-shadow: -10px 0 36px rgba(0,0,0,.23);
+        transform: translateX(105%) !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        overflow: hidden !important;
         transition:
-          transform 0.22s ease,
-          visibility 0.22s ease;
+          transform .2s ease,
+          visibility .2s ease;
       }
 
       .cart-pane.is-open {
-        transform: translateX(0);
-        visibility: visible;
-        pointer-events: auto;
+        transform: translateX(0) !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
       }
 
       .cart-header {
-        flex-shrink: 0;
-        padding: 15px 18px 12px;
+        padding: 13px 16px 10px;
       }
 
       .order-close {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
-        height: 36px;
-        font-size: 24px;
       }
 
       .order-options {
-        flex-shrink: 0;
-        padding: 12px 18px;
+        padding: 11px 16px;
         gap: 8px;
       }
 
@@ -163,55 +197,51 @@
       }
 
       .cart-items {
-        flex: 1 1 auto;
-        min-height: 60px !important;
+        flex: 1 1 auto !important;
+        min-height: 70px !important;
         max-height: none !important;
-        overflow-y: auto;
-        padding: 4px 18px;
+        overflow-y: auto !important;
+        padding: 4px 16px;
       }
 
       .cart-footer {
-        flex-shrink: 0;
-        padding:
-          12px 18px
-          max(15px, env(safe-area-inset-bottom));
+        padding: 12px 16px
+          max(14px, env(safe-area-inset-bottom));
       }
 
-      /* CURRENT ORDER BUTTON */
       .order-mobile-bar {
-        display: flex;
+        display: flex !important;
         align-items: center;
         justify-content: space-between;
+        gap: 12px;
         position: fixed;
-        bottom: max(12px, env(safe-area-inset-bottom));
         left: 12px;
         right: 12px;
-        width: calc(100% - 24px);
-        min-height: 66px;
-        padding: 12px 17px;
-        background: #563626;
-        color: #fff;
+        bottom: max(12px, env(safe-area-inset-bottom));
+        z-index: 70;
+        min-height: 64px;
+        padding: 11px 17px;
         border: 0;
         border-radius: 16px;
-        box-shadow: 0 12px 32px rgba(38, 23, 18, 0.25);
+        background: #563626;
+        box-shadow: 0 12px 28px rgba(31,20,15,.25);
+        color: #fff;
         text-align: left;
         cursor: pointer;
-        z-index: 70;
       }
 
-      .order-mobile-bar strong {
+      .order-mobile-bar strong,
+      .order-mobile-bar small {
         display: block;
-        font-size: 15px;
       }
 
       .order-mobile-bar small {
-        display: block;
+        opacity: .8;
         margin-top: 3px;
-        opacity: 0.82;
       }
 
-      .order-mobile-bar .mobile-order-price {
-        font-size: 19px;
+      .mobile-order-price {
+        font-size: 18px;
         font-weight: 800;
         white-space: nowrap;
       }
@@ -221,33 +251,18 @@
       }
     }
 
-    @media screen and (max-width: 380px) {
-      .cart-header {
-        padding: 12px;
-      }
+    /* SHORT MOBILE LANDSCAPE */
+    @media screen and (max-width: 699px)
+      and (orientation: landscape)
+      and (max-height: 500px) {
 
-      .order-options {
-        padding: 10px 12px;
-      }
-
-      .cart-items {
-        padding: 4px 12px;
-      }
-
-      .cart-footer {
-        padding: 10px 12px 12px;
-      }
-    }
-
-    @media screen and (max-height: 590px)
-      and (max-width: 900px) {
       .cart-pane {
-        overflow-y: auto;
+        overflow-y: auto !important;
       }
 
       .cart-items {
-        flex: 0 0 auto;
-        overflow: visible;
+        flex: 0 0 auto !important;
+        min-height: 80px !important;
       }
 
       .cart-footer {
@@ -256,13 +271,7 @@
       }
     }
 
-    @media screen and (prefers-reduced-motion: reduce) {
-      .cart-pane {
-        transition: none !important;
-      }
-    }
-
-    /* KEEP RECEIPT PRINTING CLEAN */
+    /* KEEP 58MM PRINT LAYOUT */
     @media print {
       .order-mobile-bar,
       .order-backdrop,
@@ -275,7 +284,7 @@
 
 <body>
 
-  <!-- HEADER -->
+  <!-- POS HEADER -->
   <header class="topbar">
     <img
       class="logo"
@@ -295,15 +304,11 @@
     <a
       href="admin.html"
       class="icon-btn"
-      title="Admin"
       id="admin-link"
-      aria-label="Admin Dashboard"
+      title="Admin"
+      aria-label="Admin dashboard"
     >
-      <svg
-        class="icon-svg"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-      >
+      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true">
         <path
           d="M3 13h2v8H3v-8zm7 0h2v8h-2v-8zm7 0h2v8h-2v-8zM3 3h2v6H3V3zm7 0h2v6h-2V3zm7 0h2v6h-2V3z"
           fill="currentColor"
@@ -318,11 +323,7 @@
       title="Sign out"
       aria-label="Sign out"
     >
-      <svg
-        class="icon-svg"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-      >
+      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true">
         <path
           d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z"
           fill="currentColor"
@@ -331,23 +332,16 @@
     </button>
   </header>
 
-  <!-- MAIN POS LAYOUT -->
+  <!-- POS MAIN -->
   <main class="pos-layout">
 
-    <!-- MENU SECTION -->
-    <section
-      class="menu-pane"
-      aria-label="Product menu"
-    >
+    <!-- PRODUCT MENU -->
+    <section class="menu-pane" aria-label="Product menu">
 
       <div class="menu-heading">
         <div>
-          <p class="eyebrow">
-            CASHIER · MENU
-          </p>
-
+          <p class="eyebrow">CASHIER · MENU</p>
           <h1>Choose a favorite</h1>
-
           <p class="section-description">
             Tap a product to add it to the current order.
           </p>
@@ -355,7 +349,6 @@
 
         <label class="search-box">
           <span aria-hidden="true">⌕</span>
-
           <input
             id="menu-search"
             type="search"
@@ -367,41 +360,28 @@
       </div>
 
       <div class="menu-result-bar">
-        <span id="item-count">
-          Loading menu...
-        </span>
+        <span id="item-count">Loading menu...</span>
       </div>
 
-      <!-- CATEGORY BUTTONS -->
-      <div
-        class="category-tabs"
-        id="category-tabs"
-      ></div>
+      <div class="category-tabs" id="category-tabs"></div>
 
-      <!-- PRODUCTS -->
-      <div
-        class="item-grid"
-        id="item-grid"
-      ></div>
+      <div class="item-grid" id="item-grid"></div>
 
     </section>
 
-    <!-- CURRENT ORDER SECTION -->
+    <!-- CURRENT ORDER / PREVIEW ORDER -->
     <aside
       class="cart-pane"
       id="current-order-panel"
       aria-label="Current order"
     >
 
-      <!-- ORDER HEADER -->
       <div class="cart-header">
         <div class="cart-header-top">
+
           <h2>
             Current Order
-            <span
-              class="cart-count"
-              id="cart-count"
-            >0</span>
+            <span class="cart-count" id="cart-count">0</span>
           </h2>
 
           <button
@@ -419,15 +399,14 @@
         </div>
       </div>
 
-      <!-- CUSTOMER DETAILS -->
+      <!-- CUSTOMER INFORMATION -->
       <div class="order-options">
 
         <label for="customer-name">
           Customer / Order Name
-
           <input
-            type="text"
             id="customer-name"
+            type="text"
             placeholder="Customer name (optional)"
             autocomplete="off"
           />
@@ -435,21 +414,14 @@
 
         <label for="order-type">
           Order Type
-
           <select id="order-type">
-            <option value="Dine In">
-              Dine In
-            </option>
-
-            <option value="Take Out">
-              Take Out
-            </option>
+            <option value="Dine In">Dine In</option>
+            <option value="Take Out">Take Out</option>
           </select>
         </label>
 
         <label for="payment-method">
           Payment
-
           <select id="payment-method">
             <option value="Cash">Cash</option>
             <option value="GCash">GCash</option>
@@ -457,25 +429,23 @@
         </label>
 
         <small>
-          Take out: ₱15 per food item;
-          drinks are exempt.
+          Take out: ₱15 per food item; drinks are exempt.
         </small>
 
       </div>
 
-      <!-- CURRENT ORDER ITEMS -->
-      <!-- js/pos.js renders selected products here -->
+      <!-- ORDER PRODUCTS -->
       <div
         class="cart-items"
         id="cart-items"
         aria-live="polite"
       >
         <div class="cart-empty">
-          Tap a product to start a new order.
+          Tap a menu item to start a new order.
         </div>
       </div>
 
-      <!-- TOTAL AND CHECKOUT -->
+      <!-- ORDER TOTAL -->
       <div class="cart-footer">
 
         <div class="cart-total-row">
@@ -484,12 +454,7 @@
             <small id="box-fee-label"></small>
           </span>
 
-          <span
-            class="amount"
-            id="cart-total"
-          >
-            ₱0
-          </span>
+          <span class="amount" id="cart-total">₱0</span>
         </div>
 
         <button
@@ -511,19 +476,18 @@
         </button>
 
       </div>
-
     </aside>
 
   </main>
 
-  <!-- MOBILE ORDER BACKDROP -->
+  <!-- MOBILE BACKDROP -->
   <div
     class="order-backdrop"
     id="order-backdrop"
     hidden
   ></div>
 
-  <!-- MOBILE CURRENT ORDER BUTTON -->
+  <!-- MOBILE ORDER BUTTON -->
   <button
     type="button"
     class="order-mobile-bar"
@@ -536,10 +500,7 @@
         View Current Order
         (<span id="mobile-cart-count">0</span>)
       </strong>
-
-      <small>
-        Tap to check items and checkout
-      </small>
+      <small>Tap to review and checkout</small>
     </span>
 
     <span
@@ -550,35 +511,22 @@
     </span>
   </button>
 
-  <!-- MODALS -->
+  <!-- POS ELEMENTS -->
   <div id="modal-root"></div>
-
-  <!-- CONNECTION ERROR -->
   <div
     class="status-banner hidden"
     role="status"
     id="connection-banner"
   ></div>
-
-  <!-- NOTIFICATION -->
-  <div
-    class="toast hidden"
-    id="toast"
-  ></div>
-
-  <!-- 58MM PRINT AREA -->
+  <div class="toast hidden" id="toast"></div>
   <div id="print-area"></div>
 
-  <!-- MAIN POS SCRIPT -->
-  <script
-    type="module"
-    src="js/pos.js"
-  ></script>
+  <!-- POS FUNCTIONS -->
+  <script type="module" src="js/pos.js"></script>
 
-  <!-- MOBILE CURRENT ORDER CONTROLLER -->
+  <!-- RESPONSIVE ORDER CONTROLLER -->
   <script>
     (() => {
-
       const panel = document.getElementById(
         "current-order-panel"
       );
@@ -611,15 +559,17 @@
         "mobile-cart-total"
       );
 
-      const mobileScreen = window.matchMedia(
-        "(max-width: 900px)"
+      // Drawer only for phones and portrait tablets.
+      // Tablet landscape stays side-by-side.
+      const drawerMode = window.matchMedia(
+        "(max-width: 699px), " +
+        "(max-width: 900px) and (orientation: portrait)"
       );
 
       let previousCount = 0;
 
-      /* OPEN CURRENT ORDER */
       function openOrder() {
-        if (!mobileScreen.matches) return;
+        if (!drawerMode.matches) return;
 
         panel.classList.add("is-open");
 
@@ -627,6 +577,7 @@
           "order-drawer-open"
         );
 
+        panel.removeAttribute("aria-hidden");
         backdrop.hidden = false;
 
         toggle.setAttribute(
@@ -634,13 +585,14 @@
           "true"
         );
 
-        panel.removeAttribute("aria-hidden");
-
         close.focus();
       }
 
-      /* CLOSE CURRENT ORDER */
-      function closeOrder() {
+      function closeOrder(restoreFocus = true) {
+        const wasOpen = panel.classList.contains(
+          "is-open"
+        );
+
         panel.classList.remove("is-open");
 
         document.body.classList.remove(
@@ -654,38 +606,37 @@
           "false"
         );
 
-        if (mobileScreen.matches) {
+        if (drawerMode.matches) {
           panel.setAttribute(
             "aria-hidden",
             "true"
           );
 
-          toggle.focus();
+          if (wasOpen && restoreFocus) {
+            toggle.focus();
+          }
         } else {
-          panel.removeAttribute(
-            "aria-hidden"
-          );
+          panel.removeAttribute("aria-hidden");
         }
       }
 
-      /* UPDATE MOBILE ORDER COUNT AND TOTAL */
       function refreshMobileBar() {
-
         const qty = Math.max(
           0,
           parseInt(count.textContent, 10) || 0
         );
 
-        mobileCount.textContent = qty;
+        mobileCount.textContent = String(qty);
 
         mobileTotal.textContent =
           total.textContent || "₱0";
 
-        /* AUTO OPEN WHEN FIRST PRODUCT IS ADDED */
+        // Automatically preview the first added item
+        // when the drawer mode is active.
         if (
-          qty > 0 &&
+          drawerMode.matches &&
           previousCount === 0 &&
-          mobileScreen.matches
+          qty > 0
         ) {
           openOrder();
         }
@@ -693,7 +644,6 @@
         previousCount = qty;
       }
 
-      /* BUTTON EVENTS */
       toggle.addEventListener(
         "click",
         openOrder
@@ -701,69 +651,54 @@
 
       close.addEventListener(
         "click",
-        closeOrder
+        () => closeOrder()
       );
 
       backdrop.addEventListener(
         "click",
-        closeOrder
+        () => closeOrder()
       );
 
-      /* ESCAPE KEY */
       document.addEventListener(
         "keydown",
         event => {
-
           if (
             event.key === "Escape" &&
             panel.classList.contains("is-open") &&
-            !document.getElementById(
-              "modal-root"
-            ).hasChildNodes()
+            !document.querySelector(
+              "#modal-root .modal-backdrop"
+            )
           ) {
             closeOrder();
           }
-
         }
       );
 
-      /* SCREEN SIZE CHANGE */
-      mobileScreen.addEventListener(
+      // Restore the permanent panel when
+      // rotating a tablet to landscape.
+      drawerMode.addEventListener(
         "change",
-        () => {
-
-          if (!mobileScreen.matches) {
-            closeOrder();
-          } else if (
-            !panel.classList.contains("is-open")
-          ) {
-            panel.setAttribute(
-              "aria-hidden",
-              "true"
-            );
-          }
-
-        }
+        () => closeOrder(false)
       );
 
-      /* WATCH CART UPDATES FROM js/pos.js */
+      // Watch updates from js/pos.js.
       new MutationObserver(
         refreshMobileBar
       ).observe(count, {
         childList: true,
-        subtree: true,
-        characterData: true
+        characterData: true,
+        subtree: true
       });
 
       new MutationObserver(
         refreshMobileBar
       ).observe(total, {
         childList: true,
-        subtree: true,
-        characterData: true
+        characterData: true,
+        subtree: true
       });
 
-      if (mobileScreen.matches) {
+      if (drawerMode.matches) {
         panel.setAttribute(
           "aria-hidden",
           "true"
@@ -771,7 +706,6 @@
       }
 
       refreshMobileBar();
-
     })();
   </script>
 

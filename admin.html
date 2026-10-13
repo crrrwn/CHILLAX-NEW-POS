@@ -1,156 +1,517 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>Chillax Café POS — Admin</title>
-<link rel="icon" href="assets/logo.jpg" />
-<link rel="stylesheet" href="css/style.css" />
-<link rel="stylesheet" href="css/print.css" />
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1"
+  />
+  <title>Chillax Café POS — Admin</title>
+
+  <link rel="icon" href="assets/logo.jpg" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/print.css" />
+
+  <style>
+    /* FIXED ADMIN HEADER */
+    @media screen {
+      body.admin-page {
+        --header-height: 68px;
+        padding-top: var(--header-height);
+      }
+
+      body.admin-page > header.topbar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0;
+        right: 0;
+        width: 100%;
+        min-height: var(--header-height);
+        z-index: 1000;
+      }
+
+      /* Content starts below fixed header */
+      body.admin-page .admin-layout {
+        min-height: calc(
+          100dvh - var(--header-height)
+        );
+      }
+
+      body.admin-page .admin-main {
+        overflow-y: visible !important;
+        min-width: 0;
+      }
+
+      /* Sidebar remains below fixed header */
+      body.admin-page .admin-nav {
+        position: sticky !important;
+        top: var(--header-height) !important;
+        align-self: flex-start;
+        max-height: calc(
+          100dvh - var(--header-height)
+        );
+        overflow-y: auto;
+      }
+
+      /* Dialogs should appear above the header */
+      body.admin-page #modal-root .modal-backdrop {
+        z-index: 1100 !important;
+      }
+
+      body.admin-page .status-banner {
+        z-index: 1200;
+      }
+    }
+
+    /* TABLET / MOBILE NAVIGATION */
+    @media screen and (max-width: 900px) {
+      body.admin-page .admin-nav {
+        align-self: stretch;
+        max-height: none;
+        overflow-x: auto !important;
+        overflow-y: hidden;
+      }
+    }
+
+    /* SMALL PHONE HEADER */
+    @media screen and (max-width: 650px) {
+      body.admin-page {
+        --header-height: 62px;
+      }
+    }
+  </style>
 </head>
-<body>
+
+<body class="admin-page">
+
+  <!-- FIXED ADMIN HEADER -->
   <header class="topbar">
-    <img class="logo" src="assets/logo.jpg" alt="Chillax logo" />
+    <img
+      class="logo"
+      src="assets/logo.jpg"
+      alt="Chillax logo"
+    />
+
     <div class="titles">
       <strong>Chillax Café</strong>
       <span>Admin</span>
     </div>
+
     <span class="role-pill">Admin</span>
-    <a href="pos.html" class="icon-btn" title="Go to cashier screen">
-      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 4v12h10V6H7zm2 2h6v2H9V8zm0 4h6v2H9v-2z" fill="currentColor"/></svg>
+
+    <a
+      href="pos.html"
+      class="icon-btn"
+      title="Go to cashier screen"
+      aria-label="Go to cashier"
+    >
+      <svg
+        class="icon-svg"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 4v12h10V6H7zm2 2h6v2H9V8zm0 4h6v2H9v-2z"
+          fill="currentColor"
+        />
+      </svg>
     </a>
-    <button class="icon-btn" id="logout-btn" title="Sign out" aria-label="Sign out">
-      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z" fill="currentColor"/></svg>
+
+    <button
+      type="button"
+      class="icon-btn"
+      id="logout-btn"
+      title="Sign out"
+      aria-label="Sign out"
+    >
+      <svg
+        class="icon-svg"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z"
+          fill="currentColor"
+        />
+      </svg>
     </button>
   </header>
 
+  <!-- ADMIN LAYOUT -->
   <main class="admin-layout">
+
+    <!-- ADMIN NAVIGATION -->
     <nav class="admin-nav">
-      <button class="active" data-tab="dashboard">
-        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h2v8H3v-8zm7 0h2v8h-2v-8zm7 0h2v8h-2v-8zM3 3h2v6H3V3zm7 0h2v6h-2V3zm7 0h2v6h-2V3z" fill="currentColor"/></svg>
+
+      <button
+        type="button"
+        class="active"
+        data-tab="dashboard"
+      >
+        <svg
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            d="M3 13h2v8H3v-8zm7 0h2v8h-2v-8zm7 0h2v8h-2v-8zM3 3h2v6H3V3zm7 0h2v6h-2V3zm7 0h2v6h-2V3z"
+            fill="currentColor"
+          />
+        </svg>
         <span>Sales</span>
       </button>
-      <button data-tab="menu">
-        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" fill="currentColor"/></svg>
+
+      <button
+        type="button"
+        data-tab="menu"
+      >
+        <svg
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"
+            fill="currentColor"
+          />
+        </svg>
         <span>Menu</span>
       </button>
-      <button data-tab="finances"><span>₱</span><span>Expenses & Cash</span></button>
-      <button data-tab="settings">
-        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 13a7.9 7.9 0 0 0 .1-2l2-1.6-2-3.4-2.4 1a8.1 8.1 0 0 0-1.7-1L15 3h-6l-.4 2.4a8.1 8.1 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.9 7.9 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1L9 21h6l.4-2.4c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.6z" fill="currentColor"/></svg>
+
+      <button
+        type="button"
+        data-tab="finances"
+      >
+        <span>₱</span>
+        <span>Expenses &amp; Cash</span>
+      </button>
+
+      <button
+        type="button"
+        data-tab="settings"
+      >
+        <svg
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 13a7.9 7.9 0 0 0 .1-2l2-1.6-2-3.4-2.4 1a8.1 8.1 0 0 0-1.7-1L15 3h-6l-.4 2.4a8.1 8.1 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.9 7.9 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1L9 21h6l.4-2.4c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.6z"
+            fill="currentColor"
+          />
+        </svg>
         <span>Settings</span>
       </button>
     </nav>
 
+    <!-- ADMIN CONTENT -->
     <section class="admin-main">
 
-      <!-- ===== DASHBOARD ===== -->
+      <!-- DASHBOARD -->
       <div id="section-dashboard">
+
         <div class="section-head dashboard-section-head">
-          <div><p class="eyebrow">ADMIN · ANALYTICS</p><h2>Sales overview</h2><p class="section-description">Live reporting from completed orders.</p></div>
+          <div>
+            <p class="eyebrow">ADMIN · ANALYTICS</p>
+            <h2>Sales overview</h2>
+            <p class="section-description">
+              Live reporting from completed orders.
+            </p>
+          </div>
+
           <div class="dashboard-filters">
+
             <div class="range-tabs">
-              <button class="active" data-range="today">Today</button>
-              <button data-range="week">This week</button>
-              <button data-range="month">This month</button>
-              <button data-range="all">All time</button>
+              <button type="button" class="active" data-range="today">
+                Today
+              </button>
+              <button type="button" data-range="week">
+                This week
+              </button>
+              <button type="button" data-range="month">
+                This month
+              </button>
+              <button type="button" data-range="all">
+                All time
+              </button>
             </div>
+
             <div class="date-filter">
               <label class="date-field">
                 <span class="field-label">From</span>
                 <input type="date" id="date-from" />
               </label>
+
               <label class="date-field">
                 <span class="field-label">To</span>
                 <input type="date" id="date-to" />
               </label>
-              <button class="btn btn-sm btn-outline" type="button" id="date-filter-apply">Apply</button>
-              <button class="btn btn-sm btn-outline" type="button" id="date-filter-clear">Clear</button>
+
+              <button
+                class="btn btn-sm btn-outline"
+                type="button"
+                id="date-filter-apply"
+              >
+                Apply
+              </button>
+
+              <button
+                class="btn btn-sm btn-outline"
+                type="button"
+                id="date-filter-clear"
+              >
+                Clear
+              </button>
             </div>
+
           </div>
         </div>
 
+        <!-- SALES CARDS -->
         <div class="stat-grid">
+
           <div class="stat-card">
             <div class="label">Total sales</div>
             <div class="value" id="stat-sales">₱0</div>
           </div>
+
           <div class="stat-card">
             <div class="label">Orders</div>
             <div class="value" id="stat-orders">0</div>
           </div>
+
           <div class="stat-card">
             <div class="label">Average ticket</div>
             <div class="value" id="stat-avg">₱0</div>
           </div>
+
         </div>
 
-        <div class="card"><h3>Sales by category</h3><div id="category-sales" class="category-sales"></div></div>
+        <!-- CATEGORY SALES -->
+        <div class="card">
+          <h3>Sales by category</h3>
+          <div
+            id="category-sales"
+            class="category-sales"
+          ></div>
+        </div>
+
+        <!-- BEST SELLERS -->
         <div class="card" style="margin-bottom:22px;">
-          <h3 style="margin-bottom:14px;color:var(--brown-dark);">Best sellers</h3>
+          <h3 style="margin-bottom:14px;color:var(--brown-dark);">
+            Best sellers
+          </h3>
           <div id="best-sellers"></div>
         </div>
 
+        <!-- FULL SALES BREAKDOWN -->
         <div class="card" style="margin-bottom:22px;">
-          <h3 style="margin-bottom:14px;color:var(--brown-dark);">Full breakdown, by item</h3>
-          <div class="table-scroll-wrap"><table class="data-table">
-            <thead><tr><th>Item</th><th>Qty sold</th><th>Revenue</th></tr></thead>
-            <tbody id="sales-table-body"></tbody>
-          </table></div>
-          <div class="table-pagination" id="sales-table-pagination"></div>
+          <h3 style="margin-bottom:14px;color:var(--brown-dark);">
+            Full breakdown, by item
+          </h3>
+
+          <div class="table-scroll-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Qty sold</th>
+                  <th>Revenue</th>
+                </tr>
+              </thead>
+
+              <tbody id="sales-table-body"></tbody>
+            </table>
+          </div>
+
+          <div
+            class="table-pagination"
+            id="sales-table-pagination"
+          ></div>
         </div>
 
+        <!-- RECENT ORDERS -->
         <div class="card">
-          <h3 style="margin-bottom:14px;color:var(--brown-dark);">Recent orders</h3>
-          <div class="table-scroll-wrap"><table class="data-table">
-            <thead><tr><th>#</th><th>Time</th><th>Items</th><th>Total</th><th>Actions</th></tr></thead>
-            <tbody id="recent-orders-body"></tbody>
-          </table></div>
-          <div class="table-pagination" id="recent-orders-pagination"></div>
+          <h3 style="margin-bottom:14px;color:var(--brown-dark);">
+            Recent orders
+          </h3>
+
+          <div class="table-scroll-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Time</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody id="recent-orders-body"></tbody>
+            </table>
+          </div>
+
+          <div
+            class="table-pagination"
+            id="recent-orders-pagination"
+          ></div>
         </div>
+
       </div>
 
-      <!-- ===== MENU ===== -->
+      <!-- MENU MANAGEMENT -->
       <div id="section-menu" class="hidden">
+
         <div class="section-head menu-section-head">
           <div>
-            <p class="eyebrow">ADMIN · CATALOG</p><h2>Menu management</h2>
-            <p class="menu-section-intro">Changes here update the cashier screen instantly — no app restart needed.</p>
+            <p class="eyebrow">ADMIN · CATALOG</p>
+            <h2>Menu management</h2>
+            <p class="menu-section-intro">
+              Changes here update the cashier screen instantly —
+              no app restart needed.
+            </p>
           </div>
-          <button class="btn btn-primary" id="add-category-btn">
-            <span class="btn-icon">+</span> Add category
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="add-category-btn"
+          >
+            <span class="btn-icon">+</span>
+            Add category
           </button>
         </div>
-        <div id="menu-admin-root" class="menu-admin-root"></div>
+
+        <div
+          id="menu-admin-root"
+          class="menu-admin-root"
+        ></div>
+
       </div>
 
-      <div id="section-finances" class="hidden"><div class="section-head"><div><p class="eyebrow">ADMIN · FINANCES</p><h2>Expenses & Cash on Hand</h2></div></div><div class="finance-grid"><div class="card"><h3>Expenses</h3><button class="btn btn-primary" data-finance-add="expenses">+ Add Expense</button><div id="expenses-list"></div></div><div class="card"><h3>Cash on Hand</h3><button class="btn btn-primary" data-finance-add="cashEntries">+ Add Cash Entry</button><div id="cashEntries-list"></div></div></div></div>
-      <!-- ===== SETTINGS ===== -->
+      <!-- FINANCES -->
+      <div id="section-finances" class="hidden">
+
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">ADMIN · FINANCES</p>
+            <h2>Expenses &amp; Cash on Hand</h2>
+          </div>
+        </div>
+
+        <div class="finance-grid">
+
+          <div class="card">
+            <h3>Expenses</h3>
+
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-finance-add="expenses"
+            >
+              + Add Expense
+            </button>
+
+            <div id="expenses-list"></div>
+          </div>
+
+          <div class="card">
+            <h3>Cash on Hand</h3>
+
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-finance-add="cashEntries"
+            >
+              + Add Cash Entry
+            </button>
+
+            <div id="cashEntries-list"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
       <div id="section-settings" class="hidden">
-        <div class="section-head"><div><p class="eyebrow">ADMIN · SECURITY</p><h2>Settings</h2></div></div>
+
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">ADMIN · SECURITY</p>
+            <h2>Settings</h2>
+          </div>
+        </div>
+
         <div class="card" style="max-width:420px;">
-          <h3 style="margin-bottom:14px;color:var(--brown-dark);">Login PINs</h3>
+
+          <h3 style="margin-bottom:14px;color:var(--brown-dark);">
+            Login PINs
+          </h3>
+
           <div class="modal-form">
+
             <div class="field">
               <span class="field-label">Admin PIN</span>
-              <input type="password" id="admin-pin-input" inputmode="numeric" minlength="4" maxlength="6" autocomplete="new-password" />
+              <input
+                type="password"
+                id="admin-pin-input"
+                inputmode="numeric"
+                minlength="4"
+                maxlength="6"
+                autocomplete="new-password"
+              />
             </div>
+
             <div class="field">
               <span class="field-label">Cashier PIN</span>
-              <input type="password" id="staff-pin-input" inputmode="numeric" minlength="4" maxlength="6" autocomplete="new-password" />
+              <input
+                type="password"
+                id="staff-pin-input"
+                inputmode="numeric"
+                minlength="4"
+                maxlength="6"
+                autocomplete="new-password"
+              />
             </div>
+
           </div>
-          <button class="btn btn-primary" id="save-pins-btn">Save PINs</button>
-          <div id="settings-msg" style="margin-top:10px;font-size:.85rem;font-weight:700;"></div>
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="save-pins-btn"
+          >
+            Save PINs
+          </button>
+
+          <div
+            id="settings-msg"
+            style="margin-top:10px;font-size:.85rem;font-weight:700;"
+          ></div>
+
         </div>
       </div>
 
     </section>
   </main>
 
+  <!-- ADMIN MODALS -->
   <div id="modal-root"></div>
-  <div id="print-area"></div>
-  <div class="status-banner hidden" id="connection-banner" role="status"></div>
 
+  <!-- 58MM PRINT AREA -->
+  <div id="print-area"></div>
+
+  <!-- CONNECTION STATUS -->
+  <div
+    class="status-banner hidden"
+    id="connection-banner"
+    role="status"
+  ></div>
+
+  <!-- ADMIN FUNCTIONS -->
   <script type="module" src="js/admin.js"></script>
+
 </body>
 </html>
