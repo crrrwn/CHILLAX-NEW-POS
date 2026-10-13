@@ -1,0 +1,48 @@
+/* CHILLAX thermal receipts: 58 mm physical roll.
+   In the browser print dialog/Windows printer driver choose 58mm / Roll / Receipt,
+   100% scaling, margins NONE, headers/footers OFF. A browser cannot force the
+   printer driver's paper configuration; @page:auto honors the configured roll. */
+@page { size: auto; margin: 0; }
+
+@media screen {
+  #print-area { display: none !important; }
+}
+@media print {
+  html, body { width: 58mm !important; min-width: 58mm !important; margin: 0 !important;
+    padding: 0 !important; background: white !important; color: black !important; }
+  body > :not(#print-area) { display: none !important; }
+  #print-area { display: block !important; position: static !important;
+    width: 58mm !important; margin: 0 !important; padding: 0 !important;
+    background: white !important; color: black !important; }
+  .receipt, .receipt * { box-sizing: border-box !important; color: black !important;
+    text-shadow: none !important; box-shadow: none !important; }
+  .receipt { width: 48mm !important; max-width: 48mm !important;
+    margin: 0 auto !important; padding: 2mm 0 3mm !important;
+    font: 8pt/1.28 Arial, sans-serif !important; overflow: visible !important;
+    overflow-wrap: anywhere; break-inside: avoid-page; }
+  .receipt:not(:last-child) { break-after: page; page-break-after: always; }
+  .receipt h1 { margin: 0 0 1.5mm; font: bold 11pt/1.2 Arial, sans-serif !important; }
+  .receipt .center, .receipt .copy-label, .receipt .footer-note { text-align: center; }
+  .receipt .logo-print { display: block; margin: 0 auto 1.5mm; width: 15mm;
+    height: 15mm; object-fit: cover; filter: grayscale(1); border-radius: 50%; }
+  .receipt .sub { font-size: 7pt !important; margin: 0 0 .6mm; }
+  .receipt .rule { border-top: 1px dashed black; margin: 2mm 0; }
+  .receipt .copy-label { font-weight: bold; font-size: 8pt; margin: 1.5mm 0; }
+  .receipt .meta-row { display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 1.5mm; margin: .7mm 0; font-size: 7.5pt; }
+  .receipt .meta-row span { flex: 0 0 31%; }
+  .receipt .meta-row strong { flex: 1; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+  .receipt table.receipt-items { width: 100% !important; table-layout: fixed;
+    border-collapse: collapse; font-size: 7.5pt !important; margin: 0 !important; }
+  .receipt table.receipt-items td { padding: 1mm .3mm 1mm 0; vertical-align: top;
+    border: 0 !important; white-space: normal; overflow-wrap: anywhere; }
+  .receipt .qty { width: 10% !important; }
+  .receipt .item-name { width: 50% !important; }
+  .receipt .item-price { width: 40% !important; text-align: right; }
+  .receipt .item-note { font-size: 7pt; margin-top: .4mm; white-space: pre-wrap; }
+  .receipt .totals-row { display: flex; align-items: baseline; justify-content: space-between;
+    gap: 1mm; padding: .6mm 0; font-size: 8pt; }
+  .receipt .totals-row strong { text-align: right; }
+  .receipt .totals-row.grand { font-size: 10pt; font-weight: 900; }
+  .receipt .footer-note { margin: 3mm 0 0; font-size: 7pt; }
+}

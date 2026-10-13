@@ -1,0 +1,76 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // DEVELOPMENT / TESTING ONLY. Anonymous access is NOT secure for production.
+    function isAnonymous() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    // MENU CATEGORIES
+    match /categories/{categoryId} {
+      allow read, create, update, delete: if isAnonymous();
+    }
+
+    // MENU PRODUCTS
+    match /menu/{menuId} {
+      allow read, create, update, delete: if isAnonymous();
+    }
+
+    // CUSTOMER ORDERS
+    match /orders/{orderId} {
+      allow read: if isAnonymous();
+
+      allow create: if isAnonymous()
+        && request.resource.data.keys().hasAll([
+          'orderNumber', 'items', 'total',
+          'orderType', 'paymentMethod', 'createdAt'
+        ])
+        && request.resource.data.orderNumber is int
+        && request.resource.data.items is list
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0
+        && request.resource.data.orderType in ['Dine In', 'Take Out']
+        && request.resource.data.paymentMethod in ['Cash', 'GCash'];
+
+      allow update, delete: if isAnonymous();
+    }
+
+    // ORDER NUMBER COUNTER
+    match /counters/{counterId} {
+      allow read, create, update: if isAnonymous();
+      allow delete: if false;
+    }
+
+    // EXPENSES
+    match /expenses/{expenseId} {
+      allow read, create, update, delete: if isAnonymous();
+    }
+
+    // CASH ON HAND
+    match /cashEntries/{entryId} {
+      allow read, create, update, delete: if isAnonymous();
+    }
+
+    // PIN SETTINGS: required by js/auth.js.
+    // WARNING: Anyone signed in anonymously can READ and MODIFY these PINs.
+    match /settings/pins {
+      allow read, create, update: if isAnonymous();
+      allow delete: if false;
+    }
+
+    // INITIAL MENU FLAG: required by js/admin.js in maybeSeedMenu().
+    // Without this, the admin page can fail before loading other data.
+    match /settings/menuInitialized {
+      allow read, create: if isAnonymous();
+      allow update, delete: if false;
+    }
+
+    // DENY ALL OTHER COLLECTIONS
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
