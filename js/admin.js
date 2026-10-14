@@ -1,7 +1,8 @@
 import { db, authReady } from "./firebase-config.js";
 import { requireRole, logout, getPins, setPins } from "./auth.js";
 import { SEED_CATEGORIES, SEED_MENU } from "./seed-menu.js";
-import { printOrder } from "./receipt.js";
+import { printOrder, printFinanceReport } from "./receipt.js";
+import { dayKey, pesos, countRevenue, orderBoxes } from "./business.js";
 import {
   collection,
   onSnapshot,
@@ -16,6 +17,7 @@ import {
   setDoc,
   runTransaction,
   serverTimestamp,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const session = requireRole(["admin"]);
@@ -48,6 +50,25 @@ async function maybeSeedMenu() {
     SEED_MENU.forEach(item => tx.set(doc(collection(db, "menu")), item));
     tx.set(seedFlag, { initialized: true });
   });
+}
+
+/* Move existing database products into separate Shake/Frappé categories.
+   New installs already have the two categories in the seed data. */
+async function splitDrinkCategories() {
+  const snap = await getDocs(collection(db, "categories"));
+  const old = snap.docs.find(d => d.data().name === "Shake & Frappé");
+  if (!old) return;
+  const existing = new Set(snap.docs.map(d => d.data().name));
+  const products = await getDocs(collection(db, "menu"));
+  const batch = writeBatch(db);
+  const order = Number(old.data().order || 10);
+  if (!existing.has("Shake")) batch.set(doc(collection(db,"categories")), {name:"Shake", order});
+  if (!existing.has("Frappé")) batch.set(doc(collection(db,"categories")), {name:"Frappé", order:order+0.5});
+  products.docs.filter(d => d.data().category === "Shake & Frappé").forEach(d => {
+    batch.update(d.ref, {category:/frapp|frappé/i.test(d.data().name || "") ? "Frappé" : "Shake"});
+  });
+  batch.delete(old.ref);
+  await batch.commit();
 }
 
 /* ---------------- Tab switching ---------------- */
@@ -126,23 +147,19 @@ function renderPagination(containerId, totalItems, currentPage, onPageChange, co
 function orderDate(order) {
   return order.createdAt?.toDate ? order.createdAt.toDate() : null;
 }
-
+function orderDay(order) {return order.dayKey || (orderDate(order) ? dayKey(orderDate(order)) : "");}
 function rangeStart(range) {
-  const now = new Date();
-  const start = new Date(now);
-  if (range === "today") {
-    start.setHours(0, 0, 0, 0);
-  } else if (range === "week") {
-    const day = start.getDay(); // 0=Sun
-    start.setDate(start.getDate() - day);
-    start.setHours(0, 0, 0, 0);
-  } else if (range === "month") {
-    start.setDate(1);
-    start.setHours(0, 0, 0, 0);
-  } else {
-    return null; // all time
+  const today = dayKey();
+  if (range === "today") return today;
+  if (range === "month") return today.slice(0,7)+"-01";
+  if (range === "week") {
+    // Sunday-start week in Philippine time.
+    const todayPh = new Date(`${today}T12:00:00+08:00`);
+    const day = todayPh.getUTCDay();
+    todayPh.setUTCDate(todayPh.getUTCDate() - day);
+    return dayKey(todayPh);
   }
-  return start;
+  return null;
 }
 
 async function listenOrders() {
@@ -175,8 +192,8 @@ document.getElementById("date-filter-apply").addEventListener("click", () => {
   const fromVal = document.getElementById("date-from").value;
   const toVal = document.getElementById("date-to").value;
   if (!fromVal && !toVal) return;
-  customDateFrom = fromVal ? new Date(fromVal + "T00:00:00") : null;
-  customDateTo = toVal ? new Date(toVal + "T23:59:59.999") : null;
+  customDateFrom = fromVal || null;
+  customDateTo = toVal || null;
   if (customDateFrom && customDateTo && customDateFrom > customDateTo) {
     showError("The start date must be before the end date.");
     return;
@@ -202,36 +219,25 @@ document.getElementById("date-filter-clear").addEventListener("click", () => {
 
 function getFilteredOrders() {
   if (customDateFrom || customDateTo) {
-    return allOrders.filter((o) => {
-      const created = orderDate(o);
-      if (!created) return false;
-      if (customDateFrom && created < customDateFrom) return false;
-      if (customDateTo && created > customDateTo) return false;
-      return true;
+    return allOrders.filter(o => {
+      const key = orderDay(o);
+      return key && (!customDateFrom || key >= customDateFrom) && (!customDateTo || key <= customDateTo);
     });
   }
   const start = rangeStart(currentRange);
-  return allOrders.filter((o) => {
-    if (!start) return true;
-    const created = orderDate(o);
-    return created && created >= start;
-  });
+  const end = dayKey();
+  return allOrders.filter(o => {const key=orderDay(o);return key && (!start || key >= start) && key <= end;});
 }
-
-function peso(n) {
-  return "₱" + Number(n).toLocaleString("en-PH", { maximumFractionDigits: 2 });
-}
+function peso(n) {return pesos(n);}
 
 function renderDashboard() {
   const orders = getFilteredOrders();
 
-  const totalSales = orders.reduce((s, o) => s + (o.total || 0), 0);
-  const orderCount = orders.length;
-  const avgTicket = orderCount ? totalSales / orderCount : 0;
-
-  document.getElementById("stat-sales").textContent = peso(totalSales);
+  const {sales, boxes, addons, orders:orderCount} = countRevenue(orders);
+  document.getElementById("stat-sales").textContent = peso(sales);
   document.getElementById("stat-orders").textContent = orderCount;
-  document.getElementById("stat-avg").textContent = peso(avgTicket);
+  document.getElementById("stat-boxes").textContent = peso(boxes);
+  document.getElementById("stat-addons").textContent = peso(addons);
 
   // Use the exact categories defined in Menu Management, not guessed keywords.
   const groupTotals = new Map(categories.map(c => [c.name, 0]));
@@ -240,6 +246,9 @@ function renderDashboard() {
     const category = it.category || matchingMenu?.category || "Uncategorized";
     groupTotals.set(category, (groupTotals.get(category) || 0) + Number(it.unitPrice || 0) * Number(it.qty || 0));
   }));
+  // Show non-product charges too, so the category breakdown reconciles with Total Sales.
+  groupTotals.set("Additional add-on charges", orders.reduce((sum,o)=>sum+(o.addons||[]).reduce((a,it)=>a+Number(it.qty||0)*Number(it.unitPrice||0),0),0));
+  groupTotals.set("Takeout boxes", orders.reduce((sum,o)=>sum+orderBoxes(o),0));
   const categoryRoot = document.getElementById("category-sales");
   categoryRoot.replaceChildren();
   groupTotals.forEach((amount, category) => {
@@ -310,19 +319,21 @@ function renderDashboard() {
       const timeStr = created
         ? created.toLocaleString("en-PH", { dateStyle: "short", timeStyle: "short" })
         : "—";
-      const itemSummary = (o.items || [])
-        .map((it) => `${it.qty}x ${it.name}${it.size ? ` (${it.size})` : ""}`)
-        .join(", ");
+      const itemSummary = [
+        ...(o.items || []).map(it => `${it.qty}x ${it.name}${it.size ? ` (${it.size})` : ""}${it.isAddon ? " [Add-on]" : ""}${it.serveType ? ` · ${it.serveType}` : ""}`),
+        ...(o.addons || []).map(it => `${it.qty}x ${it.name} [Add-on]`),
+        ...(Number(o.boxes?.["15"]||0) ? [`${o.boxes["15"]}x ₱15 box`] : []),
+        ...(Number(o.boxes?.["25"]||0) ? [`${o.boxes["25"]}x ₱25 box`] : []),
+      ].join(", ");
       return `
         <tr>
-          <td>#${escapeHtml(o.orderNumber ?? "—")}</td>
+          <td>#${escapeHtml(o.orderNumber ?? "—")}<br><small>${escapeHtml(orderDay(o))}</small></td>
           <td>${timeStr}</td>
           <td style="max-width:320px;">${escapeHtml(itemSummary)}</td>
-          <td>${peso(o.total || 0)}</td><td><div class="action-btn-group"><button class="btn btn-sm btn-outline" data-edit-order="${o.id}">Edit / Add</button><button class="btn btn-sm btn-secondary" data-reprint-order="${o.id}">Reprint</button></div></td>
+          <td>${peso(o.total || 0)}</td><td><button class="btn btn-sm btn-secondary" data-reprint-order="${o.id}">Reprint</button></td>
         </tr>`;
     })
     .join("") || `<tr><td colspan="5" style="opacity:.6;">No orders yet.</td></tr>`;
-  recentBody.querySelectorAll("[data-edit-order]").forEach(btn => btn.addEventListener("click", () => editOrder(btn.dataset.editOrder)));
   recentBody.querySelectorAll("[data-reprint-order]").forEach(btn => btn.addEventListener("click", async () => {
     const order = allOrders.find(o => o.id === btn.dataset.reprintOrder);
     if (!order) return;
@@ -614,6 +625,7 @@ document.getElementById("save-pins-btn").addEventListener("click", async () => {
 (async function init() {
   try {
     await maybeSeedMenu();
+    try { await splitDrinkCategories(); } catch(e) { console.error("Drink category migration failed",e); showError(`Check Shake / Frappé categories in Menu: ${e.message}`); }
     await Promise.all([listenOrders(), listenMenuAdmin(), loadSettingsForm()]);
   } catch (err) {
     console.error("Admin initialization failed:", err);
@@ -682,48 +694,51 @@ function financeEditor(type, entry = null) {
     if (!values.description.trim() || !Number.isFinite(amount) || amount < 0) throw Error("Enter a description and a valid amount.");
     const data = { description: values.description.trim(), amount, updatedAt: serverTimestamp() };
     if (entry) await updateDoc(doc(db, type, entry.id), data);
-    else await addDoc(collection(db, type), {...data, createdAt: serverTimestamp()});
+    else await addDoc(collection(db, type), {...data, dayKey: selectedFinanceDay(), createdAt: serverTimestamp()});
   });
 }
-function renderFinance(type) {
-  const entries = financeData[type] || [];
-  const total = entries.reduce((sum, x) => sum + Number(x.amount || 0), 0);
-  const root = document.getElementById(`${type}-list`);
+function financeDay(entry) {
+  return entry.dayKey || (entry.createdAt?.toDate ? dayKey(entry.createdAt.toDate()) : "");
+}
+function selectedFinanceDay() {return document.getElementById("finance-date").value || dayKey();}
+function financeForDay(type) {return financeData[type].filter(e => financeDay(e) === selectedFinanceDay());}
+function renderFinance() {
+  const expenses=financeForDay("expenses"), cash=financeForDay("cashEntries");
+  const expenseTotal=expenses.reduce((sum,x)=>sum+Number(x.amount||0),0);
+  const cashTotal=cash.reduce((sum,x)=>sum+Number(x.amount||0),0);
+  document.getElementById("finance-expenses-total").textContent=peso(expenseTotal);
+  document.getElementById("finance-cash-total").textContent=peso(cashTotal);
+  document.getElementById("finance-balance").textContent=peso(cashTotal-expenseTotal);
+  const root=document.getElementById("combined-finance-list");
   root.replaceChildren();
-  const heading = document.createElement("h3"); heading.className="ledger-total"; heading.textContent=`Total: ${peso(total)}`; root.append(heading);
-  if (!entries.length) { const empty=document.createElement("p"); empty.className="muted"; empty.textContent="No entries yet."; root.append(empty); }
-  entries.forEach(x => {
-    const row = document.createElement("div"); row.className="ledger-row";
-    const description = document.createElement("span"); description.textContent=`${x.description} — ${peso(x.amount)}`;
-    const edit = document.createElement("button"); edit.className="btn btn-sm btn-outline"; edit.textContent="Edit"; edit.onclick=()=>financeEditor(type,x);
-    const del = document.createElement("button"); del.className="btn btn-sm btn-outline"; del.textContent="Delete";
-    del.onclick=()=>openFormModal("Delete entry",[{key:"confirmation",label:`Type DELETE to remove ${x.description}`}],async v=>{if(v.confirmation!=="DELETE")throw Error("Type DELETE to confirm."); await deleteDoc(doc(db,type,x.id));});
-    row.append(description,edit,del); root.append(row);
+  const entries=[...expenses.map(e=>({...e,type:"expenses"})),...cash.map(e=>({...e,type:"cashEntries"}))];
+  entries.sort((a,b)=>Number(b.createdAt?.seconds||0)-Number(a.createdAt?.seconds||0));
+  if(!entries.length) {const p=document.createElement("p");p.className="muted";p.textContent="No cash or expense entries for this date.";root.appendChild(p);return;}
+  entries.forEach(entry=>{
+    const row=document.createElement("div");row.className="ledger-row";
+    const text=document.createElement("span");text.textContent=`${entry.type==="expenses"?"Expense":"Cash"}: ${entry.description} — ${peso(entry.amount)}`;
+    const edit=document.createElement("button");edit.type="button";edit.className="btn btn-sm btn-outline";edit.textContent="Edit";edit.onclick=()=>financeEditor(entry.type,entry);
+    const del=document.createElement("button");del.type="button";del.className="btn btn-sm btn-outline";del.textContent="Delete";
+    del.onclick=()=>openFormModal("Delete entry",[{key:"confirmation",label:`Type DELETE to remove ${entry.description}`}],async v=>{if(v.confirmation!=="DELETE")throw Error("Type DELETE to confirm.");await deleteDoc(doc(db,entry.type,entry.id));});
+    row.append(text,edit,del);root.appendChild(row);
   });
 }
+document.getElementById("finance-date").value=dayKey();
+document.getElementById("finance-date").addEventListener("change",renderFinance);
+document.getElementById("finance-today").addEventListener("click",()=>{document.getElementById("finance-date").value=dayKey();renderFinance();});
+document.getElementById("print-finances").addEventListener("click", async()=>{
+  if(session?.role!=="admin")return;
+  try {await printFinanceReport(selectedFinanceDay(),financeForDay("expenses"),financeForDay("cashEntries"));}
+  catch(e){showError(`Finance print failed: ${e.message}`);}
+});
 document.querySelectorAll("[data-finance-add]").forEach(b=>b.addEventListener("click",()=>financeEditor(b.dataset.financeAdd)));
 authReady.then(()=>["expenses","cashEntries"].forEach(type=>onSnapshot(collection(db,type),snap=>{
-  financeData[type]=snap.docs.map(d=>({id:d.id,...d.data()})); renderFinance(type);
-},e=>{const root=document.getElementById(`${type}-list`);root.textContent=`Unable to load ${type}: ${e.message}`;}))).catch(console.error);
-function editOrder(id) {
-  const order=allOrders.find(o=>o.id===id); if(!order)return;
-  openFormModal("Edit order / Add item",[
-    {key:"customerName",label:"Customer name",value:order.customerName||"",required:false},
-    {key:"itemName",label:"Additional item (optional)",required:false},
-    {key:"qty",label:"Additional quantity",kind:"number",value:1},
-    {key:"unitPrice",label:"Additional unit price (₱)",kind:"number",value:0},
-    {key:"category",label:"Menu category",value:categories[0]?.name||"Other Food"},
-    {key:"note",label:"Customization / special instructions",kind:"textarea",required:false}
-  ],async v=>{
-    const items=(order.items||[]).map(x=>({...x}));
-    if(v.itemName.trim()){
-      const qty=Number(v.qty),unitPrice=Number(v.unitPrice);
-      if(!Number.isInteger(qty)||qty<1||!Number.isFinite(unitPrice)||unitPrice<0)throw Error("Invalid quantity or price.");
-      const category=v.category.trim(); const isDrink=/coffee|frapp|frappé|tea|shake|drink|juice|smoothie|milk/i.test(category) || /water|coke|cola|juice|soda/i.test(v.itemName);
-      items.push({name:v.itemName.trim(),qty,unitPrice,category,note:v.note.trim(),size:null,isDrink});
-    }
-    const packagingFee=order.orderType==="Dine In"?0:items.reduce((sum,x)=>sum+(x.isDrink||/coffee|frapp|frappé|tea|shake|drink|juice|smoothie|milk/i.test(x.category||"") || /water|coke|cola|juice|soda/i.test(x.name||"")?0:Number(x.qty||0)*15),0);
-    const total=items.reduce((sum,x)=>sum+Number(x.qty||0)*Number(x.unitPrice||0),0)+packagingFee;
-    await updateDoc(doc(db,"orders",id),{items,total,packagingFee,customerName:v.customerName.trim(),updatedAt:serverTimestamp()});
-  });
-}
+  financeData[type]=snap.docs.map(d=>({id:d.id,...d.data()}));renderFinance();
+},e=>showError(`Unable to load ${type}: ${e.message}`)))).catch(console.error);
+let lastDate=dayKey();
+setInterval(()=>{
+  const today=dayKey();
+  if(today===lastDate)return;
+  if(document.getElementById("finance-date").value===lastDate)document.getElementById("finance-date").value=today;
+  lastDate=today;renderDashboard();renderFinance();
+},60000);

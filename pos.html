@@ -427,6 +427,20 @@
       }
     }
 
+    @media screen {
+      .box-qty-row { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+      .box-charge-title { font-size:.74rem;font-weight:800;color:#5e4437;margin-top:5px; }
+      .order-options #existing-order { width:100%; }
+      .cart-line .serve-select { display:block;width:100%;max-width:230px;margin-top:5px;padding:5px;border:1px solid #e1d6cc;border-radius:7px;background:#fff; }
+      .cart-line .meal-box-label { display:block;font-size:.69rem;font-weight:800;color:#654936;margin-top:5px; }
+      .cart-line .meal-box-select { display:block;width:100%;max-width:230px;margin-top:3px;padding:5px;border:1px solid #d8c5b9;border-radius:7px;background:#fff;color:#50362b;font-size:.72rem; }
+      .cart-line .meal-box-cost { font-size:.7rem;font-weight:700;color:#a43f66;margin-top:3px; }
+      .cart-line .split-serve { display:inline-block;margin-top:5px;border:1px solid #cfaabb;background:#fff3f8;color:#833755;border-radius:7px;padding:4px 8px;cursor:pointer;font-size:.72rem; }
+      .item-card .product-category { display:block;margin:3px 0 7px;color:#967866;font-size:.72rem;font-weight:700; }
+      .order-details[open] .order-options { max-height:min(55dvh,450px);overflow-y:auto;overscroll-behavior:contain; }
+      .order-options label { min-width:0; }
+      .order-options input,.order-options select { width:100%;min-width:0; }
+    }
     /* RETAIN EXISTING 58MM PRINTING */
     @media print {
       .order-backdrop,
@@ -579,9 +593,22 @@
             </select>
           </label>
 
-          <small>
-            Take out: ₱15 per food item; drinks are exempt.
-          </small>
+          <label for="existing-order">
+            Add to Existing Order (today only)
+            <select id="existing-order"><option value="">New order (new number)</option></select>
+          </label>
+          <div class="box-charge-title">Extra boxes only (optional) — Take Out meals automatically include ₱15 each</div>
+          <div class="box-qty-row">
+            <label for="box-15">₱15 box · Qty<input id="box-15" type="number" min="0" max="999" step="1" value="0" inputmode="numeric" /></label>
+            <label for="box-25">₱25 box · Qty<input id="box-25" type="number" min="0" max="999" step="1" value="0" inputmode="numeric" /></label>
+          </div>
+          <div class="box-charge-title">Extra add-on charge (optional)</div>
+          <label for="addon-name">Add-on name<input id="addon-name" type="text" placeholder="e.g. Extra gravy" maxlength="70" /></label>
+          <div class="box-qty-row">
+            <label for="addon-qty">Quantity<input id="addon-qty" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" /></label>
+            <label for="addon-price">Unit price (₱)<input id="addon-price" type="number" min="0" step="0.01" placeholder="0.00" inputmode="decimal" /></label>
+          </div>
+          <small>Take Out meals: automatic ₱15 per serving. For a ₱25 box, choose it on that meal to replace ₱15. Dine In meals: no automatic box; choose ₱15/₱25 if needed. Extra box quantities above are charged on top. For mixed orders, use each item’s service selector or “Split 1 serving.”</small>
         </div>
       </details>
 

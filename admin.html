@@ -281,10 +281,8 @@
             <div class="value" id="stat-orders">0</div>
           </div>
 
-          <div class="stat-card">
-            <div class="label">Average ticket</div>
-            <div class="value" id="stat-avg">₱0</div>
-          </div>
+          <div class="stat-card"><div class="label">Total Takeout Boxes</div><div class="value" id="stat-boxes">₱0</div></div>
+          <div class="stat-card"><div class="label">Total Add-ons</div><div class="value" id="stat-addons">₱0</div></div>
 
         </div>
 
@@ -391,46 +389,27 @@
 
       </div>
 
-      <!-- FINANCES -->
+      <!-- FINANCES: ONE DAILY LEDGER -->
       <div id="section-finances" class="hidden">
-
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">ADMIN · FINANCES</p>
-            <h2>Expenses &amp; Cash on Hand</h2>
-          </div>
+        <div class="section-head"><div><p class="eyebrow">ADMIN · DAILY FINANCES</p><h2>Expenses &amp; Cash on Hand</h2>
+          <p class="section-description">Daily view resets at Philippine midnight; old records are retained.</p></div></div>
+        <div class="card daily-finance-bar">
+          <label for="finance-date" class="field-label">Report day (Asia/Manila)</label>
+          <input type="date" id="finance-date" />
+          <button type="button" class="btn btn-outline" id="finance-today">Today</button>
+          <button type="button" class="btn btn-primary" id="print-finances">Print daily finance (Admin)</button>
         </div>
-
-        <div class="finance-grid">
-
-          <div class="card">
-            <h3>Expenses</h3>
-
-            <button
-              type="button"
-              class="btn btn-primary"
-              data-finance-add="expenses"
-            >
-              + Add Expense
-            </button>
-
-            <div id="expenses-list"></div>
-          </div>
-
-          <div class="card">
-            <h3>Cash on Hand</h3>
-
-            <button
-              type="button"
-              class="btn btn-primary"
-              data-finance-add="cashEntries"
-            >
-              + Add Cash Entry
-            </button>
-
-            <div id="cashEntries-list"></div>
-          </div>
-
+        <div class="finance-stats">
+          <div class="stat-card"><div class="label">Cash on hand</div><div class="value" id="finance-cash-total">₱0</div></div>
+          <div class="stat-card"><div class="label">Expenses</div><div class="value" id="finance-expenses-total">₱0</div></div>
+          <div class="stat-card"><div class="label">Cash less expenses</div><div class="value" id="finance-balance">₱0</div></div>
+        </div>
+        <div class="card finance-ledger-card">
+          <div class="finance-actions"><button type="button" class="btn btn-primary" data-finance-add="expenses">+ Add Expense</button>
+          <button type="button" class="btn btn-outline" data-finance-add="cashEntries">+ Add Cash Entry</button></div>
+          <h3>Daily entries</h3>
+          <div id="combined-finance-list"></div>
+          <div id="expenses-list" class="hidden"></div><div id="cashEntries-list" class="hidden"></div>
         </div>
       </div>
 

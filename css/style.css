@@ -1601,3 +1601,12 @@ table.data-table tbody tr:hover { background:#fcfaf8; }
   .stat-card .value { font-size:1.25rem; }
   .topbar .role-pill { display:none; }
 }
+
+/* 2026 daily ledgers and responsive product category labels */
+.item-card .product-category {display:block;margin:3px 0 7px;color:#947765;font-size:.73rem;font-weight:700;line-height:1.2;}
+.finance-stats {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0;}
+.daily-finance-bar {display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.daily-finance-bar input {padding:9px;border:1px solid #dfcfc2;border-radius:9px;max-width:100%;}
+.finance-actions {display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.finance-ledger-card h3 {margin:12px 0;}
+@media(max-width:650px){.finance-stats {grid-template-columns:1fr;}.daily-finance-bar > button{flex:1;}}

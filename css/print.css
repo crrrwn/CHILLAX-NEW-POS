@@ -39,10 +39,16 @@
   .receipt .qty { width: 10% !important; }
   .receipt .item-name { width: 50% !important; }
   .receipt .item-price { width: 40% !important; text-align: right; }
-  .receipt .item-note { font-size: 7pt; margin-top: .4mm; white-space: pre-wrap; }
+  .receipt .item-note { font-size: 6.5pt !important; line-height: 1.12 !important; margin: 0 !important;
+    padding: 0 !important; white-space: normal !important; overflow-wrap: anywhere; }
+  .receipt .item-service { font-size: 6.5pt !important; line-height: 1.1 !important; margin: 0 !important; }
+  .receipt .finance-print-row { display:flex; align-items:flex-start; justify-content:space-between;
+    gap:1mm; font-size:7.2pt; padding:.5mm 0; }
+  .receipt .finance-print-row span { flex:1; min-width:0; overflow-wrap:anywhere; }
+  .receipt .finance-print-row strong { flex:0 0 auto; text-align:right; }
   .receipt .totals-row { display: flex; align-items: baseline; justify-content: space-between;
     gap: 1mm; padding: .6mm 0; font-size: 8pt; }
   .receipt .totals-row strong { text-align: right; }
   .receipt .totals-row.grand { font-size: 10pt; font-weight: 900; }
-  .receipt .footer-note { margin: 3mm 0 0; font-size: 7pt; }
+  .receipt .footer-note { margin: 1.5mm 0 0; font-size: 7pt; }
 }
