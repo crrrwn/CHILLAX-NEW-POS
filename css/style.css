@@ -1610,3 +1610,47 @@ table.data-table tbody tr:hover { background:#fcfaf8; }
 .finance-actions {display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
 .finance-ledger-card h3 {margin:12px 0;}
 @media(max-width:650px){.finance-stats {grid-template-columns:1fr;}.daily-finance-bar > button{flex:1;}}
+
+/* ADMIN: edit the full saved order without hiding the price controls on tablets. */
+@media screen {
+  .order-edit-modal { width:min(96vw,850px) !important; max-width:850px !important;
+    max-height:calc(100dvh - 36px) !important; overflow-y:auto !important;
+    overscroll-behavior:contain; }
+  .order-edit-modal h3 small { font:600 .72rem/1.4 "Nunito Sans",sans-serif;
+    color:#887468;white-space:nowrap; }
+  .order-edit-modal h4 { font:800 .96rem/1.4 "Nunito Sans",sans-serif;
+    color:#5a3b30;margin:17px 0 9px; }
+  .order-edit-modal .edit-top-fields { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px; }
+  .order-edit-modal .edit-fields { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px; }
+  .order-edit-modal .edit-top-fields .field, .order-edit-modal .edit-fields .field,
+  .order-edit-modal .edit-box-fields .field { font-size:.75rem;color:#6c5041;font-weight:800;
+    min-width:0;margin:0; }
+  .order-edit-modal .field input,.order-edit-modal .field select { margin-top:4px;padding:9px 8px;
+    min-width:0;width:100%;font-size:.86rem; }
+  .order-edit-row { border:1px solid #e7d9d0;background:#fdfaf8;
+    border-radius:13px;padding:11px;margin:9px 0; }
+  .order-edit-addon { background:#fff8fb;border-color:#f0dce7; }
+  .edit-row-header { display:flex;justify-content:space-between;align-items:center;
+    gap:9px;margin-bottom:9px;color:#6c4a38; }
+  .edit-addon-check { display:inline-flex;align-items:center;gap:6px;
+    font-size:.76rem;font-weight:700;margin-top:9px;color:#755b4c; }
+  .edit-addon-check input { width:auto; }
+  .edit-add-row { display:flex;gap:8px;align-items:center;margin:12px 0;flex-wrap:wrap; }
+  .edit-add-row select { flex:1 1 180px;min-width:0;padding:9px;border-radius:9px;
+    border:1px solid #e4d9d1;background:white; }
+  .edit-box-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
+  .edit-price-summary { background:#f8f1ea;border:1px solid #e4d4c7;border-radius:12px;
+    padding:13px;margin-top:14px;font-size:.84rem;line-height:1.55;color:#644a3c; }
+  .edit-price-summary > div { display:flex;justify-content:space-between;gap:10px; }
+  .edit-price-summary .edit-summary-total { border-top:1px solid #decabc;
+    padding-top:7px;margin-top:6px;font-weight:900;font-size:1rem; }
+  .edit-price-summary .edit-summary-old { font-size:.74rem;opacity:.75; }
+  .order-edit-modal .edit-order-actions { position:sticky;bottom:-27px;background:#fff;
+    padding:13px 0 2px;margin-top:8px;border-top:1px solid #e9e0d9;z-index:2; }
+}
+@media screen and (max-width:650px) {
+  .order-edit-modal { width:100% !important;max-height:calc(100dvh - 24px) !important;padding:15px !important; }
+  .order-edit-modal .edit-top-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .order-edit-modal .edit-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .order-edit-modal .edit-order-actions { bottom:-15px; }
+}

@@ -68,3 +68,85 @@ export function countRevenue(orders) {
     return s;
   }, {sales:0, boxes:0, addons:0, orders:0});
 }
+
+/** Calculate manually punched boxes from a saved order without duplicating the
+ * per-meal automatic boxes when the admin edits quantities or service types. */
+export function manualBoxesForOrder(order) {
+  const automatic = boxesForCart(order.items || []);
+  return {
+    "15": Math.max(0, Number(order.boxes?.["15"] || 0) - automatic["15"]),
+    "25": Math.max(0, Number(order.boxes?.["25"] || 0) - automatic["25"])
+  };
+}
+
+/** Recompute an existing order after an authorized admin edits line items.
+ * Keeps the original order number, creation date and financial history date.
+ * Does not mutate the input document or silently change the catalog prices. */
+export function repriceEditedOrder(original, changes) {
+  const validMoney = (value, label) => {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount < 0 || amount > 1000000)
+      throw Error(`${label} must be between ₱0 and ₱1,000,000.`);
+    return rounded(amount);
+  };
+  const validQty = (value, label) => {
+    const qty = Number(value);
+    if (!Number.isInteger(qty) || qty < 1 || qty > 999)
+      throw Error(`${label} quantity must be a whole number from 1 to 999.`);
+    return qty;
+  };
+  const validBoxes = (value, label) => {
+    const qty = Number(value);
+    if (!Number.isInteger(qty) || qty < 0 || qty > 999)
+      throw Error(`${label} box quantity must be from 0 to 999.`);
+    return qty;
+  };
+  const items = (changes.items || []).map((item, i) => {
+    const name = String(item.name || "").trim();
+    const category = String(item.category || "").trim();
+    if (!name || name.length > 120 || !category || category.length > 80)
+      throw Error(`Item ${i + 1} needs a name and category.`);
+    const serveType = item.serveType === "Take Out" ? "Take Out" : "Dine In";
+    const boxChoice = ["auto", "0", "15", "25"].includes(String(item.boxChoice ?? "auto"))
+      ? String(item.boxChoice ?? "auto") : "auto";
+    const normalized = {
+      ...item, name, category,
+      size: String(item.size || "").trim().slice(0, 40) || null,
+      note: String(item.note || "").trim().slice(0, 180),
+      qty: validQty(item.qty, name), unitPrice: validMoney(item.unitPrice, name),
+      serveType, boxChoice,
+      isAddon: Boolean(item.isAddon || /^add\s*ons?$/i.test(category))
+    };
+    normalized.boxUnitPrice = lineBoxPrice(normalized);
+    return normalized;
+  });
+  const addons = (changes.addons || []).map((addon, i) => {
+    const name = String(addon.name || "").trim();
+    if (!name || name.length > 120) throw Error(`Add-on ${i + 1} needs a name.`);
+    return { ...addon, name, qty: validQty(addon.qty, name), unitPrice: validMoney(addon.unitPrice, name) };
+  });
+  const manuallyPunched = {
+    "15": validBoxes(changes.manualBoxes?.["15"] ?? 0, "₱15"),
+    "25": validBoxes(changes.manualBoxes?.["25"] ?? 0, "₱25")
+  };
+  const boxes = boxesForCart(items, manuallyPunched);
+  const legacyPackagingFee = validMoney(original.legacyPackagingFee ??
+    (original.boxes ? 0 : original.packagingFee || 0), "Previous packaging");
+  const orderType = ["Dine In", "Take Out"].includes(changes.orderType) ? changes.orderType : original.orderType;
+  const paymentMethod = ["Cash", "GCash"].includes(changes.paymentMethod) ? changes.paymentMethod : original.paymentMethod;
+  if (!["Dine In", "Take Out"].includes(orderType) || !["Cash", "GCash"].includes(paymentMethod))
+    throw Error("Select a valid order type and payment method.");
+  const customerName = String(changes.customerName || "").trim().slice(0, 100);
+  if (!items.length && !addons.length && !boxes["15"] && !boxes["25"])
+    throw Error("An order must contain at least one item, add-on or box.");
+  const payload = {
+    items, addons, boxes, legacyPackagingFee,
+    packagingFee: rounded(boxTotal(boxes) + legacyPackagingFee),
+    customerName, orderType, paymentMethod
+  };
+  payload.addOnTotal = addonsTotal(payload);
+  payload.total = rounded(items.reduce((sum, it) => sum + it.qty * it.unitPrice, 0)
+    + addons.reduce((sum, it) => sum + it.qty * it.unitPrice, 0)
+    + payload.packagingFee);
+  return payload;
+}

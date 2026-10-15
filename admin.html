@@ -2,495 +2,1376 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1"
-  />
-  <title>Chillax Café POS — Admin</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chillax Café POS — Admin</title>
+<link rel="icon" href="assets/logo.jpg">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/print.css">
 
-  <link rel="icon" href="assets/logo.jpg" />
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/print.css" />
+<style>
+@media screen {
+  body.admin-page {
+    --header-height: 68px;
+    padding-top: var(--header-height);
+  }
 
-  <style>
-    /* FIXED ADMIN HEADER */
-    @media screen {
-      body.admin-page {
-        --header-height: 68px;
-        padding-top: var(--header-height);
-      }
+  body.admin-page > .topbar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-height: var(--header-height);
+    z-index: 1000;
+  }
 
-      body.admin-page > header.topbar {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0;
-        right: 0;
-        width: 100%;
-        min-height: var(--header-height);
-        z-index: 1000;
-      }
+  body.admin-page .admin-layout {
+    min-height: calc(100dvh - var(--header-height));
+  }
 
-      /* Content starts below fixed header */
-      body.admin-page .admin-layout {
-        min-height: calc(
-          100dvh - var(--header-height)
-        );
-      }
+  body.admin-page .admin-main {
+    overflow-y: visible !important;
+    min-width: 0;
+  }
 
-      body.admin-page .admin-main {
-        overflow-y: visible !important;
-        min-width: 0;
-      }
+  body.admin-page .admin-nav {
+    position: sticky !important;
+    top: var(--header-height) !important;
+    align-self: flex-start;
+    max-height: calc(100dvh - var(--header-height));
+    overflow-y: auto;
+  }
 
-      /* Sidebar remains below fixed header */
-      body.admin-page .admin-nav {
-        position: sticky !important;
-        top: var(--header-height) !important;
-        align-self: flex-start;
-        max-height: calc(
-          100dvh - var(--header-height)
-        );
-        overflow-y: auto;
-      }
+  body.admin-page #modal-root .modal-backdrop {
+    z-index: 1100 !important;
+  }
 
-      /* Dialogs should appear above the header */
-      body.admin-page #modal-root .modal-backdrop {
-        z-index: 1100 !important;
-      }
+  .admin-action-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+  }
 
-      body.admin-page .status-banner {
-        z-index: 1200;
-      }
-    }
+  .admin-action-group .btn {
+    white-space: nowrap;
+  }
 
-    /* TABLET / MOBILE NAVIGATION */
-    @media screen and (max-width: 900px) {
-      body.admin-page .admin-nav {
-        align-self: stretch;
-        max-height: none;
-        overflow-x: auto !important;
-        overflow-y: hidden;
-      }
-    }
+  /* ORDER EDIT MODAL */
+  .qoe-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2500;
+    background: rgba(25, 16, 12, .65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+  }
 
-    /* SMALL PHONE HEADER */
-    @media screen and (max-width: 650px) {
-      body.admin-page {
-        --header-height: 62px;
-      }
-    }
-  </style>
+  .qoe-dialog {
+    width: min(96vw, 850px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    background: #fffaf6;
+    border-radius: 18px;
+    padding: 20px;
+    color: #422c22;
+    box-shadow: 0 18px 60px #0004;
+  }
+
+  .qoe-dialog h2 {
+    font-size: 1.4rem;
+    margin-bottom: 6px;
+  }
+
+  .qoe-dialog h3 {
+    font-size: 1.05rem;
+    margin: 17px 0 10px;
+  }
+
+  .qoe-subtitle {
+    font-size: .83rem;
+    color: #86695b;
+    margin: 0 0 15px;
+  }
+
+  .qoe-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .qoe-fields {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .qoe-line {
+    background: white;
+    padding: 13px;
+    border: 1px solid #e7d9d0;
+    border-radius: 12px;
+    margin-bottom: 9px;
+  }
+
+  .qoe-row-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .qoe-dialog label {
+    display: block;
+    font-size: .78rem;
+    font-weight: 700;
+    color: #614b40;
+  }
+
+  .qoe-dialog input,
+  .qoe-dialog select {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 37px;
+    padding: 8px;
+    margin-top: 4px;
+    border: 1px solid #d8c9c0;
+    border-radius: 8px;
+    background: white;
+    color: #30251e;
+    font: inherit;
+  }
+
+  .qoe-dialog input[type="checkbox"] {
+    display: inline-block;
+    width: auto;
+    min-height: auto;
+    margin-right: 6px;
+  }
+
+  .qoe-summary {
+    background: #f8eee9;
+    border-radius: 12px;
+    padding: 14px;
+    margin: 16px 0;
+    line-height: 1.9;
+  }
+
+  .qoe-grand {
+    font-size: 1.2rem;
+    color: #bd2766;
+    font-weight: 800;
+  }
+
+  .qoe-error {
+    color: #b42318;
+    font-weight: 700;
+    font-size: .85rem;
+  }
+
+  .qoe-footer {
+    position: sticky;
+    bottom: -20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 0;
+    background: #fffaf6;
+    border-top: 1px solid #e7dad1;
+  }
+
+  .qoe-dialog button {
+    cursor: pointer;
+  }
+}
+
+@media screen and (max-width: 900px) {
+  body.admin-page .admin-nav {
+    align-self: stretch;
+    max-height: none;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+}
+
+@media screen and (max-width: 700px) {
+  .qoe-dialog {
+    padding: 13px;
+  }
+
+  .qoe-grid,
+  .qoe-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 650px) {
+  body.admin-page {
+    --header-height: 62px;
+  }
+}
+
+@media print {
+  .qoe-overlay {
+    display: none !important;
+  }
+}
+</style>
 </head>
 
 <body class="admin-page">
 
-  <!-- FIXED ADMIN HEADER -->
-  <header class="topbar">
-    <img
-      class="logo"
-      src="assets/logo.jpg"
-      alt="Chillax logo"
-    />
+<!-- FIXED HEADER -->
+<header class="topbar">
+  <img class="logo" src="assets/logo.jpg" alt="Chillax Café">
 
-    <div class="titles">
-      <strong>Chillax Café</strong>
-      <span>Admin</span>
+  <div class="titles">
+    <strong>Chillax Café</strong>
+    <span>Admin</span>
+  </div>
+
+  <span class="role-pill">Admin</span>
+
+  <a href="pos.html" class="icon-btn" title="Cashier" aria-label="Go to Cashier">
+    <svg class="icon-svg" viewBox="0 0 24 24">
+      <path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 4v12h10V6H7z" fill="currentColor"/>
+    </svg>
+  </a>
+
+  <button type="button" class="icon-btn" id="logout-btn" title="Sign out" aria-label="Sign out">
+    <svg class="icon-svg" viewBox="0 0 24 24">
+      <path d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z" fill="currentColor"/>
+    </svg>
+  </button>
+</header>
+
+<main class="admin-layout">
+
+  <!-- SIDEBAR -->
+  <nav class="admin-nav">
+    <button type="button" class="active" data-tab="dashboard">
+      <span>▥</span>
+      <span>Sales</span>
+    </button>
+
+    <button type="button" data-tab="menu">
+      <span>☰</span>
+      <span>Menu</span>
+    </button>
+
+    <button type="button" data-tab="finances">
+      <span>₱</span>
+      <span>Expenses & Cash</span>
+    </button>
+
+    <button type="button" data-tab="settings">
+      <span>⚙</span>
+      <span>Settings</span>
+    </button>
+  </nav>
+
+  <section class="admin-main">
+
+    <!-- SALES DASHBOARD -->
+    <div id="section-dashboard">
+
+      <div class="section-head dashboard-section-head">
+        <div>
+          <p class="eyebrow">ADMIN · ANALYTICS</p>
+          <h2>Sales overview</h2>
+          <p class="section-description">
+            Live reporting from completed orders.
+          </p>
+        </div>
+
+        <div class="dashboard-filters">
+          <div class="range-tabs">
+            <button type="button" class="active" data-range="today">Today</button>
+            <button type="button" data-range="week">This week</button>
+            <button type="button" data-range="month">This month</button>
+            <button type="button" data-range="all">All time</button>
+          </div>
+
+          <div class="date-filter">
+            <label class="date-field">
+              <span class="field-label">From</span>
+              <input type="date" id="date-from">
+            </label>
+
+            <label class="date-field">
+              <span class="field-label">To</span>
+              <input type="date" id="date-to">
+            </label>
+
+            <button type="button" class="btn btn-sm btn-outline" id="date-filter-apply">
+              Apply
+            </button>
+
+            <button type="button" class="btn btn-sm btn-outline" id="date-filter-clear">
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATISTICS -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="label">Total Sales</div>
+          <div class="value" id="stat-sales">₱0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="label">Orders</div>
+          <div class="value" id="stat-orders">0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="label">Total Takeout Boxes</div>
+          <div class="value" id="stat-boxes">₱0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="label">Total Add-ons</div>
+          <div class="value" id="stat-addons">₱0</div>
+        </div>
+      </div>
+
+      <!-- SALES BY CATEGORY -->
+      <div class="card" style="margin-bottom:22px;">
+        <h3>Sales by category</h3>
+        <div id="category-sales" class="category-sales"></div>
+      </div>
+
+      <!-- BEST SELLERS -->
+      <div class="card" style="margin-bottom:22px;">
+        <h3 style="margin-bottom:14px;">Best sellers</h3>
+        <div id="best-sellers"></div>
+      </div>
+
+      <!-- SALES BREAKDOWN -->
+      <div class="card" style="margin-bottom:22px;">
+        <h3 style="margin-bottom:14px;">Full breakdown, by item</h3>
+
+        <div class="table-scroll-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty sold</th>
+                <th>Revenue</th>
+              </tr>
+            </thead>
+            <tbody id="sales-table-body"></tbody>
+          </table>
+        </div>
+
+        <div class="table-pagination" id="sales-table-pagination"></div>
+      </div>
+
+      <!-- RECENT ORDERS -->
+      <div class="card">
+        <h3 style="margin-bottom:6px;">Recent orders</h3>
+
+        <p class="section-description" style="margin:0 0 13px;">
+          Edit customer orders, quantities, unit prices, packaging and add-ons.
+          Reprint the updated receipt after saving.
+        </p>
+
+        <div class="table-scroll-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Time</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="recent-orders-body"></tbody>
+          </table>
+        </div>
+
+        <div class="table-pagination" id="recent-orders-pagination"></div>
+      </div>
     </div>
 
-    <span class="role-pill">Admin</span>
-
-    <a
-      href="pos.html"
-      class="icon-btn"
-      title="Go to cashier screen"
-      aria-label="Go to cashier"
-    >
-      <svg
-        class="icon-svg"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-      >
-        <path
-          d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 4v12h10V6H7zm2 2h6v2H9V8zm0 4h6v2H9v-2z"
-          fill="currentColor"
-        />
-      </svg>
-    </a>
-
-    <button
-      type="button"
-      class="icon-btn"
-      id="logout-btn"
-      title="Sign out"
-      aria-label="Sign out"
-    >
-      <svg
-        class="icon-svg"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-      >
-        <path
-          d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z"
-          fill="currentColor"
-        />
-      </svg>
-    </button>
-  </header>
-
-  <!-- ADMIN LAYOUT -->
-  <main class="admin-layout">
-
-    <!-- ADMIN NAVIGATION -->
-    <nav class="admin-nav">
-
-      <button
-        type="button"
-        class="active"
-        data-tab="dashboard"
-      >
-        <svg
-          class="nav-icon"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            d="M3 13h2v8H3v-8zm7 0h2v8h-2v-8zm7 0h2v8h-2v-8zM3 3h2v6H3V3zm7 0h2v6h-2V3zm7 0h2v6h-2V3z"
-            fill="currentColor"
-          />
-        </svg>
-        <span>Sales</span>
-      </button>
-
-      <button
-        type="button"
-        data-tab="menu"
-      >
-        <svg
-          class="nav-icon"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"
-            fill="currentColor"
-          />
-        </svg>
-        <span>Menu</span>
-      </button>
-
-      <button
-        type="button"
-        data-tab="finances"
-      >
-        <span>₱</span>
-        <span>Expenses &amp; Cash</span>
-      </button>
-
-      <button
-        type="button"
-        data-tab="settings"
-      >
-        <svg
-          class="nav-icon"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 13a7.9 7.9 0 0 0 .1-2l2-1.6-2-3.4-2.4 1a8.1 8.1 0 0 0-1.7-1L15 3h-6l-.4 2.4a8.1 8.1 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.9 7.9 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1L9 21h6l.4-2.4c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.6z"
-            fill="currentColor"
-          />
-        </svg>
-        <span>Settings</span>
-      </button>
-    </nav>
-
-    <!-- ADMIN CONTENT -->
-    <section class="admin-main">
-
-      <!-- DASHBOARD -->
-      <div id="section-dashboard">
-
-        <div class="section-head dashboard-section-head">
-          <div>
-            <p class="eyebrow">ADMIN · ANALYTICS</p>
-            <h2>Sales overview</h2>
-            <p class="section-description">
-              Live reporting from completed orders.
-            </p>
-          </div>
-
-          <div class="dashboard-filters">
-
-            <div class="range-tabs">
-              <button type="button" class="active" data-range="today">
-                Today
-              </button>
-              <button type="button" data-range="week">
-                This week
-              </button>
-              <button type="button" data-range="month">
-                This month
-              </button>
-              <button type="button" data-range="all">
-                All time
-              </button>
-            </div>
-
-            <div class="date-filter">
-              <label class="date-field">
-                <span class="field-label">From</span>
-                <input type="date" id="date-from" />
-              </label>
-
-              <label class="date-field">
-                <span class="field-label">To</span>
-                <input type="date" id="date-to" />
-              </label>
-
-              <button
-                class="btn btn-sm btn-outline"
-                type="button"
-                id="date-filter-apply"
-              >
-                Apply
-              </button>
-
-              <button
-                class="btn btn-sm btn-outline"
-                type="button"
-                id="date-filter-clear"
-              >
-                Clear
-              </button>
-            </div>
-
-          </div>
+    <!-- MENU MANAGEMENT -->
+    <div id="section-menu" class="hidden">
+      <div class="section-head menu-section-head">
+        <div>
+          <p class="eyebrow">ADMIN · CATALOG</p>
+          <h2>Menu management</h2>
+          <p class="menu-section-intro">
+            Changes here update the cashier screen automatically.
+          </p>
         </div>
 
-        <!-- SALES CARDS -->
-        <div class="stat-grid">
-
-          <div class="stat-card">
-            <div class="label">Total sales</div>
-            <div class="value" id="stat-sales">₱0</div>
-          </div>
-
-          <div class="stat-card">
-            <div class="label">Orders</div>
-            <div class="value" id="stat-orders">0</div>
-          </div>
-
-          <div class="stat-card"><div class="label">Total Takeout Boxes</div><div class="value" id="stat-boxes">₱0</div></div>
-          <div class="stat-card"><div class="label">Total Add-ons</div><div class="value" id="stat-addons">₱0</div></div>
-
-        </div>
-
-        <!-- CATEGORY SALES -->
-        <div class="card">
-          <h3>Sales by category</h3>
-          <div
-            id="category-sales"
-            class="category-sales"
-          ></div>
-        </div>
-
-        <!-- BEST SELLERS -->
-        <div class="card" style="margin-bottom:22px;">
-          <h3 style="margin-bottom:14px;color:var(--brown-dark);">
-            Best sellers
-          </h3>
-          <div id="best-sellers"></div>
-        </div>
-
-        <!-- FULL SALES BREAKDOWN -->
-        <div class="card" style="margin-bottom:22px;">
-          <h3 style="margin-bottom:14px;color:var(--brown-dark);">
-            Full breakdown, by item
-          </h3>
-
-          <div class="table-scroll-wrap">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Qty sold</th>
-                  <th>Revenue</th>
-                </tr>
-              </thead>
-
-              <tbody id="sales-table-body"></tbody>
-            </table>
-          </div>
-
-          <div
-            class="table-pagination"
-            id="sales-table-pagination"
-          ></div>
-        </div>
-
-        <!-- RECENT ORDERS -->
-        <div class="card">
-          <h3 style="margin-bottom:14px;color:var(--brown-dark);">
-            Recent orders
-          </h3>
-
-          <div class="table-scroll-wrap">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Time</th>
-                  <th>Items</th>
-                  <th>Total</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody id="recent-orders-body"></tbody>
-            </table>
-          </div>
-
-          <div
-            class="table-pagination"
-            id="recent-orders-pagination"
-          ></div>
-        </div>
-
+        <button type="button" class="btn btn-primary" id="add-category-btn">
+          + Add category
+        </button>
       </div>
 
-      <!-- MENU MANAGEMENT -->
-      <div id="section-menu" class="hidden">
+      <div id="menu-admin-root" class="menu-admin-root"></div>
+    </div>
 
-        <div class="section-head menu-section-head">
-          <div>
-            <p class="eyebrow">ADMIN · CATALOG</p>
-            <h2>Menu management</h2>
-            <p class="menu-section-intro">
-              Changes here update the cashier screen instantly —
-              no app restart needed.
-            </p>
-          </div>
+    <!-- FINANCES -->
+    <div id="section-finances" class="hidden">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">ADMIN · DAILY FINANCES</p>
+          <h2>Expenses & Cash on Hand</h2>
+          <p class="section-description">
+            Daily view resets at Philippine midnight.
+            Previous records are retained.
+          </p>
+        </div>
+      </div>
 
-          <button
-            type="button"
-            class="btn btn-primary"
-            id="add-category-btn"
-          >
-            <span class="btn-icon">+</span>
-            Add category
+      <div class="card daily-finance-bar">
+        <label for="finance-date" class="field-label">
+          Report day (Asia/Manila)
+        </label>
+
+        <input type="date" id="finance-date">
+
+        <button type="button" class="btn btn-outline" id="finance-today">
+          Today
+        </button>
+
+        <button type="button" class="btn btn-primary" id="print-finances">
+          Print daily finance (Admin)
+        </button>
+      </div>
+
+      <div class="finance-stats">
+        <div class="stat-card">
+          <div class="label">Cash on hand</div>
+          <div class="value" id="finance-cash-total">₱0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="label">Expenses</div>
+          <div class="value" id="finance-expenses-total">₱0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="label">Cash less expenses</div>
+          <div class="value" id="finance-balance">₱0</div>
+        </div>
+      </div>
+
+      <div class="card finance-ledger-card">
+        <div class="finance-actions">
+          <button type="button" class="btn btn-primary" data-finance-add="expenses">
+            + Add Expense
+          </button>
+
+          <button type="button" class="btn btn-outline" data-finance-add="cashEntries">
+            + Add Cash Entry
           </button>
         </div>
 
-        <div
-          id="menu-admin-root"
-          class="menu-admin-root"
-        ></div>
+        <h3>Daily entries</h3>
+        <div id="combined-finance-list"></div>
 
+        <div id="expenses-list" class="hidden"></div>
+        <div id="cashEntries-list" class="hidden"></div>
       </div>
+    </div>
 
-      <!-- FINANCES: ONE DAILY LEDGER -->
-      <div id="section-finances" class="hidden">
-        <div class="section-head"><div><p class="eyebrow">ADMIN · DAILY FINANCES</p><h2>Expenses &amp; Cash on Hand</h2>
-          <p class="section-description">Daily view resets at Philippine midnight; old records are retained.</p></div></div>
-        <div class="card daily-finance-bar">
-          <label for="finance-date" class="field-label">Report day (Asia/Manila)</label>
-          <input type="date" id="finance-date" />
-          <button type="button" class="btn btn-outline" id="finance-today">Today</button>
-          <button type="button" class="btn btn-primary" id="print-finances">Print daily finance (Admin)</button>
-        </div>
-        <div class="finance-stats">
-          <div class="stat-card"><div class="label">Cash on hand</div><div class="value" id="finance-cash-total">₱0</div></div>
-          <div class="stat-card"><div class="label">Expenses</div><div class="value" id="finance-expenses-total">₱0</div></div>
-          <div class="stat-card"><div class="label">Cash less expenses</div><div class="value" id="finance-balance">₱0</div></div>
-        </div>
-        <div class="card finance-ledger-card">
-          <div class="finance-actions"><button type="button" class="btn btn-primary" data-finance-add="expenses">+ Add Expense</button>
-          <button type="button" class="btn btn-outline" data-finance-add="cashEntries">+ Add Cash Entry</button></div>
-          <h3>Daily entries</h3>
-          <div id="combined-finance-list"></div>
-          <div id="expenses-list" class="hidden"></div><div id="cashEntries-list" class="hidden"></div>
+    <!-- SETTINGS -->
+    <div id="section-settings" class="hidden">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">ADMIN · SECURITY</p>
+          <h2>Settings</h2>
         </div>
       </div>
 
-      <!-- SETTINGS -->
-      <div id="section-settings" class="hidden">
+      <div class="card" style="max-width:420px;">
+        <h3 style="margin-bottom:14px;">Login PINs</h3>
 
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">ADMIN · SECURITY</p>
-            <h2>Settings</h2>
+        <div class="modal-form">
+          <div class="field">
+            <span class="field-label">Admin PIN</span>
+            <input
+              type="password"
+              id="admin-pin-input"
+              inputmode="numeric"
+              minlength="4"
+              maxlength="6"
+              autocomplete="new-password"
+            >
+          </div>
+
+          <div class="field">
+            <span class="field-label">Cashier PIN</span>
+            <input
+              type="password"
+              id="staff-pin-input"
+              inputmode="numeric"
+              minlength="4"
+              maxlength="6"
+              autocomplete="new-password"
+            >
           </div>
         </div>
 
-        <div class="card" style="max-width:420px;">
+        <button type="button" class="btn btn-primary" id="save-pins-btn">
+          Save PINs
+        </button>
 
-          <h3 style="margin-bottom:14px;color:var(--brown-dark);">
-            Login PINs
-          </h3>
+        <div id="settings-msg" style="margin-top:10px;font-size:.85rem;font-weight:700;"></div>
+      </div>
+    </div>
 
-          <div class="modal-form">
+  </section>
+</main>
 
-            <div class="field">
-              <span class="field-label">Admin PIN</span>
-              <input
-                type="password"
-                id="admin-pin-input"
-                inputmode="numeric"
-                minlength="4"
-                maxlength="6"
-                autocomplete="new-password"
-              />
-            </div>
+<!-- ORIGINAL MODALS, PRINTING, CONNECTION -->
+<div id="modal-root"></div>
+<div id="print-area"></div>
+<div id="connection-banner" class="status-banner hidden" role="status"></div>
 
-            <div class="field">
-              <span class="field-label">Cashier PIN</span>
-              <input
-                type="password"
-                id="staff-pin-input"
-                inputmode="numeric"
-                minlength="4"
-                maxlength="6"
-                autocomplete="new-password"
-              />
-            </div>
+<!-- KEEP EXISTING ADMIN FUNCTIONS -->
+<script type="module" src="js/admin.js"></script>
 
-          </div>
+<!-- BUILT-IN EDIT ORDER FALLBACK -->
+<script type="module">
+import { db, authReady } from "./js/firebase-config.js";
+import { requireRole } from "./js/auth.js";
 
-          <button
-            type="button"
-            class="btn btn-primary"
-            id="save-pins-btn"
-          >
-            Save PINs
+import {
+  boxesForCart,
+  boxTotal,
+  lineBoxPrice,
+  addonsTotal
+} from "./js/business.js";
+
+import {
+  doc,
+  getDoc,
+  runTransaction,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const adminSession = requireRole(["admin"]);
+
+if (adminSession) {
+
+  const recentBody = document.getElementById("recent-orders-body");
+  const editRoot = document.createElement("div");
+
+  editRoot.id = "quick-order-edit-root";
+  document.body.appendChild(editRoot);
+
+  let savingOrder = false;
+
+  const peso = n => "₱" + Number(n || 0).toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+  const round = n =>
+    Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
+  const escapeHTML = value =>
+    String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[char]);
+
+  function readNumber(element, label, integer = false, minimum = 0) {
+    const text = element.value.trim();
+    const number = text === "" ? NaN : Number(text);
+
+    if (
+      !Number.isFinite(number) ||
+      number < minimum ||
+      number > 1000000 ||
+      (integer && !Number.isInteger(number))
+    ) {
+      throw new Error("Invalid " + label);
+    }
+
+    return integer ? number : round(number);
+  }
+
+  /*
+   * ADD EDIT BUTTON NEXT TO REPRINT
+   * Also works when admin.js redraws the table.
+   */
+  function restoreEditButtons() {
+    recentBody.querySelectorAll("[data-reprint-order]").forEach(reprint => {
+      const parent = reprint.parentElement;
+
+      if (!parent) return;
+
+      // Prevent duplicate Edit buttons when using
+      // a newer admin.js that already has one.
+      if (
+        parent.querySelector("[data-edit-order]") ||
+        parent.querySelector("[data-quick-edit]")
+      ) {
+        return;
+      }
+
+      const editButton = document.createElement("button");
+
+      editButton.type = "button";
+      editButton.className = "btn btn-sm btn-primary";
+      editButton.textContent = "Edit Order";
+
+      editButton.dataset.quickEdit =
+        reprint.dataset.reprintOrder;
+
+      parent.classList.add("admin-action-group");
+
+      parent.insertBefore(editButton, reprint);
+    });
+  }
+
+  const recentObserver = new MutationObserver(
+    restoreEditButtons
+  );
+
+  recentObserver.observe(recentBody, {
+    childList: true,
+    subtree: true
+  });
+
+  restoreEditButtons();
+
+  /*
+   * COMPARE CURRENT FIRESTORE ORDER
+   * TO THE VERSION BEING EDITED
+   */
+  function orderVersion(data) {
+    return JSON.stringify({
+      items: data.items,
+      addons: data.addons,
+      boxes: data.boxes,
+      total: data.total,
+      packagingFee: data.packagingFee,
+      editCount: data.editCount || 0,
+      customerName: data.customerName,
+      orderType: data.orderType,
+      paymentMethod: data.paymentMethod
+    });
+  }
+
+  function closeEditor() {
+    if (savingOrder) return;
+
+    editRoot.replaceChildren();
+    document.body.style.overflow = "";
+  }
+
+  /*
+   * PRODUCT EDITOR HTML
+   */
+  function productFields(item = {}) {
+    return `
+      <div class="qoe-line" data-product-row>
+        <div class="qoe-row-header">
+          <strong>Ordered Product</strong>
+          <button type="button" class="btn btn-sm btn-outline" data-remove-row>
+            Remove
           </button>
+        </div>
 
-          <div
-            id="settings-msg"
-            style="margin-top:10px;font-size:.85rem;font-weight:700;"
-          ></div>
+        <div class="qoe-fields">
+          <label>
+            Product Name
+            <input data-name required maxlength="120"
+              value="${escapeHTML(item.name || "")}">
+          </label>
 
+          <label>
+            Category
+            <input data-category required maxlength="80"
+              placeholder="Rice Meals"
+              value="${escapeHTML(item.category || "")}">
+          </label>
+
+          <label>
+            Quantity
+            <input data-qty type="number" required
+              min="1" max="999" step="1"
+              value="${escapeHTML(item.qty ?? 1)}">
+          </label>
+
+          <label>
+            Unit Price (₱)
+            <input data-price type="number" required
+              min="0" max="1000000" step="0.01"
+              value="${escapeHTML(item.unitPrice ?? 0)}">
+          </label>
+
+          <label>
+            Service Type
+            <select data-service>
+              <option value="Dine In"
+                ${item.serveType !== "Take Out" ? "selected" : ""}>
+                Dine In
+              </option>
+              <option value="Take Out"
+                ${item.serveType === "Take Out" ? "selected" : ""}>
+                Take Out
+              </option>
+            </select>
+          </label>
+
+          <label>
+            Box per Serving
+            <select data-box>
+              <option value="auto"
+                ${item.boxChoice == null || item.boxChoice === "auto" ? "selected" : ""}>
+                Auto
+              </option>
+              <option value="0"
+                ${String(item.boxChoice) === "0" ? "selected" : ""}>
+                No box
+              </option>
+              <option value="15"
+                ${String(item.boxChoice) === "15" ? "selected" : ""}>
+                ₱15 box
+              </option>
+              <option value="25"
+                ${String(item.boxChoice) === "25" ? "selected" : ""}>
+                ₱25 box
+              </option>
+            </select>
+          </label>
+
+          <label>
+            Size
+            <input data-size maxlength="40"
+              value="${escapeHTML(item.size || "")}">
+          </label>
+
+          <label>
+            Notes
+            <input data-note maxlength="180"
+              value="${escapeHTML(item.note || "")}">
+          </label>
+        </div>
+
+        <label style="margin-top:9px;">
+          <input type="checkbox" data-is-addon
+            ${item.isAddon ? "checked" : ""}>
+          Count as Add-on
+        </label>
+      </div>
+    `;
+  }
+
+  /*
+   * EXTRA ADD-ON EDITOR HTML
+   */
+  function addonFields(addon = {}) {
+    return `
+      <div class="qoe-line" data-addon-row>
+        <div class="qoe-row-header">
+          <strong>Extra Add-on</strong>
+          <button type="button" class="btn btn-sm btn-outline" data-remove-row>
+            Remove
+          </button>
+        </div>
+
+        <div class="qoe-fields">
+          <label>
+            Add-on Name
+            <input data-name required maxlength="120"
+              value="${escapeHTML(addon.name || "")}">
+          </label>
+
+          <label>
+            Quantity
+            <input data-qty type="number" required
+              min="1" max="999" step="1"
+              value="${escapeHTML(addon.qty ?? 1)}">
+          </label>
+
+          <label>
+            Unit Price (₱)
+            <input data-price type="number" required
+              min="0" max="1000000" step="0.01"
+              value="${escapeHTML(addon.unitPrice ?? 0)}">
+          </label>
         </div>
       </div>
+    `;
+  }
 
-    </section>
-  </main>
+  /*
+   * OPEN COMPLETE EDIT MODAL
+   */
+  function openOrderEditor(orderId, originalOrder) {
 
-  <!-- ADMIN MODALS -->
-  <div id="modal-root"></div>
+    const automatic = boxesForCart(originalOrder.items || []);
 
-  <!-- 58MM PRINT AREA -->
-  <div id="print-area"></div>
+    const existingBoxes = !!originalOrder.boxes;
 
-  <!-- CONNECTION STATUS -->
-  <div
-    class="status-banner hidden"
-    id="connection-banner"
-    role="status"
-  ></div>
+    const manual15 = Math.max(
+      0,
+      Number(originalOrder.boxes?.["15"] || 0) -
+      automatic["15"]
+    );
 
-  <!-- ADMIN FUNCTIONS -->
-  <script type="module" src="js/admin.js"></script>
+    const manual25 = Math.max(
+      0,
+      Number(originalOrder.boxes?.["25"] || 0) -
+      automatic["25"]
+    );
+
+    const oldPackaging = existingBoxes
+      ? Number(originalOrder.legacyPackagingFee || 0)
+      : Number(originalOrder.packagingFee || 0);
+
+    const itemBases = (originalOrder.items || []).map(
+      item => ({ ...item })
+    );
+
+    const addonBases = (originalOrder.addons || []).map(
+      addon => ({ ...addon })
+    );
+
+    editRoot.innerHTML = `
+      <div class="qoe-overlay" id="qoe-overlay">
+        <section class="qoe-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="qoe-title">
+
+          <h2 id="qoe-title">
+            Edit Order #${escapeHTML(originalOrder.orderNumber || "-")}
+          </h2>
+
+          <p class="qoe-subtitle">
+            Update products, quantity, price, packaging and add-ons.
+            Order number and original date remain unchanged.
+          </p>
+
+          <form id="qoe-form">
+
+            <div class="qoe-grid">
+              <label>
+                Customer Name
+                <input id="qoe-customer" maxlength="100"
+                  value="${escapeHTML(originalOrder.customerName || "")}">
+              </label>
+
+              <label>
+                Order Type
+                <select id="qoe-order-type">
+                  <option value="Dine In"
+                    ${originalOrder.orderType !== "Take Out" ? "selected" : ""}>
+                    Dine In
+                  </option>
+                  <option value="Take Out"
+                    ${originalOrder.orderType === "Take Out" ? "selected" : ""}>
+                    Take Out
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                Payment
+                <select id="qoe-payment">
+                  <option value="Cash"
+                    ${originalOrder.paymentMethod !== "GCash" ? "selected" : ""}>
+                    Cash
+                  </option>
+                  <option value="GCash"
+                    ${originalOrder.paymentMethod === "GCash" ? "selected" : ""}>
+                    GCash
+                  </option>
+                </select>
+              </label>
+            </div>
+
+            <h3>Ordered Products</h3>
+
+            <div id="qoe-products"></div>
+
+            <button type="button" id="qoe-add-product"
+              class="btn btn-sm btn-outline">
+              + Add Product
+            </button>
+
+            <h3>Extra Add-ons</h3>
+
+            <div id="qoe-addons"></div>
+
+            <button type="button" id="qoe-add-addon"
+              class="btn btn-sm btn-outline">
+              + Add Add-on
+            </button>
+
+            <h3>Additional Takeout Boxes</h3>
+
+            <p class="qoe-subtitle">
+              Automatic boxes for Take Out meals are
+              calculated separately. These are extra boxes.
+            </p>
+
+            <div class="qoe-grid">
+              <label>
+                Extra ₱15 Boxes
+                <input type="number" id="qoe-box-15"
+                  min="0" max="999" step="1"
+                  value="${manual15}">
+              </label>
+
+              <label>
+                Extra ₱25 Boxes
+                <input type="number" id="qoe-box-25"
+                  min="0" max="999" step="1"
+                  value="${manual25}">
+              </label>
+            </div>
+
+            <div id="qoe-total-preview"
+              class="qoe-summary"
+              aria-live="polite">
+            </div>
+
+            <p id="qoe-error" class="qoe-error" role="alert"></p>
+
+            <div class="qoe-footer">
+              <button type="button" id="qoe-cancel"
+                class="btn btn-outline">
+                Cancel
+              </button>
+
+              <button type="submit" id="qoe-save"
+                class="btn btn-primary">
+                Save Updated Order
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    `;
+
+    document.body.style.overflow = "hidden";
+
+    const form = editRoot.querySelector("#qoe-form");
+    const productsEl = form.querySelector("#qoe-products");
+    const addonsEl = form.querySelector("#qoe-addons");
+
+    (originalOrder.items || []).forEach(item => {
+      productsEl.insertAdjacentHTML(
+        "beforeend",
+        productFields(item)
+      );
+    });
+
+    (originalOrder.addons || []).forEach(addon => {
+      addonsEl.insertAdjacentHTML(
+        "beforeend",
+        addonFields(addon)
+      );
+    });
+
+    const find = (row, selector) =>
+      row.querySelector(selector);
+
+    /*
+     * COMPUTE EDITED ORDER
+     */
+    function calculateOrder() {
+
+      const items = [
+        ...productsEl.querySelectorAll("[data-product-row]")
+      ].map((row, index) => {
+
+        const name = find(row, "[data-name]").value.trim();
+        const category = find(row, "[data-category]").value.trim();
+
+        if (!name || !category) {
+          throw new Error(
+            "Item " + (index + 1) + " needs a name and category."
+          );
+        }
+
+        const qty = readNumber(
+          find(row, "[data-qty]"),
+          name + " quantity",
+          true,
+          1
+        );
+
+        const unitPrice = readNumber(
+          find(row, "[data-price]"),
+          name + " price"
+        );
+
+        const item = {
+          ...itemBases[index],
+          name,
+          category,
+          qty,
+          unitPrice,
+          size: find(row, "[data-size]").value.trim() || null,
+          note: find(row, "[data-note]").value.trim(),
+          serveType: find(row, "[data-service]").value,
+          boxChoice: find(row, "[data-box]").value,
+          isAddon: find(row, "[data-is-addon]").checked
+        };
+
+        item.boxUnitPrice = lineBoxPrice(item);
+
+        return item;
+      });
+
+      const addons = [
+        ...addonsEl.querySelectorAll("[data-addon-row]")
+      ].map((row, index) => {
+
+        const name = find(row, "[data-name]").value.trim();
+
+        if (!name) {
+          throw new Error("Add-on name is required.");
+        }
+
+        return {
+          ...addonBases[index],
+          name,
+          qty: readNumber(
+            find(row, "[data-qty]"),
+            "Add-on quantity",
+            true,
+            1
+          ),
+          unitPrice: readNumber(
+            find(row, "[data-price]"),
+            "Add-on price"
+          )
+        };
+      });
+
+      const extraBoxes = {
+        "15": readNumber(
+          form.querySelector("#qoe-box-15"),
+          "₱15 box quantity",
+          true
+        ),
+        "25": readNumber(
+          form.querySelector("#qoe-box-25"),
+          "₱25 box quantity",
+          true
+        )
+      };
+
+      const boxes = boxesForCart(items, extraBoxes);
+
+      const packagingFee = round(
+        boxTotal(boxes) + oldPackaging
+      );
+
+      const addOnTotal = addonsTotal({
+        items,
+        addons
+      });
+
+      const productTotal = items.reduce(
+        (total, item) =>
+          total + item.qty * item.unitPrice,
+        0
+      );
+
+      const extrasTotal = addons.reduce(
+        (total, addon) =>
+          total + addon.qty * addon.unitPrice,
+        0
+      );
+
+      const total = round(
+        productTotal + extrasTotal + packagingFee
+      );
+
+      if (
+        !items.length &&
+        !addons.length &&
+        !boxTotal(boxes)
+      ) {
+        throw new Error("Order cannot be empty.");
+      }
+
+      return {
+        items,
+        addons,
+        boxes,
+        legacyPackagingFee: oldPackaging,
+        packagingFee,
+        addOnTotal,
+        total,
+        customerName: form.querySelector("#qoe-customer").value.trim(),
+        orderType: form.querySelector("#qoe-order-type").value,
+        paymentMethod: form.querySelector("#qoe-payment").value
+      };
+    }
+
+    /*
+     * LIVE TOTAL PREVIEW
+     */
+    function updatePreview() {
+      try {
+        const result = calculateOrder();
+
+        form.querySelector("#qoe-total-preview").innerHTML = `
+          Products: <strong>${peso(
+            result.items.reduce(
+              (sum, item) => sum + item.qty * item.unitPrice,
+              0
+            )
+          )}</strong>
+
+          <br>
+
+          Add-ons:
+          <strong>${peso(result.addOnTotal)}</strong>
+
+          <br>
+
+          Takeout Boxes:
+          <strong>${peso(result.packagingFee)}</strong>
+
+          <hr>
+
+          <div class="qoe-grand">
+            Updated Total: ${peso(result.total)}
+          </div>
+
+          <small>
+            Previous Total: ${peso(originalOrder.total)}
+          </small>
+        `;
+
+        form.querySelector("#qoe-error").textContent = "";
+
+      } catch (error) {
+        form.querySelector("#qoe-total-preview").textContent =
+          error.message;
+      }
+    }
+
+    form.addEventListener("input", updatePreview);
+    form.addEventListener("change", updatePreview);
+
+    /*
+     * REMOVE ITEM OR ADD-ON
+     */
+    form.addEventListener("click", event => {
+      const button = event.target.closest("[data-remove-row]");
+
+      if (!button) return;
+
+      const row = button.closest(".qoe-line");
+      const parent = row.parentElement;
+      const index = [...parent.children].indexOf(row);
+
+      if (parent === productsEl) {
+        itemBases.splice(index, 1);
+      }
+
+      if (parent === addonsEl) {
+        addonBases.splice(index, 1);
+      }
+
+      row.remove();
+      updatePreview();
+    });
+
+    /*
+     * ADD PRODUCT
+     */
+    form.querySelector("#qoe-add-product").addEventListener(
+      "click",
+      () => {
+        itemBases.push({});
+
+        productsEl.insertAdjacentHTML(
+          "beforeend",
+          productFields({})
+        );
+
+        updatePreview();
+      }
+    );
+
+    /*
+     * ADD EXTRA ADD-ON
+     */
+    form.querySelector("#qoe-add-addon").addEventListener(
+      "click",
+      () => {
+        addonBases.push({});
+
+        addonsEl.insertAdjacentHTML(
+          "beforeend",
+          addonFields({})
+        );
+
+        updatePreview();
+      }
+    );
+
+    /*
+     * CLOSE BUTTON
+     */
+    form.querySelector("#qoe-cancel").addEventListener(
+      "click",
+      closeEditor
+    );
+
+    editRoot.querySelector("#qoe-overlay").addEventListener(
+      "click",
+      event => {
+        if (event.target.id === "qoe-overlay") {
+          closeEditor();
+        }
+      }
+    );
+
+    /*
+     * SAVE TO FIRESTORE
+     */
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const errorEl = form.querySelector("#qoe-error");
+      const saveBtn = form.querySelector("#qoe-save");
+
+      errorEl.textContent = "";
+
+      try {
+        const changes = calculateOrder();
+
+        savingOrder = true;
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Saving...";
+
+        await authReady;
+
+        await runTransaction(db, async transaction => {
+          const orderRef = doc(db, "orders", orderId);
+
+          const snapshot = await transaction.get(orderRef);
+
+          if (!snapshot.exists()) {
+            throw new Error("Order not found.");
+          }
+
+          const current = snapshot.data();
+
+          // Prevent overwriting more recent changes.
+          if (
+            orderVersion(current) !==
+            orderVersion(originalOrder)
+          ) {
+            throw new Error(
+              "This order was edited on another device. " +
+              "Please reopen the order."
+            );
+          }
+
+          transaction.update(orderRef, {
+            ...changes,
+
+            updatedAt: serverTimestamp(),
+
+            editCount: Number(current.editCount || 0) + 1,
+
+            editHistory: [
+              ...(current.editHistory || []).slice(-19),
+              {
+                editedAt: new Date().toISOString(),
+                previousTotal: Number(current.total || 0),
+                newTotal: changes.total,
+                source: "Admin editor"
+              }
+            ]
+          });
+        });
+
+        savingOrder = false;
+        closeEditor();
+
+      } catch (error) {
+        savingOrder = false;
+
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save Updated Order";
+
+        errorEl.textContent =
+          "Failed to save: " + error.message;
+
+        console.error("Admin order update error:", error);
+      }
+    });
+
+    updatePreview();
+  }
+
+  /*
+   * LISTEN FOR EDIT BUTTON
+   */
+  recentBody.addEventListener("click", async event => {
+    const editButton = event.target.closest("[data-quick-edit]");
+
+    if (!editButton) return;
+
+    const orderId = editButton.dataset.quickEdit;
+
+    editButton.disabled = true;
+    editButton.textContent = "Loading...";
+
+    try {
+      await authReady;
+
+      const orderRef = doc(db, "orders", orderId);
+      const snapshot = await getDoc(orderRef);
+
+      if (!snapshot.exists()) {
+        throw new Error("Order does not exist.");
+      }
+
+      openOrderEditor(orderId, snapshot.data());
+
+    } catch (error) {
+      console.error("Unable to open order:", error);
+
+      const banner = document.getElementById("connection-banner");
+
+      if (banner) {
+        banner.textContent =
+          "Cannot open order editor: " + error.message;
+
+        banner.classList.remove("hidden");
+      }
+
+    } finally {
+      editButton.disabled = false;
+      editButton.textContent = "Edit Order";
+    }
+  });
+
+}
+</script>
 
 </body>
 </html>

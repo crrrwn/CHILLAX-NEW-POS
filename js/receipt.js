@@ -4,15 +4,28 @@ const html = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;"
 const dateLabel = date => date.toLocaleString("en-PH",{timeZone:"Asia/Manila",year:"numeric",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
 const meta = (label,value) => `<div class="meta-row"><span>${html(label)}</span><strong>${html(value)}</strong></div>`;
 const cost = (label,value,highlight=false) => `<div class="totals-row${highlight?' grand':''}"><span>${html(label)}</span><strong>${pesos(value)}</strong></div>`;
+/** Group items under their saved menu category on every printed copy. */
 function renderItems(items) {
-  return (items || []).map(item => `<tr><td class="qty">${html(item.qty)}×</td>
-    <td class="item-name">${html(item.name)}${item.size?` (${html(item.size)})`:''}
-    <div class="item-service">${html(item.serveType || "Dine In")}${item.isAddon ? " · ADD-ON" : ""}${Number(item.boxUnitPrice || 0) ? ` · Box ₱${Number(item.boxUnitPrice)} each` : ""}</div>
-    ${item.note?`<div class="item-note">Note: ${html(item.note)}</div>`:""}</td>
-    <td class="item-price">${pesos(Number(item.qty || 0)*Number(item.unitPrice||0))}</td></tr>`).join("");
+  const groups = new Map();
+  for (const item of items || []) {
+    const category = String(item.category || (item.isAddon ? "Add Ons" : "Category not recorded")).trim();
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(item);
+  }
+  return [...groups].map(([category, lines]) => `
+    <tr class="receipt-category"><td colspan="3">${html(category.toUpperCase())}</td></tr>
+    ${lines.map(item => `<tr>
+      <td class="qty">${html(item.qty)}×</td>
+      <td class="item-name">${html(item.name)}${item.size ? ` (${html(item.size)})` : ""}
+        <div class="item-service">${html(item.serveType || "Dine In")}${item.isAddon ? " · ADD-ON" : ""}${Number(item.boxUnitPrice || 0) ? ` · ₱${Number(item.boxUnitPrice)} box` : ""}</div>
+        ${item.note ? `<div class="item-note">Note: ${html(item.note)}</div>` : ""}
+      </td>
+      <td class="item-price">${pesos(Number(item.qty || 0) * Number(item.unitPrice || 0))}</td>
+    </tr>`).join("")}`).join("");
 }
 function renderExtras(order) {
-  const list = (order.addons || []).map(a=>`<div class="totals-row"><span>${html(a.qty)}× ${html(a.name)} (add-on)</span><strong>${pesos(Number(a.qty||0)*Number(a.unitPrice||0))}</strong></div>`).join("");
+  const addons = order.addons || [];
+  const list = addons.length ? `<div class="receipt-extras-title">ADD ONS</div>` + addons.map(a=>`<div class="totals-row"><span>${html(a.qty)}× ${html(a.name)} (add-on)</span><strong>${pesos(Number(a.qty||0)*Number(a.unitPrice||0))}</strong></div>`).join("") : "";
   const boxes = order.boxes || {};
   const hasCounts = Number(boxes["15"]||0) || Number(boxes["25"]||0);
   const packaging = hasCounts ?
@@ -20,7 +33,7 @@ function renderExtras(order) {
      ${Number(boxes["25"]||0)?cost(`₱25 box × ${boxes["25"]}`,Number(boxes["25"])*25):""}` :
     (Number(order.packagingFee||0) ? cost("Packaging",order.packagingFee) : "");
   const legacy = Number(order.legacyPackagingFee || 0);
-  return list + packaging + (legacy ? cost("Previous packaging",legacy) : "");
+  return list + (packaging || legacy ? `<div class="receipt-extras-title">TAKEOUT BOXES</div>` : "") + packaging + (legacy ? cost("Previous packaging",legacy) : "");
 }
 function orderSection(order, copy) {
   const created = timestampDate(order.createdAt) || timestampDate(order.printedAt) || new Date();

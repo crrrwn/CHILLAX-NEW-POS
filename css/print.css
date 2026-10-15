@@ -52,3 +52,13 @@
   .receipt .totals-row.grand { font-size: 10pt; font-weight: 900; }
   .receipt .footer-note { margin: 1.5mm 0 0; font-size: 7pt; }
 }
+
+@media print {
+  .receipt .receipt-category td { font-weight: 900 !important; text-transform: uppercase;
+    padding: 2mm .3mm .4mm 0 !important; border-top: 1px dotted #333 !important;
+    font-size: 7.5pt !important; letter-spacing: .15px; }
+  .receipt .receipt-extras-title { font-size: 7.4pt !important;
+    font-weight: 900 !important; margin-top: 1.2mm !important; }
+  .receipt .item-note { display: block; margin: 0 !important; padding: 0 !important;
+    font-size: 6.5pt !important; line-height: 1.05 !important; }
+}
