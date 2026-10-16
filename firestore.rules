@@ -54,6 +54,26 @@ service cloud.firestore {
       allow read, create, update, delete: if isAnonymous();
     }
 
+    // GCASH FINANCE LEDGER — one record per existing order ID.
+    // Development permissions only: anonymous users are not real admin identities.
+    match /gcashPayments/{orderId} {
+      function linkedOrder() {
+        return get(/databases/$(database)/documents/orders/$(orderId)).data;
+      }
+      function validPayment() {
+        return exists(/databases/$(database)/documents/orders/$(orderId))
+          && request.resource.data.orderId == orderId
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && request.resource.data.amount <= linkedOrder().total
+          && request.resource.data.dayKey == linkedOrder().dayKey
+          && request.resource.data.description is string;
+      }
+      allow read: if isAnonymous();
+      allow create, update: if isAnonymous() && validPayment();
+      allow delete: if isAnonymous();
+    }
+
     // PIN SETTINGS: required by js/auth.js.
     // WARNING: Anyone signed in anonymously can READ and MODIFY these PINs.
     match /settings/pins {

@@ -1,9 +1,11 @@
 
 /**
  * CHILLAX POS
- * 58MM RECEIPTS
- * ADMIN, KITCHEN, CUSTOMER
- * FIXED ITEM AND QUANTITY SPACING
+ * COMPLETE 58MM RECEIPT SYSTEM
+ *
+ * ADMIN / KITCHEN / CUSTOMER
+ * Category labels, takeout boxes,
+ * add-ons and discounts.
  */
 
 import {
@@ -11,17 +13,20 @@ import {
   timestampDate
 } from "./business.js";
 
-const html = s =>
-  String(s ?? "").replace(/[&<>"']/g, c => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[c]);
+const html = value =>
+  String(value ?? "").replace(
+    /[&<>"']/g,
+    character => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[character]
+  );
 
-const dateLabel = date =>
-  date.toLocaleString("en-PH", {
+function dateLabel(date) {
+  return date.toLocaleString("en-PH", {
     timeZone: "Asia/Manila",
     year: "numeric",
     month: "short",
@@ -29,32 +34,38 @@ const dateLabel = date =>
     hour: "numeric",
     minute: "2-digit"
   });
+}
 
-const meta = (label, value) => `
-  <div class="meta-row">
-    <span>${html(label)}</span>
-    <strong>${html(value)}</strong>
-  </div>
-`;
+function meta(label, value) {
+  return `
+    <div class="meta-row">
+      <span>${html(label)}</span>
+      <strong>${html(value)}</strong>
+    </div>
+  `;
+}
 
-const cost = (label, value, highlight = false) => `
-  <div class="totals-row${highlight ? " grand" : ""}">
-    <span>${html(label)}</span>
-    <strong>${pesos(value)}</strong>
-  </div>
-`;
+function cost(label, value, highlight = false) {
+  return `
+    <div class="totals-row${highlight ? " grand" : ""}">
+      <span>${html(label)}</span>
+      <strong>${pesos(value)}</strong>
+    </div>
+  `;
+}
 
-/*
- * ITEMS GROUPED BY CATEGORY
- * Quantity and name use the SAME column.
- */
+/* CATEGORY-GROUPED ORDER ITEMS */
 function renderItems(items) {
   const groups = new Map();
 
   for (const item of items || []) {
     const category = String(
       item.category ||
-      (item.isAddon ? "Add Ons" : "Category not recorded")
+      (
+        item.isAddon
+          ? "Add Ons"
+          : "Category not recorded"
+      )
     ).trim();
 
     if (!groups.has(category)) {
@@ -65,65 +76,77 @@ function renderItems(items) {
   }
 
   return [...groups].map(([category, lines]) => `
-
     <tr class="receipt-category">
       <td colspan="2">
         ${html(category.toUpperCase())}
       </td>
     </tr>
 
-    ${lines.map(item => `
-      <tr class="receipt-product-row">
+    ${lines.map(item => {
+      const quantity = Number(item.qty || 0);
+      const unitPrice = Number(item.unitPrice || 0);
+      const lineTotal = quantity * unitPrice;
 
-        <td class="item-name">
+      return `
+        <tr class="receipt-product-row">
+          <td class="item-name">
+            <span class="item-qty">${
+              html(quantity)
+            }×</span><span class="item-title">${
+              html(item.name)
+            }${
+              item.size
+                ? ` (${html(item.size)})`
+                : ""
+            }</span>
 
-          <span class="item-qty">${html(item.qty)}×</span><span class="item-title">${html(item.name)}${item.size ? ` (${html(item.size)})` : ""}</span>
+            <div class="item-service">
+              ${html(item.serveType || "Dine In")}
+              ${item.isAddon ? " · ADD-ON" : ""}
+              ${
+                Number(item.boxUnitPrice || 0)
+                  ? ` · ₱${Number(item.boxUnitPrice)} box`
+                  : ""
+              }
+            </div>
 
-          <div class="item-service">
-            ${html(item.serveType || "Dine In")}
-            ${item.isAddon ? " · ADD-ON" : ""}
             ${
-              Number(item.boxUnitPrice || 0)
-                ? ` · ₱${Number(item.boxUnitPrice)} box`
+              item.note
+                ? `<div class="item-note">
+                     Note: ${html(item.note)}
+                   </div>`
                 : ""
             }
-          </div>
+          </td>
 
-          ${
-            item.note
-              ? `<div class="item-note">Note: ${html(item.note)}</div>`
-              : ""
-          }
-
-        </td>
-
-        <td class="item-price">
-          ${pesos(
-            Number(item.qty || 0) *
-            Number(item.unitPrice || 0)
-          )}
-        </td>
-
-      </tr>
-    `).join("")}
-
+          <td class="item-price">
+            ${pesos(lineTotal)}
+          </td>
+        </tr>
+      `;
+    }).join("")}
   `).join("");
 }
 
-/*
- * ADD-ONS AND TAKEOUT BOXES
- */
+/* ADD-ONS AND PACKAGING */
 function renderExtras(order) {
-  const addons = order.addons || [];
+  const addons = Array.isArray(order.addons)
+    ? order.addons
+    : [];
 
-  const list = addons.length
-    ? `<div class="receipt-extras-title">ADD ONS</div>` +
-      addons.map(addon => `
+  const addonLines = addons.length
+    ? `
+      <div class="receipt-extras-title">
+        ADD ONS
+      </div>
+
+      ${addons.map(addon => `
         <div class="totals-row">
           <span>
             ${html(addon.qty)}×
             ${html(addon.name)} (add-on)
           </span>
+
           <strong>
             ${pesos(
               Number(addon.qty || 0) *
@@ -131,7 +154,8 @@ function renderExtras(order) {
             )}
           </strong>
         </div>
-      `).join("")
+      `).join("")}
+    `
     : "";
 
   const boxes = order.boxes || {};
@@ -143,19 +167,30 @@ function renderExtras(order) {
 
   const packaging = hasCounts
     ? `
-      ${count15 ? cost(
-        `₱15 box × ${count15}`,
-        count15 * 15
-      ) : ""}
+      ${
+        count15
+          ? cost(
+              `₱15 box × ${count15}`,
+              count15 * 15
+            )
+          : ""
+      }
 
-      ${count25 ? cost(
-        `₱25 box × ${count25}`,
-        count25 * 25
-      ) : ""}
+      ${
+        count25
+          ? cost(
+              `₱25 box × ${count25}`,
+              count25 * 25
+            )
+          : ""
+      }
     `
     : (
       Number(order.packagingFee || 0)
-        ? cost("Packaging", order.packagingFee)
+        ? cost(
+            "Packaging",
+            order.packagingFee
+          )
         : ""
     );
 
@@ -164,11 +199,13 @@ function renderExtras(order) {
   );
 
   return `
-    ${list}
+    ${addonLines}
 
     ${
       packaging || legacy
-        ? `<div class="receipt-extras-title">TAKEOUT BOXES</div>`
+        ? `<div class="receipt-extras-title">
+             TAKEOUT BOXES
+           </div>`
         : ""
     }
 
@@ -182,16 +219,27 @@ function renderExtras(order) {
   `;
 }
 
-/*
- * RECEIPT COPY
- */
+/* ONE PRINT COPY */
 function orderSection(order, copy) {
   const created =
     timestampDate(order.createdAt) ||
     timestampDate(order.printedAt) ||
     new Date();
 
-  const update = order.receiptMode === "ADD-ON";
+  const isAdditional =
+    order.receiptMode === "ADD-ON";
+
+  const discountRate = Number(
+    order.discountRate || 0
+  );
+
+  const discountAmount = Number(
+    order.discountAmount || 0
+  );
+
+  const discountLabel = discountRate
+    ? `Discount (${discountRate}%)`
+    : "Discount";
 
   return `
     <section
@@ -203,7 +251,7 @@ function orderSection(order, copy) {
         <h1>${html(copy)} COPY</h1>
 
         ${
-          update
+          isAdditional
             ? `<div class="copy-label">
                  ADD-ON / ADDITIONAL CHARGES
                </div>`
@@ -213,16 +261,29 @@ function orderSection(order, copy) {
 
       <div class="rule"></div>
 
-      ${meta("Order #", `#${order.orderNumber ?? "-"}`)}
-      ${meta("Date", dateLabel(created))}
-      ${meta("Customer", order.customerName || "Walk-in")}
-      ${meta("Payment", order.paymentMethod || "Cash")}
+      ${meta(
+        "Order #",
+        `#${order.orderNumber ?? "-"}`
+      )}
+
+      ${meta(
+        "Date",
+        dateLabel(created)
+      )}
+
+      ${meta(
+        "Customer",
+        order.customerName || "Walk-in"
+      )}
+
+      ${meta(
+        "Payment",
+        order.paymentMethod || "Cash"
+      )}
 
       <div class="rule"></div>
 
-      <!-- FIXED TWO-COLUMN PRODUCT TABLE -->
       <table class="receipt-items">
-
         <colgroup>
           <col style="width:67%">
           <col style="width:33%">
@@ -231,21 +292,31 @@ function orderSection(order, copy) {
         <tbody>
           ${renderItems(order.items)}
         </tbody>
-
       </table>
 
       ${renderExtras(order)}
 
       <div class="rule"></div>
 
+      ${
+        discountAmount > 0
+          ? `
+            <div class="totals-row">
+              <span>${html(discountLabel)}</span>
+              <strong>-${pesos(discountAmount)}</strong>
+            </div>
+          `
+          : ""
+      }
+
       ${cost(
-        update ? "NEW CHARGES" : "TOTAL",
+        isAdditional ? "NEW CHARGES" : "TOTAL",
         order.total,
         true
       )}
 
       ${
-        update
+        isAdditional
           ? cost(
               "UPDATED ORDER TOTAL",
               order.updatedOrderTotal,
@@ -256,22 +327,24 @@ function orderSection(order, copy) {
 
       <div class="footer-note">
         ${html(copy)} COPY ·
-        ${update ? "ADDITIONAL ITEMS" : "ORDER COMPLETE"}
+        ${
+          isAdditional
+            ? "ADDITIONAL ITEMS"
+            : "ORDER COMPLETE"
+        }
       </div>
 
     </section>
   `;
 }
 
-/*
- * GENERATE ALL THREE COPIES
- */
+/* GENERATE ALL THREE RECEIPTS */
 export function prepareReceipts(
   order,
   area = document.getElementById("print-area")
 ) {
   if (!area) {
-    throw new Error("Missing #print-area");
+    throw new Error("Missing #print-area.");
   }
 
   area.innerHTML = [
@@ -281,35 +354,42 @@ export function prepareReceipts(
   ].map(copy => orderSection(order, copy)).join("");
 }
 
-/*
- * PRINT ORDER
- */
+/* PRINT ORDER */
 export async function printOrder(order) {
   prepareReceipts(order);
   window.print();
 }
 
-/*
- * ADMIN FINANCE REPORT
- */
+/* ADMIN DAILY FINANCE REPORT */
 export async function printFinanceReport(
   date,
   expenses,
-  cashEntries
+  cashEntries,
+  gcashPayments = []
 ) {
-  const area = document.getElementById("print-area");
+  const area = document.getElementById(
+    "print-area"
+  );
 
   if (!area) {
-    throw new Error("Missing #print-area");
+    throw new Error("Missing #print-area.");
   }
 
   const totalExpense = expenses.reduce(
-    (sum, entry) => sum + Number(entry.amount || 0),
+    (sum, entry) =>
+      sum + Number(entry.amount || 0),
     0
   );
 
   const totalCash = cashEntries.reduce(
-    (sum, entry) => sum + Number(entry.amount || 0),
+    (sum, entry) =>
+      sum + Number(entry.amount || 0),
+    0
+  );
+
+  const totalGCash = gcashPayments.reduce(
+    (sum, entry) =>
+      sum + Number(entry.amount || 0),
     0
   );
 
@@ -320,7 +400,10 @@ export async function printFinanceReport(
           ${html(type)}:
           ${html(entry.description)}
         </span>
-        <strong>${pesos(entry.amount)}</strong>
+
+        <strong>
+          ${pesos(entry.amount)}
+        </strong>
       </div>
     `).join("");
 
@@ -337,25 +420,56 @@ export async function printFinanceReport(
 
       <div class="rule"></div>
 
-      <div class="copy-label">CASH ON HAND</div>
+      <div class="copy-label">
+        CASH ON HAND
+      </div>
 
       ${rows(cashEntries, "Cash") || "No entries"}
 
-      ${cost("Cash total", totalCash, true)}
+      ${cost(
+        "Cash total",
+        totalCash,
+        true
+      )}
 
       <div class="rule"></div>
 
-      <div class="copy-label">EXPENSES</div>
+      <div class="copy-label">
+        EXPENSES
+      </div>
 
       ${rows(expenses, "Expense") || "No entries"}
 
-      ${cost("Expense total", totalExpense, true)}
+      ${cost(
+        "Expense total",
+        totalExpense,
+        true
+      )}
 
       <div class="rule"></div>
 
+      <div class="copy-label">
+        GCASH PAYMENTS
+      </div>
+
+      ${
+        gcashPayments.map(entry => `
+          <div class="finance-print-row">
+            <span>
+              Order #${html(entry.orderNumber)}:
+              ${html(entry.description)}
+            </span>
+
+            <strong>
+              ${pesos(entry.amount)}
+            </strong>
+          </div>
+        `).join("") || "No GCash payments"
+      }
+
       ${cost(
-        "Cash less expenses",
-        totalCash - totalExpense,
+        "GCash total",
+        totalGCash,
         true
       )}
 

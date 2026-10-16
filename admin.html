@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Chillax Café POS — Admin</title>
+
 <link rel="icon" href="assets/logo.jpg">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/print.css">
@@ -58,135 +59,69 @@
     white-space: nowrap;
   }
 
-  /* ORDER EDIT MODAL */
-  .qoe-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 2500;
-    background: rgba(25, 16, 12, .65);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px;
-  }
-
-  .qoe-dialog {
-    width: min(96vw, 850px);
-    max-height: calc(100dvh - 24px);
-    overflow-y: auto;
-    background: #fffaf6;
-    border-radius: 18px;
-    padding: 20px;
-    color: #422c22;
-    box-shadow: 0 18px 60px #0004;
-  }
-
-  .qoe-dialog h2 {
-    font-size: 1.4rem;
-    margin-bottom: 6px;
-  }
-
-  .qoe-dialog h3 {
-    font-size: 1.05rem;
-    margin: 17px 0 10px;
-  }
-
-  .qoe-subtitle {
-    font-size: .83rem;
-    color: #86695b;
-    margin: 0 0 15px;
-  }
-
-  .qoe-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .qoe-fields {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 9px;
-  }
-
-  .qoe-line {
-    background: white;
-    padding: 13px;
-    border: 1px solid #e7d9d0;
+  .admin-discount-panel {
+    border: 1px solid #e6c2d2;
+    background: #fff1f7;
     border-radius: 12px;
+    padding: 13px;
+    margin: 10px 0 14px;
+  }
+
+  .admin-discount-panel strong {
+    display: block;
+    color: #653249;
+    font-size: .84rem;
     margin-bottom: 9px;
   }
 
-  .qoe-row-header {
+  .admin-discount-buttons {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
-  .qoe-dialog label {
-    display: block;
-    font-size: .78rem;
-    font-weight: 700;
-    color: #614b40;
-  }
-
-  .qoe-dialog input,
-  .qoe-dialog select {
-    display: block;
-    width: 100%;
-    min-width: 0;
-    min-height: 37px;
-    padding: 8px;
-    margin-top: 4px;
-    border: 1px solid #d8c9c0;
-    border-radius: 8px;
+  .admin-discount-buttons button {
+    min-width: 85px;
+    border: 1px solid #d6acbe;
     background: white;
-    color: #30251e;
-    font: inherit;
-  }
-
-  .qoe-dialog input[type="checkbox"] {
-    display: inline-block;
-    width: auto;
-    min-height: auto;
-    margin-right: 6px;
-  }
-
-  .qoe-summary {
-    background: #f8eee9;
-    border-radius: 12px;
-    padding: 14px;
-    margin: 16px 0;
-    line-height: 1.9;
-  }
-
-  .qoe-grand {
-    font-size: 1.2rem;
-    color: #bd2766;
+    border-radius: 9px;
+    padding: 10px 13px;
+    color: #71354d;
     font-weight: 800;
-  }
-
-  .qoe-error {
-    color: #b42318;
-    font-weight: 700;
-    font-size: .85rem;
-  }
-
-  .qoe-footer {
-    position: sticky;
-    bottom: -20px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 12px 0;
-    background: #fffaf6;
-    border-top: 1px solid #e7dad1;
-  }
-
-  .qoe-dialog button {
     cursor: pointer;
+  }
+
+  .admin-discount-buttons button[aria-pressed="true"] {
+    background: #c44379;
+    color: white;
+    border-color: #c44379;
+  }
+
+  .admin-discount-buttons button:focus-visible {
+    outline: 3px solid #743757;
+    outline-offset: 2px;
+  }
+
+  .admin-discount-panel small {
+    display: block;
+    margin-top: 7px;
+    font-size: .72rem;
+    color: #80576a;
+  }
+
+  .menu-availability-select {
+    width: 140px;
+    max-width: 100%;
+    border: 1px solid #d8c4b8;
+    border-radius: 9px;
+    padding: 8px 10px;
+    background: #fff;
+    color: #593c30;
+    font-weight: 700;
+  }
+
+  .menu-availability-select:disabled {
+    opacity: .55;
   }
 }
 
@@ -199,17 +134,6 @@
   }
 }
 
-@media screen and (max-width: 700px) {
-  .qoe-dialog {
-    padding: 13px;
-  }
-
-  .qoe-grid,
-  .qoe-fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media screen and (max-width: 650px) {
   body.admin-page {
     --header-height: 62px;
@@ -217,7 +141,7 @@
 }
 
 @media print {
-  .qoe-overlay {
+  .admin-discount-panel {
     display: none !important;
   }
 }
@@ -266,7 +190,7 @@
 
     <button type="button" data-tab="finances">
       <span>₱</span>
-      <span>Expenses & Cash</span>
+      <span>Expenses &amp; Cash</span>
     </button>
 
     <button type="button" data-tab="settings">
@@ -394,7 +318,6 @@
                 <th>Actions</th>
               </tr>
             </thead>
-
             <tbody id="recent-orders-body"></tbody>
           </table>
         </div>
@@ -427,7 +350,7 @@
       <div class="section-head">
         <div>
           <p class="eyebrow">ADMIN · DAILY FINANCES</p>
-          <h2>Expenses & Cash on Hand</h2>
+          <h2>Expenses &amp; Cash on Hand</h2>
           <p class="section-description">
             Daily view resets at Philippine midnight.
             Previous records are retained.
@@ -463,8 +386,8 @@
         </div>
 
         <div class="stat-card">
-          <div class="label">Cash less expenses</div>
-          <div class="value" id="finance-balance">₱0</div>
+          <div class="label">GCash Payments</div>
+          <div class="value" id="finance-gcash-total">₱0</div>
         </div>
       </div>
 
@@ -476,6 +399,10 @@
 
           <button type="button" class="btn btn-outline" data-finance-add="cashEntries">
             + Add Cash Entry
+          </button>
+
+          <button type="button" class="btn btn-primary" id="add-gcash-payment">
+            + Add GCash Payment
           </button>
         </div>
 
@@ -536,841 +463,306 @@
   </section>
 </main>
 
-<!-- ORIGINAL MODALS, PRINTING, CONNECTION -->
+<!-- MODALS / PRINTING / CONNECTION -->
 <div id="modal-root"></div>
 <div id="print-area"></div>
 <div id="connection-banner" class="status-banner hidden" role="status"></div>
 
-<!-- KEEP EXISTING ADMIN FUNCTIONS -->
+<!-- ORIGINAL ADMIN FUNCTIONS -->
 <script type="module" src="js/admin.js"></script>
 
-<!-- BUILT-IN EDIT ORDER FALLBACK -->
+<!-- DIRECT ADMIN DISCOUNT AND AVAILABILITY CONTROLS -->
 <script type="module">
 import { db, authReady } from "./js/firebase-config.js";
-import { requireRole } from "./js/auth.js";
-
-import {
-  boxesForCart,
-  boxTotal,
-  lineBoxPrice,
-  addonsTotal
-} from "./js/business.js";
 
 import {
   doc,
   getDoc,
-  runTransaction,
-  serverTimestamp
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-const adminSession = requireRole(["admin"]);
+const ordersRoot = document.getElementById("recent-orders-body");
+const menuRoot = document.getElementById("menu-admin-root");
+const modalRoot = document.getElementById("modal-root");
 
-if (adminSession) {
+let activeEditId = "";
+let activeToken = 0;
+let loadedRate = 0;
+let discountReady = false;
 
-  const recentBody = document.getElementById("recent-orders-body");
-  const editRoot = document.createElement("div");
+/* DISCOUNT BUTTON STATE */
+function updateButtons(form, rate) {
+  const field = form.querySelector("#edit-discount-rate");
+  if (!field) return;
 
-  editRoot.id = "quick-order-edit-root";
-  document.body.appendChild(editRoot);
+  const normalized = [0, 10, 20].includes(Number(rate))
+    ? Number(rate)
+    : 0;
 
-  let savingOrder = false;
+  field.value = String(normalized);
 
-  const peso = n => "₱" + Number(n || 0).toLocaleString("en-PH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+  form.querySelectorAll("[data-direct-discount]").forEach(button => {
+    button.setAttribute(
+      "aria-pressed",
+      String(Number(button.dataset.directDiscount) === normalized)
+    );
   });
 
-  const round = n =>
-    Math.round((Number(n) + Number.EPSILON) * 100) / 100;
-
-  const escapeHTML = value =>
-    String(value ?? "").replace(/[&<>"']/g, char => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    })[char]);
-
-  function readNumber(element, label, integer = false, minimum = 0) {
-    const text = element.value.trim();
-    const number = text === "" ? NaN : Number(text);
-
-    if (
-      !Number.isFinite(number) ||
-      number < minimum ||
-      number > 1000000 ||
-      (integer && !Number.isInteger(number))
-    ) {
-      throw new Error("Invalid " + label);
-    }
-
-    return integer ? number : round(number);
-  }
-
-  /*
-   * ADD EDIT BUTTON NEXT TO REPRINT
-   * Also works when admin.js redraws the table.
-   */
-  function restoreEditButtons() {
-    recentBody.querySelectorAll("[data-reprint-order]").forEach(reprint => {
-      const parent = reprint.parentElement;
-
-      if (!parent) return;
-
-      // Prevent duplicate Edit buttons when using
-      // a newer admin.js that already has one.
-      if (
-        parent.querySelector("[data-edit-order]") ||
-        parent.querySelector("[data-quick-edit]")
-      ) {
-        return;
-      }
-
-      const editButton = document.createElement("button");
-
-      editButton.type = "button";
-      editButton.className = "btn btn-sm btn-primary";
-      editButton.textContent = "Edit Order";
-
-      editButton.dataset.quickEdit =
-        reprint.dataset.reprintOrder;
-
-      parent.classList.add("admin-action-group");
-
-      parent.insertBefore(editButton, reprint);
-    });
-  }
-
-  const recentObserver = new MutationObserver(
-    restoreEditButtons
+  // Recalculate through existing Admin order editor.
+  field.dispatchEvent(
+    new Event("input", { bubbles: true })
   );
+}
 
-  recentObserver.observe(recentBody, {
-    childList: true,
-    subtree: true
+/* INSTALL DISCOUNT BUTTONS WHEN EDIT ORDER OPENS */
+function installDiscount() {
+  const form = modalRoot.querySelector("#order-edit-form");
+
+  if (!form || form.dataset.discountPanelReady === "yes") {
+    return;
+  }
+
+  form.dataset.discountPanelReady = "yes";
+
+  // Remove older helper's dropdown if present.
+  const old = form.querySelector("#edit-discount-rate");
+  if (old) {
+    old.closest("label")?.remove();
+  }
+
+  const panel = document.createElement("section");
+  panel.className = "admin-discount-panel";
+
+  panel.innerHTML = `
+    <strong>Discount — Edit Order</strong>
+
+    <div
+      class="admin-discount-buttons"
+      role="group"
+      aria-label="Order discount"
+    >
+      <button
+        type="button"
+        data-direct-discount="0"
+        aria-pressed="true"
+      >
+        No Discount
+      </button>
+
+      <button
+        type="button"
+        data-direct-discount="10"
+        aria-pressed="false"
+      >
+        10%
+      </button>
+
+      <button
+        type="button"
+        data-direct-discount="20"
+        aria-pressed="false"
+      >
+        20%
+      </button>
+    </div>
+
+    <input
+      type="hidden"
+      id="edit-discount-rate"
+      value="0"
+    >
+
+    <small>
+      Discount sa products at add-ons lamang.
+      Hindi kasama ang takeout boxes.
+    </small>
+  `;
+
+  const firstHeading = form.querySelector("h4");
+
+  if (firstHeading) {
+    form.insertBefore(panel, firstHeading);
+  } else {
+    form.prepend(panel);
+  }
+
+  panel.querySelectorAll("[data-direct-discount]").forEach(button => {
+    button.addEventListener("click", () => {
+      if (!discountReady) return;
+
+      updateButtons(
+        form,
+        button.dataset.directDiscount
+      );
+    });
   });
 
-  restoreEditButtons();
+  const saveButton = form.querySelector("#edit-order-save");
 
-  /*
-   * COMPARE CURRENT FIRESTORE ORDER
-   * TO THE VERSION BEING EDITED
-   */
-  function orderVersion(data) {
-    return JSON.stringify({
-      items: data.items,
-      addons: data.addons,
-      boxes: data.boxes,
-      total: data.total,
-      packagingFee: data.packagingFee,
-      editCount: data.editCount || 0,
-      customerName: data.customerName,
-      orderType: data.orderType,
-      paymentMethod: data.paymentMethod
-    });
+  if (saveButton && !discountReady) {
+    saveButton.disabled = true;
   }
 
-  function closeEditor() {
-    if (savingOrder) return;
-
-    editRoot.replaceChildren();
-    document.body.style.overflow = "";
+  if (discountReady) {
+    updateButtons(form, loadedRate);
   }
+}
 
-  /*
-   * PRODUCT EDITOR HTML
-   */
-  function productFields(item = {}) {
-    return `
-      <div class="qoe-line" data-product-row>
-        <div class="qoe-row-header">
-          <strong>Ordered Product</strong>
-          <button type="button" class="btn btn-sm btn-outline" data-remove-row>
-            Remove
-          </button>
-        </div>
+/* LOAD THE SAVED ORDER'S DISCOUNT FROM FIREBASE */
+ordersRoot.addEventListener("click", event => {
+  const button = event.target.closest("[data-edit-order]");
+  if (!button) return;
 
-        <div class="qoe-fields">
-          <label>
-            Product Name
-            <input data-name required maxlength="120"
-              value="${escapeHTML(item.name || "")}">
-          </label>
+  activeEditId = button.dataset.editOrder;
 
-          <label>
-            Category
-            <input data-category required maxlength="80"
-              placeholder="Rice Meals"
-              value="${escapeHTML(item.category || "")}">
-          </label>
+  const token = ++activeToken;
 
-          <label>
-            Quantity
-            <input data-qty type="number" required
-              min="1" max="999" step="1"
-              value="${escapeHTML(item.qty ?? 1)}">
-          </label>
+  loadedRate = 0;
+  discountReady = false;
 
-          <label>
-            Unit Price (₱)
-            <input data-price type="number" required
-              min="0" max="1000000" step="0.01"
-              value="${escapeHTML(item.unitPrice ?? 0)}">
-          </label>
+  // The original admin.js opens the edit form.
+  queueMicrotask(installDiscount);
 
-          <label>
-            Service Type
-            <select data-service>
-              <option value="Dine In"
-                ${item.serveType !== "Take Out" ? "selected" : ""}>
-                Dine In
-              </option>
-              <option value="Take Out"
-                ${item.serveType === "Take Out" ? "selected" : ""}>
-                Take Out
-              </option>
-            </select>
-          </label>
-
-          <label>
-            Box per Serving
-            <select data-box>
-              <option value="auto"
-                ${item.boxChoice == null || item.boxChoice === "auto" ? "selected" : ""}>
-                Auto
-              </option>
-              <option value="0"
-                ${String(item.boxChoice) === "0" ? "selected" : ""}>
-                No box
-              </option>
-              <option value="15"
-                ${String(item.boxChoice) === "15" ? "selected" : ""}>
-                ₱15 box
-              </option>
-              <option value="25"
-                ${String(item.boxChoice) === "25" ? "selected" : ""}>
-                ₱25 box
-              </option>
-            </select>
-          </label>
-
-          <label>
-            Size
-            <input data-size maxlength="40"
-              value="${escapeHTML(item.size || "")}">
-          </label>
-
-          <label>
-            Notes
-            <input data-note maxlength="180"
-              value="${escapeHTML(item.note || "")}">
-          </label>
-        </div>
-
-        <label style="margin-top:9px;">
-          <input type="checkbox" data-is-addon
-            ${item.isAddon ? "checked" : ""}>
-          Count as Add-on
-        </label>
-      </div>
-    `;
-  }
-
-  /*
-   * EXTRA ADD-ON EDITOR HTML
-   */
-  function addonFields(addon = {}) {
-    return `
-      <div class="qoe-line" data-addon-row>
-        <div class="qoe-row-header">
-          <strong>Extra Add-on</strong>
-          <button type="button" class="btn btn-sm btn-outline" data-remove-row>
-            Remove
-          </button>
-        </div>
-
-        <div class="qoe-fields">
-          <label>
-            Add-on Name
-            <input data-name required maxlength="120"
-              value="${escapeHTML(addon.name || "")}">
-          </label>
-
-          <label>
-            Quantity
-            <input data-qty type="number" required
-              min="1" max="999" step="1"
-              value="${escapeHTML(addon.qty ?? 1)}">
-          </label>
-
-          <label>
-            Unit Price (₱)
-            <input data-price type="number" required
-              min="0" max="1000000" step="0.01"
-              value="${escapeHTML(addon.unitPrice ?? 0)}">
-          </label>
-        </div>
-      </div>
-    `;
-  }
-
-  /*
-   * OPEN COMPLETE EDIT MODAL
-   */
-  function openOrderEditor(orderId, originalOrder) {
-
-    const automatic = boxesForCart(originalOrder.items || []);
-
-    const existingBoxes = !!originalOrder.boxes;
-
-    const manual15 = Math.max(
-      0,
-      Number(originalOrder.boxes?.["15"] || 0) -
-      automatic["15"]
-    );
-
-    const manual25 = Math.max(
-      0,
-      Number(originalOrder.boxes?.["25"] || 0) -
-      automatic["25"]
-    );
-
-    const oldPackaging = existingBoxes
-      ? Number(originalOrder.legacyPackagingFee || 0)
-      : Number(originalOrder.packagingFee || 0);
-
-    const itemBases = (originalOrder.items || []).map(
-      item => ({ ...item })
-    );
-
-    const addonBases = (originalOrder.addons || []).map(
-      addon => ({ ...addon })
-    );
-
-    editRoot.innerHTML = `
-      <div class="qoe-overlay" id="qoe-overlay">
-        <section class="qoe-dialog"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="qoe-title">
-
-          <h2 id="qoe-title">
-            Edit Order #${escapeHTML(originalOrder.orderNumber || "-")}
-          </h2>
-
-          <p class="qoe-subtitle">
-            Update products, quantity, price, packaging and add-ons.
-            Order number and original date remain unchanged.
-          </p>
-
-          <form id="qoe-form">
-
-            <div class="qoe-grid">
-              <label>
-                Customer Name
-                <input id="qoe-customer" maxlength="100"
-                  value="${escapeHTML(originalOrder.customerName || "")}">
-              </label>
-
-              <label>
-                Order Type
-                <select id="qoe-order-type">
-                  <option value="Dine In"
-                    ${originalOrder.orderType !== "Take Out" ? "selected" : ""}>
-                    Dine In
-                  </option>
-                  <option value="Take Out"
-                    ${originalOrder.orderType === "Take Out" ? "selected" : ""}>
-                    Take Out
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                Payment
-                <select id="qoe-payment">
-                  <option value="Cash"
-                    ${originalOrder.paymentMethod !== "GCash" ? "selected" : ""}>
-                    Cash
-                  </option>
-                  <option value="GCash"
-                    ${originalOrder.paymentMethod === "GCash" ? "selected" : ""}>
-                    GCash
-                  </option>
-                </select>
-              </label>
-            </div>
-
-            <h3>Ordered Products</h3>
-
-            <div id="qoe-products"></div>
-
-            <button type="button" id="qoe-add-product"
-              class="btn btn-sm btn-outline">
-              + Add Product
-            </button>
-
-            <h3>Extra Add-ons</h3>
-
-            <div id="qoe-addons"></div>
-
-            <button type="button" id="qoe-add-addon"
-              class="btn btn-sm btn-outline">
-              + Add Add-on
-            </button>
-
-            <h3>Additional Takeout Boxes</h3>
-
-            <p class="qoe-subtitle">
-              Automatic boxes for Take Out meals are
-              calculated separately. These are extra boxes.
-            </p>
-
-            <div class="qoe-grid">
-              <label>
-                Extra ₱15 Boxes
-                <input type="number" id="qoe-box-15"
-                  min="0" max="999" step="1"
-                  value="${manual15}">
-              </label>
-
-              <label>
-                Extra ₱25 Boxes
-                <input type="number" id="qoe-box-25"
-                  min="0" max="999" step="1"
-                  value="${manual25}">
-              </label>
-            </div>
-
-            <div id="qoe-total-preview"
-              class="qoe-summary"
-              aria-live="polite">
-            </div>
-
-            <p id="qoe-error" class="qoe-error" role="alert"></p>
-
-            <div class="qoe-footer">
-              <button type="button" id="qoe-cancel"
-                class="btn btn-outline">
-                Cancel
-              </button>
-
-              <button type="submit" id="qoe-save"
-                class="btn btn-primary">
-                Save Updated Order
-              </button>
-            </div>
-          </form>
-        </section>
-      </div>
-    `;
-
-    document.body.style.overflow = "hidden";
-
-    const form = editRoot.querySelector("#qoe-form");
-    const productsEl = form.querySelector("#qoe-products");
-    const addonsEl = form.querySelector("#qoe-addons");
-
-    (originalOrder.items || []).forEach(item => {
-      productsEl.insertAdjacentHTML(
-        "beforeend",
-        productFields(item)
-      );
-    });
-
-    (originalOrder.addons || []).forEach(addon => {
-      addonsEl.insertAdjacentHTML(
-        "beforeend",
-        addonFields(addon)
-      );
-    });
-
-    const find = (row, selector) =>
-      row.querySelector(selector);
-
-    /*
-     * COMPUTE EDITED ORDER
-     */
-    function calculateOrder() {
-
-      const items = [
-        ...productsEl.querySelectorAll("[data-product-row]")
-      ].map((row, index) => {
-
-        const name = find(row, "[data-name]").value.trim();
-        const category = find(row, "[data-category]").value.trim();
-
-        if (!name || !category) {
-          throw new Error(
-            "Item " + (index + 1) + " needs a name and category."
-          );
-        }
-
-        const qty = readNumber(
-          find(row, "[data-qty]"),
-          name + " quantity",
-          true,
-          1
-        );
-
-        const unitPrice = readNumber(
-          find(row, "[data-price]"),
-          name + " price"
-        );
-
-        const item = {
-          ...itemBases[index],
-          name,
-          category,
-          qty,
-          unitPrice,
-          size: find(row, "[data-size]").value.trim() || null,
-          note: find(row, "[data-note]").value.trim(),
-          serveType: find(row, "[data-service]").value,
-          boxChoice: find(row, "[data-box]").value,
-          isAddon: find(row, "[data-is-addon]").checked
-        };
-
-        item.boxUnitPrice = lineBoxPrice(item);
-
-        return item;
-      });
-
-      const addons = [
-        ...addonsEl.querySelectorAll("[data-addon-row]")
-      ].map((row, index) => {
-
-        const name = find(row, "[data-name]").value.trim();
-
-        if (!name) {
-          throw new Error("Add-on name is required.");
-        }
-
-        return {
-          ...addonBases[index],
-          name,
-          qty: readNumber(
-            find(row, "[data-qty]"),
-            "Add-on quantity",
-            true,
-            1
-          ),
-          unitPrice: readNumber(
-            find(row, "[data-price]"),
-            "Add-on price"
-          )
-        };
-      });
-
-      const extraBoxes = {
-        "15": readNumber(
-          form.querySelector("#qoe-box-15"),
-          "₱15 box quantity",
-          true
-        ),
-        "25": readNumber(
-          form.querySelector("#qoe-box-25"),
-          "₱25 box quantity",
-          true
-        )
-      };
-
-      const boxes = boxesForCart(items, extraBoxes);
-
-      const packagingFee = round(
-        boxTotal(boxes) + oldPackaging
-      );
-
-      const addOnTotal = addonsTotal({
-        items,
-        addons
-      });
-
-      const productTotal = items.reduce(
-        (total, item) =>
-          total + item.qty * item.unitPrice,
-        0
-      );
-
-      const extrasTotal = addons.reduce(
-        (total, addon) =>
-          total + addon.qty * addon.unitPrice,
-        0
-      );
-
-      const total = round(
-        productTotal + extrasTotal + packagingFee
-      );
-
-      if (
-        !items.length &&
-        !addons.length &&
-        !boxTotal(boxes)
-      ) {
-        throw new Error("Order cannot be empty.");
-      }
-
-      return {
-        items,
-        addons,
-        boxes,
-        legacyPackagingFee: oldPackaging,
-        packagingFee,
-        addOnTotal,
-        total,
-        customerName: form.querySelector("#qoe-customer").value.trim(),
-        orderType: form.querySelector("#qoe-order-type").value,
-        paymentMethod: form.querySelector("#qoe-payment").value
-      };
-    }
-
-    /*
-     * LIVE TOTAL PREVIEW
-     */
-    function updatePreview() {
-      try {
-        const result = calculateOrder();
-
-        form.querySelector("#qoe-total-preview").innerHTML = `
-          Products: <strong>${peso(
-            result.items.reduce(
-              (sum, item) => sum + item.qty * item.unitPrice,
-              0
-            )
-          )}</strong>
-
-          <br>
-
-          Add-ons:
-          <strong>${peso(result.addOnTotal)}</strong>
-
-          <br>
-
-          Takeout Boxes:
-          <strong>${peso(result.packagingFee)}</strong>
-
-          <hr>
-
-          <div class="qoe-grand">
-            Updated Total: ${peso(result.total)}
-          </div>
-
-          <small>
-            Previous Total: ${peso(originalOrder.total)}
-          </small>
-        `;
-
-        form.querySelector("#qoe-error").textContent = "";
-
-      } catch (error) {
-        form.querySelector("#qoe-total-preview").textContent =
-          error.message;
-      }
-    }
-
-    form.addEventListener("input", updatePreview);
-    form.addEventListener("change", updatePreview);
-
-    /*
-     * REMOVE ITEM OR ADD-ON
-     */
-    form.addEventListener("click", event => {
-      const button = event.target.closest("[data-remove-row]");
-
-      if (!button) return;
-
-      const row = button.closest(".qoe-line");
-      const parent = row.parentElement;
-      const index = [...parent.children].indexOf(row);
-
-      if (parent === productsEl) {
-        itemBases.splice(index, 1);
-      }
-
-      if (parent === addonsEl) {
-        addonBases.splice(index, 1);
-      }
-
-      row.remove();
-      updatePreview();
-    });
-
-    /*
-     * ADD PRODUCT
-     */
-    form.querySelector("#qoe-add-product").addEventListener(
-      "click",
-      () => {
-        itemBases.push({});
-
-        productsEl.insertAdjacentHTML(
-          "beforeend",
-          productFields({})
-        );
-
-        updatePreview();
-      }
-    );
-
-    /*
-     * ADD EXTRA ADD-ON
-     */
-    form.querySelector("#qoe-add-addon").addEventListener(
-      "click",
-      () => {
-        addonBases.push({});
-
-        addonsEl.insertAdjacentHTML(
-          "beforeend",
-          addonFields({})
-        );
-
-        updatePreview();
-      }
-    );
-
-    /*
-     * CLOSE BUTTON
-     */
-    form.querySelector("#qoe-cancel").addEventListener(
-      "click",
-      closeEditor
-    );
-
-    editRoot.querySelector("#qoe-overlay").addEventListener(
-      "click",
-      event => {
-        if (event.target.id === "qoe-overlay") {
-          closeEditor();
-        }
-      }
-    );
-
-    /*
-     * SAVE TO FIRESTORE
-     */
-    form.addEventListener("submit", async event => {
-      event.preventDefault();
-
-      const errorEl = form.querySelector("#qoe-error");
-      const saveBtn = form.querySelector("#qoe-save");
-
-      errorEl.textContent = "";
-
-      try {
-        const changes = calculateOrder();
-
-        savingOrder = true;
-        saveBtn.disabled = true;
-        saveBtn.textContent = "Saving...";
-
-        await authReady;
-
-        await runTransaction(db, async transaction => {
-          const orderRef = doc(db, "orders", orderId);
-
-          const snapshot = await transaction.get(orderRef);
-
-          if (!snapshot.exists()) {
-            throw new Error("Order not found.");
-          }
-
-          const current = snapshot.data();
-
-          // Prevent overwriting more recent changes.
-          if (
-            orderVersion(current) !==
-            orderVersion(originalOrder)
-          ) {
-            throw new Error(
-              "This order was edited on another device. " +
-              "Please reopen the order."
-            );
-          }
-
-          transaction.update(orderRef, {
-            ...changes,
-
-            updatedAt: serverTimestamp(),
-
-            editCount: Number(current.editCount || 0) + 1,
-
-            editHistory: [
-              ...(current.editHistory || []).slice(-19),
-              {
-                editedAt: new Date().toISOString(),
-                previousTotal: Number(current.total || 0),
-                newTotal: changes.total,
-                source: "Admin editor"
-              }
-            ]
-          });
-        });
-
-        savingOrder = false;
-        closeEditor();
-
-      } catch (error) {
-        savingOrder = false;
-
-        saveBtn.disabled = false;
-        saveBtn.textContent = "Save Updated Order";
-
-        errorEl.textContent =
-          "Failed to save: " + error.message;
-
-        console.error("Admin order update error:", error);
-      }
-    });
-
-    updatePreview();
-  }
-
-  /*
-   * LISTEN FOR EDIT BUTTON
-   */
-  recentBody.addEventListener("click", async event => {
-    const editButton = event.target.closest("[data-quick-edit]");
-
-    if (!editButton) return;
-
-    const orderId = editButton.dataset.quickEdit;
-
-    editButton.disabled = true;
-    editButton.textContent = "Loading...";
-
+  (async () => {
     try {
       await authReady;
 
-      const orderRef = doc(db, "orders", orderId);
-      const snapshot = await getDoc(orderRef);
+      const snapshot = await getDoc(
+        doc(db, "orders", activeEditId)
+      );
+
+      if (token !== activeToken) return;
 
       if (!snapshot.exists()) {
-        throw new Error("Order does not exist.");
+        throw new Error("Order not found.");
       }
 
-      openOrderEditor(orderId, snapshot.data());
+      const rate = Number(
+        snapshot.data().discountRate || 0
+      );
+
+      loadedRate = [0, 10, 20].includes(rate)
+        ? rate
+        : 0;
+
+      discountReady = true;
+
+      installDiscount();
+
+      const form = modalRoot.querySelector("#order-edit-form");
+
+      if (form) {
+        updateButtons(form, loadedRate);
+
+        const saveButton = form.querySelector("#edit-order-save");
+        if (saveButton) saveButton.disabled = false;
+      }
 
     } catch (error) {
-      console.error("Unable to open order:", error);
+      if (token !== activeToken) return;
 
-      const banner = document.getElementById("connection-banner");
+      const errorField = modalRoot.querySelector(
+        "#edit-order-error"
+      );
 
-      if (banner) {
-        banner.textContent =
-          "Cannot open order editor: " + error.message;
-
-        banner.classList.remove("hidden");
+      if (errorField) {
+        errorField.textContent =
+          "Cannot load discount: " + error.message;
       }
-
-    } finally {
-      editButton.disabled = false;
-      editButton.textContent = "Edit Order";
     }
-  });
+  })();
+});
 
+/* DETECT NEW EDIT ORDER MODALS */
+new MutationObserver(
+  installDiscount
+).observe(modalRoot, {
+  childList: true,
+  subtree: true
+});
+
+/* AVAILABLE / NOT AVAILABLE DROPDOWN */
+function installMenuDropdowns() {
+  menuRoot.querySelectorAll("tr").forEach(row => {
+    const editButton = row.querySelector("[data-edit]");
+    const statusCell = row.querySelector(
+      'td[data-label="Status"]'
+    );
+
+    if (
+      !editButton ||
+      !statusCell ||
+      statusCell.querySelector("select")
+    ) {
+      return;
+    }
+
+    const itemId = editButton.dataset.edit;
+    const wasUnavailable =
+      row.classList.contains("row-unavailable");
+
+    const select = document.createElement("select");
+    select.className = "menu-availability-select";
+    select.setAttribute(
+      "aria-label",
+      "Menu availability"
+    );
+
+    select.innerHTML = `
+      <option value="available">Available</option>
+      <option value="unavailable">Not Available</option>
+    `;
+
+    select.value = wasUnavailable
+      ? "unavailable"
+      : "available";
+
+    statusCell.replaceChildren(select);
+
+    // Remove old Enable / Disable button.
+    row.querySelector("[data-toggle]")?.remove();
+
+    select.addEventListener("change", async () => {
+      const previous = select.value === "available"
+        ? "unavailable"
+        : "available";
+
+      select.disabled = true;
+
+      try {
+        await authReady;
+
+        await updateDoc(
+          doc(db, "menu", itemId),
+          {
+            available: select.value === "available"
+          }
+        );
+
+      } catch (error) {
+        select.value = previous;
+
+        alert(
+          "Failed to update menu availability: " +
+          error.message
+        );
+
+      } finally {
+        select.disabled = false;
+      }
+    });
+  });
 }
+
+/* KEEP DROPDOWNS AFTER LIVE MENU UPDATES */
+new MutationObserver(
+  installMenuDropdowns
+).observe(menuRoot, {
+  childList: true,
+  subtree: true
+});
+
+installMenuDropdowns();
 </script>
 
 </body>
