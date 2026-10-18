@@ -2,7 +2,7 @@ import { db, authReady } from "./firebase-config.js";
 import { requireRole, logout, getPins, setPins } from "./auth.js";
 import { SEED_CATEGORIES, SEED_MENU } from "./seed-menu.js";
 import { printOrder, printFinanceReport } from "./receipt.js";
-import { dayKey, pesos, countRevenue, orderBoxes, manualBoxesForOrder, repriceEditedOrder, boxTotal } from "./business.js";
+import { dayKey, pesos, countRevenue, orderBoxes, manualBoxesForOrder, repriceEditedOrder, boxTotal, lineDiscountAmount, itemDiscountTotal, isDiscountableFood } from "./business.js";
 import {
   collection,
   onSnapshot,
@@ -269,11 +269,13 @@ function renderDashboard() {
   orders.forEach(o => (o.items || []).forEach(it => {
     const matchingMenu = menuItems.find(m => m.name === it.name);
     const category = it.category || matchingMenu?.category || "Uncategorized";
-    groupTotals.set(category, (groupTotals.get(category) || 0) + Number(it.unitPrice || 0) * Number(it.qty || 0));
+    groupTotals.set(category, (groupTotals.get(category) || 0) + Number(it.unitPrice || 0) * Number(it.qty || 0) - (o.discountMode === "perItem" ? lineDiscountAmount(it) : 0));
   }));
   // Show non-product charges too, so the category breakdown reconciles with Total Sales.
   groupTotals.set("Additional add-on charges", orders.reduce((sum,o)=>sum+(o.addons||[]).reduce((a,it)=>a+Number(it.qty||0)*Number(it.unitPrice||0),0),0));
   groupTotals.set("Takeout boxes", orders.reduce((sum,o)=>sum+orderBoxes(o),0));
+  // Historical overall discounts are not included in item rows.
+  groupTotals.set("Legacy discounts", -orders.reduce((sum,o)=>sum+Number(o.legacyDiscountAmount || (o.discountMode !== "perItem" ? o.discountAmount || 0 : 0)),0));
   const categoryRoot = document.getElementById("category-sales");
   categoryRoot.replaceChildren();
   groupTotals.forEach((amount, category) => {
@@ -289,7 +291,7 @@ function renderDashboard() {
       const key = it.name + (it.size ? ` (${it.size})` : "");
       const cur = tally.get(key) || { qty: 0, revenue: 0 };
       cur.qty += it.qty || 0;
-      cur.revenue += (it.unitPrice || 0) * (it.qty || 0);
+      cur.revenue += (it.unitPrice || 0) * (it.qty || 0) - (o.discountMode === "perItem" ? lineDiscountAmount(it) : 0);
       tally.set(key, cur);
     });
   });
@@ -430,7 +432,7 @@ function openOrderEditor(order) {
         <label class="field">Unit price (₱)<input data-field="unitPrice" type="number" min="0" max="1000000" step="0.01" required value="${Number(item.unitPrice || 0)}"></label>
         <label class="field">Service<select data-field="serveType"><option value="Dine In" ${item.serveType !== "Take Out" ? "selected" : ""}>Dine In</option><option value="Take Out" ${item.serveType === "Take Out" ? "selected" : ""}>Take Out</option></select></label>
         <label class="field">Box per serving<select data-field="boxChoice">
-          <option value="auto" ${(item.boxChoice == null || item.boxChoice === "auto") ? "selected" : ""}>Auto (Regular ₱15 / Sharing-Family ₱25)</option>
+          <option value="auto" ${(item.boxChoice == null || item.boxChoice === "auto") ? "selected" : ""}>Auto (meals/fries ₱15; Sharing/Family none)</option>
           <option value="15" ${String(item.boxChoice) === "15" ? "selected" : ""}>₱15</option>
           <option value="25" ${String(item.boxChoice) === "25" ? "selected" : ""}>₱25</option>
           <option value="0" ${String(item.boxChoice) === "0" ? "selected" : ""}>No box</option>
@@ -438,6 +440,13 @@ function openOrderEditor(order) {
         <label class="field">Size (optional)<input data-field="size" type="text" maxlength="40" value="${escapeHtml(item.size || "")}"></label>
         <label class="field">Note (optional)<input data-field="note" type="text" maxlength="180" value="${escapeHtml(item.note || "")}"></label>
       </div>
+      ${isDiscountableFood(item) ? `<div class="edit-item-discount">
+        <label class="edit-addon-check"><input data-field="discountEnabled" type="checkbox" ${Number(item.discountRate || 0) > 0 ? "checked" : ""}> Discount this item</label>
+        <select data-field="discountRate" aria-label="Item discount" ${Number(item.discountRate || 0) > 0 ? "" : "disabled"}>
+          <option value="10" ${Number(item.discountRate) === 10 ? "selected" : ""}>10% discount</option>
+          <option value="20" ${Number(item.discountRate) === 20 ? "selected" : ""}>20% discount</option>
+        </select>
+      </div>` : ""}
       <label class="edit-addon-check"><input data-field="isAddon" type="checkbox" ${item.isAddon ? "checked" : ""}> Include in add-on sales</label>
     </div>`;
   };
@@ -462,6 +471,7 @@ function openOrderEditor(order) {
           <label class="field">Order Type<select id="edit-order-type"><option value="Dine In" ${original.orderType !== "Take Out" ? "selected" : ""}>Dine In</option><option value="Take Out" ${original.orderType === "Take Out" ? "selected" : ""}>Take Out</option></select></label>
           <label class="field">Payment (managed in Finance)<select id="edit-payment" disabled><option value="Cash" ${original.paymentMethod !== "GCash" ? "selected" : ""}>Cash</option><option value="GCash" ${original.paymentMethod === "GCash" ? "selected" : ""}>GCash</option></select></label>
         </div>
+        <p class="modal-subtitle"><strong>Discount:</strong> tick “Discount this item” on the specific food item, then choose 10% or 20%. Other items and boxes are not discounted.</p>
         <h4>Ordered items</h4>
         <div id="edit-items">${(original.items || []).map(itemRow).join("")}</div>
         <div class="edit-add-row">
@@ -472,7 +482,7 @@ function openOrderEditor(order) {
         <div id="edit-addons">${(original.addons || []).map(addonRow).join("")}</div>
         <button type="button" class="btn btn-sm btn-outline" id="edit-add-addon">+ Add add-on</button>
         <h4>Extra takeout boxes</h4>
-        <p class="modal-subtitle">These are manually punched extras. Automatic ₱15/₱25 per meal is calculated from each item's service and box setting.</p>
+        <p class="modal-subtitle">These are manually punched extras. Meals/fries automatically use ₱15 for Take Out; Sharing/Family boxes are manual only.</p>
         <div class="edit-box-fields">
           <label class="field">Extra ₱15 boxes<input type="number" id="edit-box15" min="0" max="999" step="1" value="${manualBoxes["15"]}"></label>
           <label class="field">Extra ₱25 boxes<input type="number" id="edit-box25" min="0" max="999" step="1" value="${manualBoxes["25"]}"></label>
@@ -499,7 +509,8 @@ function openOrderEditor(order) {
       qty:numeric(row,"qty"),unitPrice:numeric(row,"unitPrice"),
       serveType:input(row,"serveType").value,boxChoice:input(row,"boxChoice").value,
       size:input(row,"size").value,note:input(row,"note").value,
-      isAddon:input(row,"isAddon").checked
+      isAddon:input(row,"isAddon").checked,
+      discountRate:input(row,"discountEnabled")?.checked ? Number(input(row,"discountRate").value) : 0
     }));
     const addons = [...form.querySelectorAll("[data-edit-addon]")].map(row => ({
       ...addonBases[Number(row.dataset.base)],
@@ -520,6 +531,7 @@ function openOrderEditor(order) {
       const productTotal = priced.items.reduce((sum, it) => sum + it.qty * it.unitPrice, 0);
       const extraTotal = priced.addons.reduce((sum, it) => sum + it.qty * it.unitPrice, 0);
       preview.innerHTML = `<div>Products: <strong>${peso(productTotal)}</strong></div>
+        <div>Selected item discounts: <strong>−${peso(itemDiscountTotal(priced.items))}</strong></div>
         <div>Extra add-ons: <strong>${peso(extraTotal)}</strong></div>
         <div>Takeout boxes: <strong>${peso(boxTotal(priced.boxes))}</strong></div>
         ${priced.legacyPackagingFee ? `<div>Previous packaging: <strong>${peso(priced.legacyPackagingFee)}</strong></div>` : ""}
@@ -528,6 +540,12 @@ function openOrderEditor(order) {
     } catch(e) {preview.textContent = `Complete all required quantities and prices to preview the new total. ${e.message}`;}
   }
   form.addEventListener("input", refreshTotal);
+  form.addEventListener("change", event => {
+    if (event.target.matches('[data-field="discountEnabled"]')) {
+      const row = event.target.closest('[data-edit-item]');
+      row.querySelector('[data-field="discountRate"]').disabled = !event.target.checked;
+    }
+  });
   form.addEventListener("change", refreshTotal);
   form.addEventListener("click", e => {
     const remove = e.target.closest("[data-remove-row]");
@@ -535,7 +553,7 @@ function openOrderEditor(order) {
   });
   form.querySelector("#edit-add-product").onclick = () => {
     const chosen = menuItems.find(m => m.id === form.querySelector("#edit-product-choice").value);
-    const next = chosen ? {menuId:chosen.id,name:chosen.name,category:chosen.category,qty:1,unitPrice:Number(chosen.price),serveType:original.orderType,boxChoice:"auto",size:null,note:"",isAddon:/^add\s*ons?$/i.test(chosen.category)}
+    const next = chosen ? {menuId:chosen.id,name:chosen.name,category:chosen.category,qty:1,unitPrice:Number(chosen.price),serveType:original.orderType,boxChoice:"auto",size:null,note:"",isAddon:/add\s*ons?/i.test(chosen.category),discountRate:0}
       : {name:"",category:categoriesList[0] || "Uncategorized",qty:1,unitPrice:0,serveType:"Dine In",boxChoice:"auto",size:null,note:"",isAddon:false};
     form.querySelector("#edit-items").insertAdjacentHTML("beforeend",itemRow(next));
     refreshTotal();
@@ -648,16 +666,14 @@ function renderMenuAdmin() {
               <td data-label="Item">${escapeHtml(it.name)}</td>
               <td data-label="Price">${it.priceLarge ? peso(it.price) + " / " + peso(it.priceLarge) + " (M/L)" : peso(it.price)}</td>
               <td data-label="Status">
-                <span class="status-badge ${it.available === false ? "status-off" : "status-on"}">
-                  ${it.available === false ? "Unavailable" : "Available"}
-                </span>
+                <select class="menu-availability-select" data-availability="${it.id}" aria-label="Availability for ${escapeHtml(it.name)}">
+                  <option value="available" ${it.available === false ? "" : "selected"}>Available</option>
+                  <option value="unavailable" ${it.available === false ? "selected" : ""}>Not Available</option>
+                </select>
               </td>
               <td data-label="Actions">
                 <div class="action-btn-group">
                   <button class="btn btn-sm btn-outline" data-edit="${it.id}">Edit</button>
-                  <button class="btn btn-sm ${it.available === false ? "btn-secondary" : "btn-outline"}" data-toggle="${it.id}">
-                    ${it.available === false ? "Enable" : "Disable"}
-                  </button>
                   <button class="btn btn-sm btn-danger" data-del="${it.id}">Delete</button>
                 </div>
               </td>
@@ -699,13 +715,19 @@ function renderMenuAdmin() {
       });
     }),
   );
-  root.querySelectorAll("[data-toggle]").forEach((b) =>
-    b.addEventListener("click", async () => {
-      const item = menuItems.find((i) => i.id === b.dataset.toggle);
+  root.querySelectorAll("[data-availability]").forEach(select =>
+    select.addEventListener("change", async () => {
+      const item = menuItems.find(i => i.id === select.dataset.availability);
       if (!item) return;
-      try { await updateDoc(doc(db, "menu", item.id), { available: item.available === false }); }
-      catch (e) { showError(e.message); }
-    }),
+      const desired = select.value === "available";
+      select.disabled = true;
+      try {
+        await updateDoc(doc(db, "menu", item.id), {available: desired});
+      } catch(error) {
+        select.value = item.available === false ? "unavailable" : "available";
+        showError(`Could not update availability: ${error.message}`);
+      } finally {select.disabled = false;}
+    })
   );
   root.querySelectorAll("[data-del-cat]").forEach((b) =>
     b.addEventListener("click", async () => {
@@ -738,16 +760,6 @@ function openCategoryModal() {
           <div class="field">
             <span class="field-label">Category name</span>
             <input type="text" id="category-name" required placeholder="e.g. Seasonal Drinks" autofocus />
-          </div>
-          <div class="field">
-            <span class="field-label">Sizes / variants — one per line as Size | Price (leave blank for none)</span>
-            <textarea id="item-variants" rows="3" placeholder="Small | 699&#10;Large | 1399">${item?.variants?.map(v=>escapeHtml(`${v.label} | ${v.price}`)).join("\n")||""}</textarea>
-          </div>
-          <div class="field"><span class="field-label">Description / inclusions (optional)</span>
-            <textarea id="item-description" rows="2">${escapeHtml(item?.description||"")}</textarea>
-          </div>
-          <div class="field"><span class="field-label">Party Box choices (one per line, optional)</span>
-            <textarea id="item-combo-options" rows="3">${(item?.comboOptions||[]).map(escapeHtml).join("\n")}</textarea>
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-outline btn-block" id="modal-cancel">Cancel</button>
@@ -814,6 +826,18 @@ function openItemModal(item, defaultCategory) {
             <span class="field-label">Large size price (₱) — leave blank if this item has no M/L sizes</span>
             <input type="number" id="item-price-large" min="0" step="1" value="${item && item.priceLarge ? item.priceLarge : ""}" />
           </div>
+          <div class="field"><span class="field-label">Availability</span>
+            <select id="item-availability"><option value="available" ${item?.available === false ? "" : "selected"}>Available</option><option value="unavailable" ${item?.available === false ? "selected" : ""}>Not Available</option></select>
+          </div>
+          <div class="field"><span class="field-label">Sizes / variants (Size | Price, one per line, optional)</span>
+            <textarea id="item-variants" rows="3" placeholder="Small | 699&#10;Large | 1399">${item?.variants?.map(v=>escapeHtml(`${v.label} | ${v.price}`)).join("\n") || ""}</textarea>
+          </div>
+          <div class="field"><span class="field-label">Description (optional)</span>
+            <textarea id="item-description" rows="2">${escapeHtml(item?.description || "")}</textarea>
+          </div>
+          <div class="field"><span class="field-label">Party Box choices (one per line, optional)</span>
+            <textarea id="item-combo-options" rows="3">${(item?.comboOptions || []).map(escapeHtml).join("\n")}</textarea>
+          </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-outline btn-block" id="modal-cancel">Cancel</button>
             <button type="submit" class="btn btn-primary btn-block">${isEdit ? "Save" : "Add item"}</button>
@@ -856,7 +880,7 @@ function openItemModal(item, defaultCategory) {
     const payload = { name, category, price, priceLarge, variants,
       description:document.getElementById("item-description").value.trim().slice(0,500),
       comboOptions:document.getElementById("item-combo-options").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,25),
-      available: item ? item.available !== false : true };
+      available:document.getElementById("item-availability").value === "available" };
 
     const save = modalRoot.querySelector('button[type="submit"]');
     save.disabled = true;
@@ -1023,37 +1047,77 @@ function gcashEditor(entry=null){
     }catch(error){err.textContent=`Unable to save: ${error.message}`;save.disabled=false;save.textContent="Save GCash Payment";}
   };
 }
+const FINANCE_ROWS_PER_TABLE = 5;
+const financePages = {expenses:1,cashEntries:1,gcashPayments:1};
 function renderFinance(){
-  const expenses=financeForDay("expenses"),cash=financeForDay("cashEntries"),gcash=financeForDay("gcashPayments");
-  const sum=list=>list.reduce((s,x)=>s+Number(x.amount||0),0);
-  document.getElementById("finance-expenses-total").textContent=peso(sum(expenses));
-  document.getElementById("finance-cash-total").textContent=peso(sum(cash));
-  document.getElementById("finance-gcash-total").textContent=peso(sum(gcash));
-  const root=document.getElementById("combined-finance-list");root.replaceChildren();
-  const entries=[...expenses.map(e=>({...e,type:"expenses"})),...cash.map(e=>({...e,type:"cashEntries"})),...gcash.map(e=>({...e,type:"gcashPayments"}))];
-  entries.sort((a,b)=>Number(b.createdAt?.seconds||0)-Number(a.createdAt?.seconds||0));
-  if(!entries.length){const item=document.createElement("p");item.className="muted";item.textContent="No entries for this day.";root.appendChild(item);return;}
-  entries.forEach(entry=>{
-    const row=document.createElement("div");row.className="ledger-row";
-    const txt=document.createElement("span");txt.textContent=`${entry.type==="expenses"?"Expense":entry.type==="cashEntries"?"Cash":"GCash · Order #"+entry.orderNumber}: ${entry.description} — ${peso(entry.amount)}`;
-    const edit=document.createElement("button");edit.type="button";edit.className="btn btn-sm btn-outline";edit.textContent="Edit";
-    edit.onclick=()=>entry.type==="gcashPayments"?gcashEditor(entry):financeEditor(entry.type,entry);
-    const del=document.createElement("button");del.type="button";del.className="btn btn-sm btn-outline";del.textContent="Delete";
-    del.onclick=()=>openFormModal("Delete entry",[{key:"confirmation",label:`Type DELETE to remove ${entry.description}`}],async vals=>{
-      if(vals.confirmation!=="DELETE")throw Error("Type DELETE to confirm.");
-      if (entry.type === "gcashPayments") {
-        await runTransaction(db, async tx => {
-          const pref=doc(db,"gcashPayments",entry.id),oref=doc(db,"orders",entry.orderId);
-          const [paymentSnap,orderSnap]=await Promise.all([tx.get(pref),tx.get(oref)]);
-          if(!paymentSnap.exists())throw Error("Payment was already removed.");
-          tx.delete(pref);
-          if(orderSnap.exists())tx.update(oref,{paymentMethod:"Cash"});
-        });
-      } else await deleteDoc(doc(db,entry.type,entry.id));
+  const expenses = financeForDay("expenses"), cash = financeForDay("cashEntries"), gcash = financeForDay("gcashPayments");
+  const sum = rows => rows.reduce((amount,row) => amount + Number(row.amount || 0),0);
+  // GCash is its OWN ledger: expenses are never subtracted from GCash payments.
+  document.getElementById("finance-expenses-total").textContent = peso(sum(expenses));
+  document.getElementById("finance-cash-total").textContent = peso(sum(cash));
+  document.getElementById("finance-gcash-total").textContent = peso(sum(gcash));
+  const root = document.getElementById("combined-finance-list");
+  root.replaceChildren();
+  for (const [type,title,entries] of [
+    ["expenses","Expenses",expenses],
+    ["gcashPayments","GCash Payments",gcash],
+    ["cashEntries","Cash on Hand",cash]
+  ]) {
+    const sorted = [...entries].sort((a,b)=>Number(b.createdAt?.seconds || 0)-Number(a.createdAt?.seconds || 0));
+    const pages = Math.max(1,Math.ceil(sorted.length/FINANCE_ROWS_PER_TABLE));
+    financePages[type] = Math.min(Math.max(1,financePages[type]),pages);
+    const start = (financePages[type]-1)*FINANCE_ROWS_PER_TABLE;
+    const currentRows = sorted.slice(start,start+FINANCE_ROWS_PER_TABLE);
+    const section = document.createElement("section");
+    section.className = "card finance-separated-section";
+    const heading = document.createElement("h3");
+    heading.textContent = `${title} — ${peso(sum(entries))}`;
+    section.appendChild(heading);
+    const wrap = document.createElement("div");
+    wrap.className = "table-scroll-wrap";
+    const table = document.createElement("table");
+    table.className = "data-table";
+    table.innerHTML = `<thead><tr><th>${type === "gcashPayments" ? "Order #" : "Date"}</th><th>Description</th><th>Amount</th><th>Actions</th></tr></thead>`;
+    const tbody = document.createElement("tbody");
+    currentRows.forEach(entry => {
+      const tr = document.createElement("tr");
+      const labels = [type === "gcashPayments" ? `#${entry.orderNumber ?? "—"}` : financeDay(entry), entry.description || "—", peso(entry.amount)];
+      labels.forEach(label => {const td=document.createElement("td");td.textContent=label;tr.appendChild(td);});
+      const actions = document.createElement("td");
+      actions.className = "finance-table-actions";
+      const edit = document.createElement("button");
+      edit.type="button";edit.className="btn btn-sm btn-outline";edit.textContent="Edit";
+      edit.onclick=()=>type==="gcashPayments"?gcashEditor(entry):financeEditor(type,entry);
+      const del = document.createElement("button");
+      del.type="button";del.className="btn btn-sm btn-outline";del.textContent="Delete";
+      del.onclick=()=>openFormModal("Delete entry",[{key:"confirmation",label:`Type DELETE to remove ${entry.description}`}],async vals=>{
+        if(vals.confirmation!=="DELETE")throw Error("Type DELETE to confirm.");
+        if(type==="gcashPayments") {
+          await runTransaction(db,async tx=>{
+            const pref=doc(db,"gcashPayments",entry.id),oref=doc(db,"orders",entry.orderId);
+            const [paymentSnap,orderSnap]=await Promise.all([tx.get(pref),tx.get(oref)]);
+            if(!paymentSnap.exists())throw Error("Payment was already removed.");
+            tx.delete(pref);
+            if(orderSnap.exists())tx.update(oref,{paymentMethod:"Cash"});
+          });
+        } else await deleteDoc(doc(db,type,entry.id));
+      });
+      actions.append(edit,del);tr.append(actions);tbody.append(tr);
     });
-    row.append(txt,edit,del);root.appendChild(row);
-  });
+    if(!currentRows.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=4;td.textContent=`No ${title.toLowerCase()} for this day.`;tr.append(td);tbody.append(tr);}
+    table.appendChild(tbody);wrap.append(table);section.appendChild(wrap);
+    const pager=document.createElement("div");pager.className="table-pagination";
+    const label=document.createElement("span");label.textContent=`Page ${financePages[type]} of ${pages} (${entries.length} records)`;
+    const prev=document.createElement("button"),next=document.createElement("button");
+    for(const b of [prev,next]){b.type="button";b.className="btn btn-sm btn-outline";}
+    prev.textContent="Prev";next.textContent="Next";
+    prev.disabled=financePages[type]<=1;next.disabled=financePages[type]>=pages;
+    prev.onclick=()=>{financePages[type]--;renderFinance();};
+    next.onclick=()=>{financePages[type]++;renderFinance();};
+    pager.append(label,prev,next);section.appendChild(pager);root.appendChild(section);
+  }
 }
+
 financeData.gcashPayments=[];
 document.getElementById("finance-date").value=dayKey();
 document.getElementById("finance-date").onchange=renderFinance;
@@ -1073,3 +1137,19 @@ setInterval(()=>{
   if(document.getElementById("finance-date").value===lastDate)document.getElementById("finance-date").value=today;
   lastDate=today;renderDashboard();renderFinance();
 },60000);
+
+/* Menu availability, individual discounts, separated finance tables */
+const adminEnhanceStyles = document.createElement("style");
+adminEnhanceStyles.textContent = `
+@media screen {
+ .edit-item-discount{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:9px 0;padding:9px;background:#fff1f7;border-radius:9px}
+ .edit-item-discount select{max-width:150px;min-height:35px}
+ .menu-availability-select{padding:6px;border:1px solid #d9c8bc;border-radius:8px;min-width:125px;background:#fff}
+ .finance-separated-section{margin-top:16px;padding:15px;overflow:hidden}
+ .finance-separated-section h3{margin:0 0 10px}
+ .finance-table-actions{white-space:nowrap}
+ .finance-table-actions .btn + .btn{margin-left:6px}
+ .finance-separated-section .table-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:10px}
+}
+`;
+document.head.append(adminEnhanceStyles);

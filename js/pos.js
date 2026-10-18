@@ -13,7 +13,9 @@ import {
   isMealItem,
   lineBoxPrice,
   boxesForCart,
-  discountDetails
+  lineDiscountAmount,
+  itemDiscountTotal,
+  isDiscountableFood
 } from "./business.js";
 
 import {
@@ -27,28 +29,23 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 /* LOGIN */
-
 const session = requireRole(["staff", "admin"]);
 
 if (!session) {
   throw new Error("Sign in is required.");
 }
 
-document.getElementById("logout-btn")
-  .addEventListener("click", logout);
+const $ = id => document.getElementById(id);
 
-document.getElementById("role-pill").textContent =
+$("logout-btn").addEventListener("click", logout);
+$("role-pill").textContent =
   session.role === "admin" ? "Admin" : "Cashier";
 
 if (session.role !== "admin") {
-  document.getElementById("admin-link")
-    .classList.add("hidden");
+  $("admin-link").classList.add("hidden");
 }
 
-/* ELEMENTS */
-
-const $ = id => document.getElementById(id);
-
+/* POS STATE */
 const menuPane = $("item-grid");
 const tabsEl = $("category-tabs");
 const cartItemsEl = $("cart-items");
@@ -64,110 +61,16 @@ let recentOrders = [];
 let submitting = false;
 let searchText = "";
 
-/* COMPACT CUSTOMER & ADD-ONS */
-
-const compactStyles = document.createElement("style");
-
-compactStyles.textContent = `
-@media screen {
-  .order-details .order-options {
-    gap: 6px 10px !important;
-    padding: 9px 12px !important;
-    align-items: end !important;
-  }
-
-  .order-details .order-options label {
-    font-size: .70rem !important;
-    gap: 3px !important;
-    line-height: 1.2 !important;
-  }
-
-  .order-details .order-options input,
-  .order-details .order-options select {
-    min-height: 34px !important;
-    padding: 5px 8px !important;
-  }
-
-  .order-details .order-options .box-charge-title {
-    grid-column: 1 / -1;
-    margin: 4px 0 0 !important;
-    font-size: .68rem !important;
-    line-height: 1.3 !important;
-  }
-
-  .order-details .order-options .box-qty-row {
-    display: contents !important;
-  }
-
-  .order-details .order-options > small {
-    font-size: .68rem !important;
-    line-height: 1.3 !important;
-  }
-
-  .order-details .order-options label[for="customer-name"] {
-    grid-column: 1 / -1;
-  }
-
-  .order-details .order-options label[for="pos-discount-rate"] {
-    grid-column: 1 / -1;
-  }
-
-  .order-details .order-options #existing-order {
-    width: 100%;
-  }
-}
-`;
-
-document.head.appendChild(compactStyles);
-
-/* POS DISCOUNT */
-
-const discountLabel = document.createElement("label");
-
-discountLabel.htmlFor = "pos-discount-rate";
-discountLabel.textContent =
-  "Discount (food + add-ons only)";
-
-const discountSelect = document.createElement("select");
-
-discountSelect.id = "pos-discount-rate";
-
-for (const [value, label] of [
-  [0, "No discount"],
-  [10, "10% discount"],
-  [20, "20% discount"]
-]) {
-  discountSelect.add(
-    new Option(label, String(value))
-  );
-}
-
-discountLabel.appendChild(discountSelect);
-
-document.querySelector(
-  "#order-details .order-options"
-).appendChild(discountLabel);
-
-discountSelect.addEventListener(
-  "change",
-  () => renderCart()
-);
-
-/* HELPERS */
-
 const money = pesos;
 
 const escapeHtml = value =>
-  String(value ?? "").replace(
-    /[&<>"']/g,
-    character => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    })[character]
-  );
+  String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[c]);
 
 const isDrink = (category, name = "") =>
   /coffee|frapp|frappé|shake|tea|drink|juice|smoothie|soda|lemonade|chocolate|matcha|milktea/i
@@ -178,6 +81,16 @@ const isDrink = (category, name = "") =>
 const positiveInt = value =>
   Math.max(0, Math.floor(Number(value) || 0));
 
+const lineTotal = line =>
+  Number(line.qty || 0) *
+  Number(line.unitPrice || 0);
+
+function newKey() {
+  return crypto.randomUUID?.() ||
+    `${Date.now()}-${Math.random()}`;
+}
+
+/* TAKEOUT BOX CALCULATIONS */
 function currentBoxes() {
   return boxesForCart(cart, {
     "15": positiveInt($("box-15").value),
@@ -185,6 +98,7 @@ function currentBoxes() {
   });
 }
 
+/* OPTIONAL MANUAL ADD-ONS */
 function currentAddons() {
   const name = $("addon-name").value.trim();
   const qty = positiveInt($("addon-qty").value);
@@ -192,14 +106,19 @@ function currentAddons() {
     $("addon-price").value || 0
   );
 
-  return name &&
-    qty > 0 &&
-    Number.isFinite(unitPrice) &&
-    unitPrice >= 0
-    ? [{ name, qty, unitPrice }]
-    : [];
+  if (
+    !name ||
+    qty <= 0 ||
+    !Number.isFinite(unitPrice) ||
+    unitPrice < 0
+  ) {
+    return [];
+  }
+
+  return [{ name, qty, unitPrice }];
 }
 
+/* NOTIFICATIONS */
 function toast(message) {
   const node = $("toast");
 
@@ -220,21 +139,20 @@ function connectionError(message) {
   node.classList.remove("hidden");
 }
 
-/* EXISTING ORDERS */
-
+/* TODAY'S EXISTING ORDERS */
 function availableOrders() {
   const today = dayKey();
 
-  return recentOrders.filter(order =>
-    (
-      order.dayKey ||
+  return recentOrders.filter(order => {
+    const date = order.dayKey ||
       (
         order.createdAt?.toDate
           ? dayKey(order.createdAt.toDate())
           : ""
-      )
-    ) === today
-  );
+      );
+
+    return date === today;
+  });
 }
 
 function renderExistingOrders() {
@@ -265,8 +183,7 @@ function renderExistingOrders() {
     : "Place order & print";
 }
 
-/* LIVE FIREBASE MENU */
-
+/* LIVE MENU AND ORDERS */
 async function listenMenu() {
   await authReady;
 
@@ -277,7 +194,7 @@ async function listenMenu() {
     ),
     snapshot => {
       categoryOrder = snapshot.docs
-        .map(item => item.data().name)
+        .map(d => d.data().name)
         .flatMap(name =>
           name === "Shake & Frappé"
             ? ["Shake", "Frappé"]
@@ -297,7 +214,7 @@ async function listenMenu() {
       renderGrid();
     },
     error => connectionError(
-      `Categories failed to load: ${error.message}`
+      `Categories failed: ${error.message}`
     )
   );
 
@@ -330,24 +247,18 @@ async function listenMenu() {
           menuByCategory.get(category) || [];
 
         list.push(item);
-
         menuByCategory.set(category, list);
       });
 
-      if (
-        !activeCategory &&
-        menuByCategory.size
-      ) {
-        activeCategory = [
-          ...menuByCategory.keys()
-        ][0];
+      if (!activeCategory && menuByCategory.size) {
+        activeCategory = [...menuByCategory.keys()][0];
       }
 
       renderTabs();
       renderGrid();
     },
     error => connectionError(
-      `Products failed to load: ${error.message}`
+      `Menu failed: ${error.message}`
     )
   );
 
@@ -357,39 +268,38 @@ async function listenMenu() {
       orderBy("createdAt", "desc")
     ),
     snapshot => {
-      recentOrders = snapshot.docs.map(item => ({
-        id: item.id,
-        ...item.data()
+      recentOrders = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
       }));
 
       renderExistingOrders();
     },
     error => connectionError(
-      `Existing orders failed to load: ${error.message}`
+      `Orders failed: ${error.message}`
     )
   );
 }
 
-/* CATEGORY TABS */
-
+/* MENU CATEGORY TABS */
 function renderTabs() {
   tabsEl.replaceChildren();
 
-  [
+  const categories = [
     ...new Set([
       ...categoryOrder,
       ...menuByCategory.keys()
     ])
-  ].forEach(category => {
+  ];
+
+  categories.forEach(category => {
     const button = document.createElement("button");
 
     button.type = "button";
     button.textContent = category;
 
     button.className =
-      category === activeCategory
-        ? "active"
-        : "";
+      category === activeCategory ? "active" : "";
 
     button.onclick = () => {
       activeCategory = category;
@@ -401,57 +311,7 @@ function renderTabs() {
   });
 }
 
-/*
- * PARTY BOX SET A AND SET B
- *
- * Fallback choices for existing Firebase products
- * that have no comboOptions saved yet.
- */
-
-const PARTY_BOX_CHOICES = {
-  "party box set a": [
-    "Pansit Canton",
-    "Spaghetti",
-    "Pansit Bihon",
-    "Baked Mac",
-    "Lumpia (30 pcs)",
-    "Classic Chicken (15 pcs)"
-  ],
-
-  "party box set b": [
-    "Carbonara",
-    "Seafood Pasta",
-    "Cordon Bleu",
-    "Buffalo Wings",
-    "Buttered Shrimp",
-    "Fish Fillet"
-  ]
-};
-
-function partyBoxChoices(item) {
-  if (
-    String(item.category || "")
-      .trim()
-      .toLowerCase() !== "party box on the go"
-  ) {
-    return [];
-  }
-
-  const name = String(item.name || "")
-    .trim()
-    .toLowerCase();
-
-  if (PARTY_BOX_CHOICES[name]) {
-    return PARTY_BOX_CHOICES[name];
-  }
-
-  return Array.isArray(item.comboOptions)
-    ? item.comboOptions
-    : [];
-}
-
-/* RENDER MENU PRODUCTS */
-
+/* MENU PRODUCTS */
 function renderGrid() {
   const items = searchText
     ? [...menuByCategory.values()]
@@ -462,8 +322,8 @@ function renderGrid() {
             .includes(searchText)
         )
     : (
-        menuByCategory.get(activeCategory) || []
-      );
+      menuByCategory.get(activeCategory) || []
+    );
 
   $("item-count").textContent =
     `${items.length} products${
@@ -473,11 +333,8 @@ function renderGrid() {
   menuPane.replaceChildren();
 
   if (!items.length) {
-    menuPane.innerHTML = `
-      <p class="menu-empty">
-        No products found.
-      </p>
-    `;
+    menuPane.innerHTML =
+      '<p class="menu-empty">No products found.</p>';
     return;
   }
 
@@ -495,6 +352,16 @@ function renderGrid() {
           : ""
       );
 
+    const priceRange = item.variants?.length
+      ? " – " + money(
+          item.variants[
+            item.variants.length - 1
+          ].price
+        )
+      : item.priceLarge
+        ? " / " + money(item.priceLarge)
+        : "";
+
     button.innerHTML = `
       <span class="name">
         ${escapeHtml(item.name)}
@@ -505,25 +372,12 @@ function renderGrid() {
       </span>
 
       <span class="price">
-        ${money(item.price)}
-        ${
-          item.variants?.length
-            ? " – " + money(
-                item.variants[
-                  item.variants.length - 1
-                ].price
-              )
-            : item.priceLarge
-              ? " / " + money(item.priceLarge)
-              : ""
-        }
+        ${money(item.price)}${priceRange}
       </span>
 
       ${
         item.available === false
-          ? `<span class="badge-unavail">
-               Unavailable
-             </span>`
+          ? '<span class="badge-unavail">Unavailable</span>'
           : ""
       }
     `;
@@ -532,15 +386,12 @@ function renderGrid() {
       if (
         item.variants?.length ||
         item.priceLarge ||
-        partyBoxChoices(item).length
+        item.comboOptions?.length ||
+        item.category === "Party Box on the Go"
       ) {
         openSizeModal(item);
       } else {
-        addToCart(
-          item,
-          null,
-          item.price
-        );
+        addToCart(item, null, item.price);
       }
     };
 
@@ -548,14 +399,12 @@ function renderGrid() {
   });
 }
 
-/* ADD ITEM TO CART */
-
+/* ADD PRODUCT
+ * Main Order Type is only the default for NEW items.
+ */
 function addToCart(item, size, unitPrice) {
   cart.push({
-    key:
-      crypto.randomUUID?.() ||
-      `${Date.now()}-${Math.random()}`,
-
+    key: newKey(),
     menuId: item.id,
     name: item.name,
     category: item.category,
@@ -570,19 +419,14 @@ function addToCart(item, size, unitPrice) {
       item.isAddon === true ||
       /add\s*ons?/i.test(item.category || ""),
 
+    discountRate: 0,
     note: ""
   });
 
   renderCart();
 }
 
-function lineTotal(line) {
-  return Number(line.qty || 0) *
-    Number(line.unitPrice || 0);
-}
-
-/* CURRENT ORDER */
-
+/* DINE IN / TAKE OUT ORDER PREVIEW */
 function renderCart() {
   cartItemsEl.replaceChildren();
 
@@ -594,204 +438,350 @@ function renderCart() {
     `;
   }
 
-  for (const line of cart) {
-    const row = document.createElement("div");
+  const counts = {
+    "Dine In": cart
+      .filter(item => item.serveType !== "Take Out")
+      .reduce(
+        (sum, item) => sum + Number(item.qty || 0),
+        0
+      ),
 
-    row.className = "cart-line";
+    "Take Out": cart
+      .filter(item => item.serveType === "Take Out")
+      .reduce(
+        (sum, item) => sum + Number(item.qty || 0),
+        0
+      )
+  };
 
-    const meal = isMealItem(line);
-    const boxPrice = lineBoxPrice(line);
-
-    const boxLabel = meal ? `
-      <label class="meal-box-label">
-        Box per serving
-
-        <select
-          class="meal-box-select"
-          aria-label="Box type for ${escapeHtml(line.name)}"
-        >
-          <option value="auto">
-            Auto: regular food ₱15 /
-            Sharing-Family no auto box
-          </option>
-
-          <option value="15">₱15 box</option>
-          <option value="25">₱25 box (manual)</option>
-          <option value="0">No box</option>
-        </select>
-      </label>
-
-      <div class="meal-box-cost">
-        ${
-          boxPrice
-            ? `${money(boxPrice)} × ${line.qty} box = ${
-                money(boxPrice * line.qty)
-              }`
-            : "No box charge"
-        }
-      </div>
-    ` : "";
-
-    row.innerHTML = `
-      <div class="info">
-
-        <div class="name">
-          ${escapeHtml(line.name)}
-        </div>
-
-        ${
-          line.size
-            ? `<div class="size">
-                 Size: ${escapeHtml(line.size)}
-               </div>`
-            : ""
-        }
-
-        <div class="unit">
-          ${money(line.unitPrice)} each ·
-          ${escapeHtml(line.category)}
-        </div>
-
-        <select
-          class="serve-select"
-          aria-label="Dine in or take out for ${escapeHtml(line.name)}"
-        >
-          <option value="Dine In">Dine In</option>
-          <option value="Take Out">Take Out</option>
-        </select>
-
-        ${boxLabel}
-
-        <input
-          class="custom-note"
-          placeholder="Notes (optional)"
-          maxlength="180"
-          value="${escapeHtml(line.note)}"
-        />
-
-        ${
-          line.qty > 1
-            ? `<button
-                 class="split-serve"
-                 type="button"
-               >
-                 Split 1 serving
-               </button>`
-            : ""
-        }
-      </div>
-
-      <div class="qty-control">
-        <button type="button" data-act="dec">−</button>
-        <span>${line.qty}</span>
-        <button type="button" data-act="inc">+</button>
-      </div>
-
-      <div class="line-total">
-        ${money(lineTotal(line))}
-      </div>
-
-      <button
-        type="button"
-        class="remove-btn"
-        data-act="remove"
-        aria-label="Remove"
-      >
-        ✕
-      </button>
-    `;
-
-    const serviceSelect = row.querySelector(
-      ".serve-select"
+  // Group the visible order without changing saved data.
+  for (const service of ["Dine In", "Take Out"]) {
+    const lines = cart.filter(item =>
+      (
+        item.serveType === "Take Out"
+          ? "Take Out"
+          : "Dine In"
+      ) === service
     );
 
-    serviceSelect.value = line.serveType;
+    if (!lines.length) continue;
 
-    serviceSelect.onchange = event => {
-      line.serveType = event.target.value;
-      renderCart();
-    };
+    const heading = document.createElement("div");
 
-    const boxSelect = row.querySelector(
-      ".meal-box-select"
-    );
+    heading.className =
+      "cart-service-group " +
+      (
+        service === "Take Out"
+          ? "service-takeout"
+          : "service-dinein"
+      );
 
-    if (boxSelect) {
-      boxSelect.value =
-        line.boxChoice ?? "auto";
+    heading.textContent =
+      service === "Take Out"
+        ? `TAKE OUT — PACK THESE ITEMS (${counts[service]} pcs)`
+        : `DINE IN — SERVE HERE (${counts[service]} pcs)`;
 
-      boxSelect.onchange = event => {
-        line.boxChoice = event.target.value;
+    cartItemsEl.appendChild(heading);
+
+    for (const line of lines) {
+      const row = document.createElement("div");
+
+      row.className =
+        "cart-line " +
+        (
+          service === "Take Out"
+            ? "cart-takeout"
+            : "cart-dinein"
+        );
+
+      const meal = isMealItem(line);
+      const boxPrice = lineBoxPrice(line);
+
+      const boxLabel = meal ? `
+        <label class="meal-box-label">
+          Box per serving
+
+          <select
+            class="meal-box-select"
+            aria-label="Box type for ${escapeHtml(line.name)}"
+          >
+            <option value="auto">
+              Auto: Meals/Fries ₱15; Sharing/Family ₱0
+            </option>
+
+            <option value="15">₱15 box</option>
+            <option value="25">₱25 box</option>
+            <option value="0">No box</option>
+          </select>
+        </label>
+
+        <div class="meal-box-cost">
+          ${
+            boxPrice
+              ? `${money(boxPrice)} × ${line.qty} box = ${
+                  money(boxPrice * line.qty)
+                }`
+              : "No box charge"
+          }
+        </div>
+      ` : "";
+
+      row.innerHTML = `
+        <div class="info">
+
+          <div class="name">
+            ${escapeHtml(line.name)}
+          </div>
+
+          <div class="cart-service-badge ${
+            service === "Take Out"
+              ? "service-takeout"
+              : "service-dinein"
+          }">
+            ${
+              service === "Take Out"
+                ? "● TAKE OUT"
+                : "● DINE IN"
+            }
+          </div>
+
+          ${
+            line.size
+              ? `<div class="size">
+                   Size: ${escapeHtml(line.size)}
+                 </div>`
+              : ""
+          }
+
+          <div class="unit">
+            ${money(line.unitPrice)} each ·
+            ${escapeHtml(line.category)}
+          </div>
+
+          <select
+            class="serve-select"
+            aria-label="Service for ${escapeHtml(line.name)}"
+          >
+            <option value="Dine In">Dine In</option>
+            <option value="Take Out">Take Out</option>
+          </select>
+
+          ${boxLabel}
+
+          ${
+            isDiscountableFood(line)
+              ? `
+                <div class="line-discount-control">
+                  <label class="item-discount-check">
+                    <input
+                      class="discount-enabled"
+                      type="checkbox"
+                      ${
+                        Number(line.discountRate || 0) > 0
+                          ? "checked"
+                          : ""
+                      }
+                    >
+                    Discount this item
+                  </label>
+
+                  <select
+                    class="item-discount-rate"
+                    aria-label="Discount for ${escapeHtml(line.name)}"
+                    ${
+                      Number(line.discountRate || 0) > 0
+                        ? ""
+                        : "disabled"
+                    }
+                  >
+                    <option
+                      value="10"
+                      ${
+                        Number(line.discountRate) === 10
+                          ? "selected"
+                          : ""
+                      }
+                    >10%</option>
+
+                    <option
+                      value="20"
+                      ${
+                        Number(line.discountRate) === 20
+                          ? "selected"
+                          : ""
+                      }
+                    >20%</option>
+                  </select>
+
+                  <span class="item-discount-amount">
+                    ${
+                      line.discountRate
+                        ? `−${money(lineDiscountAmount(line))}`
+                        : ""
+                    }
+                  </span>
+                </div>
+              `
+              : ""
+          }
+
+          <input
+            class="custom-note"
+            placeholder="Notes (optional)"
+            maxlength="180"
+            value="${escapeHtml(line.note)}"
+          >
+
+          ${
+            line.qty > 1
+              ? `
+                <button
+                  class="split-serve"
+                  type="button"
+                >
+                  Move 1 serving to ${
+                    service === "Dine In"
+                      ? "TAKE OUT"
+                      : "DINE IN"
+                  }
+                </button>
+              `
+              : ""
+          }
+
+        </div>
+
+        <div class="qty-control">
+          <button type="button" data-act="dec">−</button>
+          <span>${line.qty}</span>
+          <button type="button" data-act="inc">+</button>
+        </div>
+
+        <div class="line-total">
+          ${money(lineTotal(line))}
+        </div>
+
+        <button
+          type="button"
+          class="remove-btn"
+          data-act="remove"
+          aria-label="Remove"
+        >✕</button>
+      `;
+
+      // Service of this item only.
+      const serviceSelect = row.querySelector(
+        ".serve-select"
+      );
+
+      serviceSelect.value = line.serveType;
+
+      serviceSelect.onchange = event => {
+        line.serveType = event.target.value;
         renderCart();
       };
-    }
 
-    row.querySelector(
-      ".custom-note"
-    ).oninput = event => {
-      line.note = event.target.value;
-    };
+      // Box for this item only.
+      const boxSelect = row.querySelector(
+        ".meal-box-select"
+      );
 
-    row.querySelector(
-      '[data-act="inc"]'
-    ).onclick = () => {
-      line.qty++;
-      renderCart();
-    };
+      if (boxSelect) {
+        boxSelect.value = line.boxChoice ?? "auto";
 
-    row.querySelector(
-      '[data-act="dec"]'
-    ).onclick = () => {
-      line.qty--;
+        boxSelect.onchange = event => {
+          line.boxChoice = event.target.value;
+          renderCart();
+        };
+      }
 
-      if (line.qty <= 0) {
+      row.querySelector(".custom-note").oninput = event => {
+        line.note = event.target.value;
+      };
+
+      const discountToggle = row.querySelector(
+        ".discount-enabled"
+      );
+
+      if (discountToggle) {
+        discountToggle.onchange = event => {
+          line.discountRate = event.target.checked
+            ? Number(
+                row.querySelector(".item-discount-rate").value
+              ) || 10
+            : 0;
+
+          renderCart();
+        };
+
+        row.querySelector(
+          ".item-discount-rate"
+        ).onchange = event => {
+          line.discountRate = Number(event.target.value);
+          renderCart();
+        };
+      }
+
+      row.querySelector(
+        '[data-act="inc"]'
+      ).onclick = () => {
+        line.qty++;
+        renderCart();
+      };
+
+      row.querySelector(
+        '[data-act="dec"]'
+      ).onclick = () => {
+        line.qty--;
+
+        if (line.qty <= 0) {
+          cart = cart.filter(
+            item => item.key !== line.key
+          );
+        }
+
+        renderCart();
+      };
+
+      row.querySelector(
+        '[data-act="remove"]'
+      ).onclick = () => {
         cart = cart.filter(
           item => item.key !== line.key
         );
-      }
-
-      renderCart();
-    };
-
-    row.querySelector(
-      '[data-act="remove"]'
-    ).onclick = () => {
-      cart = cart.filter(
-        item => item.key !== line.key
-      );
-
-      renderCart();
-    };
-
-    const split = row.querySelector(
-      ".split-serve"
-    );
-
-    if (split) {
-      split.onclick = () => {
-        line.qty--;
-
-        cart.push({
-          ...line,
-          key:
-            crypto.randomUUID?.() ||
-            `${Date.now()}-${Math.random()}`,
-
-          qty: 1,
-
-          serveType:
-            line.serveType === "Dine In"
-              ? "Take Out"
-              : "Dine In"
-        });
 
         renderCart();
       };
-    }
 
-    cartItemsEl.appendChild(row);
+      // Splits one serving to the opposite service.
+      const split = row.querySelector(".split-serve");
+
+      if (split) {
+        split.onclick = () => {
+          if (line.qty <= 1) return;
+
+          line.qty--;
+
+          cart.push({
+            ...line,
+            key: newKey(),
+            qty: 1,
+
+            serveType:
+              line.serveType === "Dine In"
+                ? "Take Out"
+                : "Dine In"
+          });
+
+          renderCart();
+        };
+      }
+
+      cartItemsEl.appendChild(row);
+    }
   }
 
+  // Recalculate complete order.
   const boxes = currentBoxes();
   const extras = currentAddons();
 
@@ -805,38 +795,35 @@ function renderCart() {
     0
   );
 
-  const discount = discountDetails(
-    subtotal + extraCost,
-    discountSelect.value
-  );
+  const totalDiscount = itemDiscountTotal(cart);
 
   const total = rounded(
     subtotal +
     boxTotal(boxes) +
     extraCost -
-    discount.discountAmount
+    totalDiscount
   );
 
   $("cart-total").textContent = money(total);
 
-  const addonCost = extraCost +
-    cart.filter(item => item.isAddon)
-      .reduce(
-        (sum, item) => sum + lineTotal(item),
-        0
-      );
+  const addonsCost = extraCost +
+    cart.filter(item => item.isAddon).reduce(
+      (sum, item) => sum + lineTotal(item),
+      0
+    );
 
   $("box-fee-label").textContent =
-    `Boxes ${money(boxTotal(boxes))}` +
-    ` · Add-ons ${money(addonCost)}` +
-    ` · Discount ${money(discount.discountAmount)}` +
-    ` (${discount.discountRate}%)`;
+    `Boxes: ${boxes["15"]}×₱15 + ` +
+    `${boxes["25"]}×₱25 = ${money(boxTotal(boxes))}` +
+    ` · Add-ons: ${money(addonsCost)}` +
+    (
+      totalDiscount
+        ? ` · Discount: -${money(totalDiscount)}`
+        : ""
+    );
 
   $("cart-count").textContent = String(
-    cart.reduce(
-      (sum, item) => sum + item.qty,
-      0
-    )
+    counts["Dine In"] + counts["Take Out"]
   );
 
   checkoutBtn.disabled =
@@ -852,135 +839,65 @@ function renderCart() {
     : "Place order & print";
 }
 
-/*
- * SIZE / VARIANT / PARTY BOX MODAL
- */
-
+/* PARTY BOX / VARIANT MODAL */
 function openSizeModal(item) {
-  const variants =
-    Array.isArray(item.variants) &&
-    item.variants.length
-      ? item.variants
-      : (
-          item.priceLarge
-            ? [
-                {
-                  label: "Medium",
-                  price: Number(item.price)
-                },
-                {
-                  label: "Large",
-                  price: Number(item.priceLarge)
-                }
-              ]
-            : [
-                {
-                  label: "Regular",
-                  price: Number(item.price)
-                }
-              ]
-        );
+  const variants = item.variants?.length
+    ? item.variants
+    : item.priceLarge
+      ? [
+          {
+            label: "Medium",
+            price: Number(item.price)
+          },
+          {
+            label: "Large",
+            price: Number(item.priceLarge)
+          }
+        ]
+      : [
+          {
+            label: "Regular",
+            price: Number(item.price)
+          }
+        ];
 
-  const choices = partyBoxChoices(item);
+  let selected = variants[0];
 
-  const isParty = choices.length > 0;
+  const fallback = {
+    "party box set a": [
+      "Pansit Canton",
+      "Spaghetti",
+      "Pansit Bihon",
+      "Baked Mac",
+      "Lumpia (30 pcs)",
+      "Classic Chicken (15 pcs)"
+    ],
 
-  const freebie = /set a$/i.test(
-    String(item.name).trim()
-  )
-    ? "FREE: 1.5L Coke"
-    : /set b$/i.test(
-        String(item.name).trim()
+    "party box set b": [
+      "Carbonara",
+      "Seafood Pasta",
+      "Cordon Bleu",
+      "Buffalo Wings",
+      "Buttered Shrimp",
+      "Fish Fillet"
+    ]
+  };
+
+  const choices = item.category === "Party Box on the Go"
+    ? (
+        item.comboOptions?.length
+          ? item.comboOptions
+          : fallback[item.name.toLowerCase()] || []
       )
-      ? "FREE: 1.5L Coke + 1 tub Graham"
-      : "";
-
-  let selectedVariant = variants[0];
-
-  const choicesMarkup = isParty ? `
-    <fieldset class="party-choices">
-
-      <legend>
-        Choose your Party Box dishes
-      </legend>
-
-      <p class="party-hint">
-        Tap each dish the customer wants.
-        You can choose more than one.
-      </p>
-
-      <div class="party-choice-grid">
-        ${choices.map((option, index) => `
-          <label
-            class="party-choice"
-            for="party-choice-${index}"
-          >
-            <input
-              id="party-choice-${index}"
-              type="checkbox"
-              data-party-choice
-              value="${index}"
-            >
-
-            <span>
-              ${escapeHtml(option)}
-            </span>
-          </label>
-        `).join("")}
-      </div>
-
-      <p
-        id="party-count"
-        class="party-count"
-      >
-        0 selected
-      </p>
-
-      ${
-        freebie
-          ? `<p class="party-freebie">
-               ${escapeHtml(freebie)}
-             </p>`
-          : ""
-      }
-
-    </fieldset>
-
-    <label
-      class="party-extra-label"
-      for="party-note"
-    >
-      Other instructions (optional)
-
-      <textarea
-        id="party-note"
-        rows="2"
-        maxlength="60"
-        placeholder="e.g. Sauce on the side"
-      ></textarea>
-    </label>
-
-    <p
-      class="party-error"
-      id="party-error"
-      role="alert"
-      hidden
-    ></p>
-  ` : "";
+    : [];
 
   modalRoot.innerHTML = `
-    <div class="modal-backdrop party-modal-backdrop">
-
+    <div class="modal-backdrop">
       <div
-        class="modal-sheet party-modal-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="party-modal-title"
+        class="modal-sheet"
+        style="max-height:90dvh;overflow:auto"
       >
-
-        <h3 id="party-modal-title">
-          ${escapeHtml(item.name)}
-        </h3>
+        <h3>${escapeHtml(item.name)}</h3>
 
         ${
           item.description
@@ -990,210 +907,84 @@ function openSizeModal(item) {
             : ""
         }
 
+        <div
+          class="size-options"
+          style="flex-wrap:wrap"
+        >
+          ${variants.map((variant, index) => `
+            <button
+              type="button"
+              data-variant="${index}"
+              class="${index === 0 ? "selected" : ""}"
+            >
+              ${escapeHtml(variant.label)} ·
+              ${money(variant.price)}
+            </button>
+          `).join("")}
+        </div>
+
         ${
-          variants.length > 1
+          choices.length
             ? `
-              <div class="size-options party-variants">
-                ${variants.map((variant, index) => `
-                  <button
-                    type="button"
-                    data-variant="${index}"
-                    class="${
-                      index === 0 ? "selected" : ""
-                    }"
-                  >
-                    ${escapeHtml(variant.label)} ·
-                    ${money(variant.price)}
-                  </button>
+              <fieldset class="party-checkbox-group">
+                <legend>Choose Party Box dishes</legend>
+
+                ${choices.map((choice, index) => `
+                  <label>
+                    <input
+                      type="checkbox"
+                      data-party-choice="${index}"
+                    >
+                    ${escapeHtml(choice)}
+                  </label>
                 `).join("")}
-              </div>
+
+                <label>
+                  Other instructions
+                  <textarea
+                    id="combo-notes"
+                    maxlength="80"
+                    rows="2"
+                    placeholder="Special instructions (optional)"
+                  ></textarea>
+                </label>
+
+                <p
+                  class="form-error"
+                  id="party-error"
+                  aria-live="polite"
+                ></p>
+              </fieldset>
             `
-            : `<p class="party-price">
-                 Price:
-                 <strong>
-                   ${money(selectedVariant.price)}
-                 </strong>
-               </p>`
+            : ""
         }
 
-        ${choicesMarkup}
-
         <div class="modal-actions">
-
           <button
             type="button"
             class="btn btn-outline"
             id="modal-cancel"
-          >
-            Cancel
-          </button>
+          >Cancel</button>
 
           <button
             type="button"
             class="btn btn-primary"
             id="modal-add"
-          >
-            Add to order
-          </button>
-
+          >Add to order</button>
         </div>
-
       </div>
     </div>
   `;
 
-  /* PARTY BOX DESIGN */
-
-  if (!document.getElementById("party-box-styles")) {
-    const styles = document.createElement("style");
-
-    styles.id = "party-box-styles";
-
-    styles.textContent = `
-      .party-modal-sheet {
-        max-height: min(90dvh, 760px);
-        overflow-y: auto;
-        width: min(94vw, 550px);
-        padding: 18px;
-      }
-
-      .party-choices {
-        border: 1px solid #e4d7ce;
-        border-radius: 12px;
-        padding: 12px;
-        margin: 14px 0;
-        background: #fff;
-        min-width: 0;
-      }
-
-      .party-choices legend {
-        font-weight: 800;
-        color: #583c2e;
-        padding: 0 5px;
-      }
-
-      .party-hint {
-        margin: 0 0 10px;
-        font-size: .78rem;
-        color: #72594a;
-      }
-
-      .party-choice-grid {
-        display: grid;
-        grid-template-columns:
-          repeat(2, minmax(0, 1fr));
-        gap: 7px;
-      }
-
-      .party-choice {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        padding: 10px 9px;
-        border: 1px solid #e3d6cd;
-        border-radius: 9px;
-        font-size: .8rem;
-        font-weight: 700;
-        background: #fff9f4;
-        min-width: 0;
-      }
-
-      .party-choice:has(input:checked) {
-        background: #fff0f7;
-        border-color: #cd437e;
-      }
-
-      .party-choice input {
-        width: 17px;
-        height: 17px;
-        flex: 0 0 auto;
-        accent-color: #c44379;
-      }
-
-      .party-count {
-        margin: 8px 0 3px;
-        font-size: .77rem;
-        font-weight: 800;
-        color: #7c3858;
-      }
-
-      .party-freebie {
-        font-size: .75rem;
-        font-weight: 800;
-        color: #376044;
-        margin: 4px 0;
-      }
-
-      .party-extra-label {
-        display: block;
-        font-size: .8rem;
-        font-weight: 700;
-      }
-
-      .party-extra-label textarea {
-        display: block;
-        width: 100%;
-        min-width: 0;
-        padding: 8px;
-        border: 1px solid #d9cbc0;
-        border-radius: 9px;
-        resize: vertical;
-        font: inherit;
-      }
-
-      .party-error {
-        font-size: .8rem;
-        font-weight: 800;
-        color: #a82121;
-        margin: 8px 0;
-      }
-
-      .party-price {
-        margin: 7px 0;
-        font-size: .9rem;
-      }
-
-      .party-modal-sheet .modal-actions {
-        margin-top: 14px;
-      }
-
-      @media (max-width: 440px) {
-        .party-choice-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-    `;
-
-    document.head.appendChild(styles);
-  }
-
-  const modal = modalRoot.querySelector(
-    ".party-modal-sheet"
-  );
-
-  const errorNode = modal.querySelector(
-    "#party-error"
-  );
-
-  function showPartyError(message) {
-    if (!errorNode) return;
-
-    errorNode.hidden = false;
-    errorNode.textContent = message;
-  }
-
-  /* VARIANT BUTTONS */
-
-  modal.querySelectorAll(
+  modalRoot.querySelectorAll(
     "[data-variant]"
   ).forEach(button => {
-    button.addEventListener("click", () => {
-      selectedVariant = variants[
+    button.onclick = () => {
+      selected = variants[
         Number(button.dataset.variant)
       ];
 
-      modal.querySelectorAll(
+      modalRoot.querySelectorAll(
         "[data-variant]"
       ).forEach(other => {
         other.classList.toggle(
@@ -1201,135 +992,97 @@ function openSizeModal(item) {
           other === button
         );
       });
-    });
+    };
   });
-
-  /* PARTY BOX CHECKBOXES */
-
-  modal.querySelectorAll(
-    "[data-party-choice]"
-  ).forEach(input => {
-    input.addEventListener("change", () => {
-      const selectedCount = modal.querySelectorAll(
-        "[data-party-choice]:checked"
-      ).length;
-
-      modal.querySelector(
-        "#party-count"
-      ).textContent = `${selectedCount} selected`;
-
-      errorNode.hidden = true;
-    });
-  });
-
-  /* CLOSE MODAL */
-
-  const closeModal = () => {
-    modalRoot.replaceChildren();
-  };
-
-  modal.querySelector(
-    "#modal-cancel"
-  ).addEventListener("click", closeModal);
 
   modalRoot.querySelector(
-    ".modal-backdrop"
-  ).addEventListener("click", event => {
-    if (event.target === event.currentTarget) {
-      closeModal();
-    }
-  });
+    "#modal-cancel"
+  ).onclick = () => modalRoot.replaceChildren();
 
-  /* ADD SELECTED PARTY BOX TO ORDER */
-
-  modal.querySelector(
+  modalRoot.querySelector(
     "#modal-add"
-  ).addEventListener("click", () => {
-    let note = "";
-    let selectedChoices = [];
+  ).onclick = () => {
+    const chosen = [
+      ...modalRoot.querySelectorAll(
+        "[data-party-choice]:checked"
+      )
+    ].map(checkbox =>
+      choices[Number(checkbox.dataset.partyChoice)]
+    );
 
-    if (isParty) {
-      selectedChoices = [
-        ...modal.querySelectorAll(
-          "[data-party-choice]:checked"
-        )
-      ].map(input =>
-        choices[Number(input.value)]
-      );
-
-      if (!selectedChoices.length) {
-        showPartyError(
-          "Choose at least one dish before adding the Party Box."
-        );
-        return;
-      }
-
-      const extraNote = modal.querySelector(
-        "#party-note"
-      ).value.trim();
-
-      note = `Choices: ${selectedChoices.join(", ")}`;
-
-      if (freebie) {
-        note += ` | ${freebie}`;
-      }
-
-      if (extraNote) {
-        note += ` | Note: ${extraNote}`;
-      }
-
-      if (note.length > 180) {
-        showPartyError(
-          "Too many characters. Shorten the instructions or selection notes."
-        );
-        return;
-      }
+    if (choices.length && !chosen.length) {
+      modalRoot.querySelector(
+        "#party-error"
+      ).textContent = "Choose at least one dish.";
+      return;
     }
 
     addToCart(
       item,
-      selectedVariant.label === "Regular"
+      selected.label === "Regular"
         ? null
-        : selectedVariant.label,
-      Number(selectedVariant.price)
+        : selected.label,
+      selected.price
     );
 
-    if (isParty) {
-      const last = cart[cart.length - 1];
+    const notes = modalRoot.querySelector(
+      "#combo-notes"
+    )?.value.trim();
 
-      last.note = note;
-      last.comboSelections = selectedChoices;
+    const freebie = item.name.toLowerCase()
+      .includes("set a")
+        ? "FREE 1.5L Coke"
+        : "FREE 1.5L Coke + 1 tub Graham";
 
-      renderCart();
-    }
+    const noteParts = choices.length
+      ? [
+          `Choices: ${chosen.join(", ")}`,
+          freebie
+        ]
+      : [];
 
-    closeModal();
-  });
-}
+    if (notes) noteParts.push(notes);
 
-/* POS EVENTS */
+    cart[cart.length - 1].note = noteParts
+      .join(" | ")
+      .slice(0, 450);
 
-$("menu-search").addEventListener(
-  "input",
-  event => {
-    searchText = event.target.value
-      .trim()
-      .toLowerCase();
-
-    renderGrid();
-  }
-);
-
-$("order-type").addEventListener(
-  "change",
-  event => {
-    for (const line of cart) {
-      line.serveType = event.target.value;
+    if (chosen.length) {
+      cart[cart.length - 1].comboSelections = chosen;
     }
 
     renderCart();
-  }
-);
+    modalRoot.replaceChildren();
+  };
+
+  modalRoot.querySelector(
+    ".modal-backdrop"
+  ).onclick = event => {
+    if (
+      event.target.classList.contains(
+        "modal-backdrop"
+      )
+    ) {
+      modalRoot.replaceChildren();
+    }
+  };
+}
+
+/* EVENTS */
+$("menu-search").addEventListener("input", event => {
+  searchText = event.target.value.trim().toLowerCase();
+  renderGrid();
+});
+
+// Changing the main Order Type only affects
+// the default service for items added afterward.
+$("order-type").addEventListener("change", () => {
+  toast(
+    "Default updated for new items. Existing items are unchanged."
+  );
+
+  renderCart();
+});
 
 for (const id of [
   "box-15",
@@ -1338,10 +1091,7 @@ for (const id of [
   "addon-price",
   "addon-name"
 ]) {
-  $(id).addEventListener(
-    "input",
-    renderCart
-  );
+  $(id).addEventListener("input", renderCart);
 }
 
 $("existing-order").addEventListener(
@@ -1359,13 +1109,11 @@ document.addEventListener("keydown", event => {
 });
 
 /* CHECKOUT / FIRESTORE */
-
 checkoutBtn.addEventListener("click", async () => {
   if (submitting) return;
 
   const addons = currentAddons();
   const boxes = currentBoxes();
-
   const rawName = $("addon-name").value.trim();
 
   if (rawName && !addons.length) {
@@ -1375,39 +1123,25 @@ checkoutBtn.addEventListener("click", async () => {
     return;
   }
 
+  // Each item keeps its independent service type.
   const items = cart.map(({ key, ...line }) => ({
     ...line,
     qty: Number(line.qty),
     unitPrice: Number(line.unitPrice),
-    isDrink: isDrink(
-      line.category,
-      line.name
-    ),
+    isDrink: isDrink(line.category, line.name),
     boxUnitPrice: lineBoxPrice(line)
   }));
-
-  const eligibleSubtotal = rounded(
-    items.reduce(
-      (sum, item) => sum + lineTotal(item),
-      0
-    ) +
-    addons.reduce(
-      (sum, item) => sum + lineTotal(item),
-      0
-    )
-  );
-
-  const discount = discountDetails(
-    eligibleSubtotal,
-    discountSelect.value
-  );
 
   const delta = {
     items,
     addons,
     boxes,
     packagingFee: boxTotal(boxes),
-    ...discount
+
+    discountMode: "perItem",
+    discountRate: 0,
+    discountAmount: itemDiscountTotal(items),
+    legacyDiscountAmount: 0
   };
 
   const charge = orderTotal(delta);
@@ -1429,18 +1163,11 @@ checkoutBtn.addEventListener("click", async () => {
     await authReady;
 
     const selectedId = $("existing-order").value;
-
     let printPayload;
 
     if (selectedId) {
-
-      /* ADD TO EXISTING ORDER */
-
-      const reference = doc(
-        db,
-        "orders",
-        selectedId
-      );
+      // ADD CHARGES TO AN EXISTING ORDER
+      const reference = doc(db, "orders", selectedId);
 
       printPayload = await runTransaction(
         db,
@@ -1457,16 +1184,16 @@ checkoutBtn.addEventListener("click", async () => {
 
           const old = snapshot.data();
 
-          const oldDate = old.dayKey ||
+          const orderDate = old.dayKey ||
             (
               old.createdAt?.toDate
                 ? dayKey(old.createdAt.toDate())
                 : ""
             );
 
-          if (oldDate !== dayKey()) {
+          if (orderDate !== dayKey()) {
             throw Error(
-              "Only today's orders can receive new add-ons."
+              "Only today's orders can receive new items."
             );
           }
 
@@ -1475,9 +1202,11 @@ checkoutBtn.addEventListener("click", async () => {
 
             items: [
               ...(old.items || []),
+
               ...items.map(item => ({
                 ...item,
-                isAddon: true
+                isAddon: Boolean(item.isAddon),
+                addedToExistingOrder: true
               }))
             ],
 
@@ -1506,37 +1235,44 @@ checkoutBtn.addEventListener("click", async () => {
             )
           );
 
-          next.packagingFee =
+          next.packagingFee = rounded(
             next.legacyPackagingFee +
-            boxTotal(next.boxes);
+            boxTotal(next.boxes)
+          );
 
           next.total = rounded(
             Number(old.total || 0) + charge
           );
 
-          next.discountAmount = rounded(
-            Number(old.discountAmount || 0) +
-            discount.discountAmount
+          next.discountMode = "perItem";
+          next.discountRate = 0;
+
+          next.legacyDiscountAmount = Number(
+            old.legacyDiscountAmount ||
+            (
+              old.discountMode !== "perItem"
+                ? old.discountAmount || 0
+                : 0
+            )
           );
 
-          next.discountRate =
-            Number(old.discountRate || 0) ===
-            discount.discountRate
-              ? discount.discountRate
-              : 0;
+          next.discountAmount = rounded(
+            itemDiscountTotal(next.items) +
+            next.legacyDiscountAmount
+          );
 
           next.addOnTotal = rounded(
             Number(
               old.addOnTotal ?? addonsTotal(old)
             ) +
+
             items.reduce(
-              (sum, item) =>
-                sum + lineTotal(item),
+              (sum, item) => sum + lineTotal(item),
               0
             ) +
+
             addons.reduce(
-              (sum, item) =>
-                sum + lineTotal(item),
+              (sum, item) => sum + lineTotal(item),
               0
             )
           );
@@ -1550,9 +1286,14 @@ checkoutBtn.addEventListener("click", async () => {
             legacyPackagingFee: next.legacyPackagingFee,
             packagingFee: next.packagingFee,
             total: next.total,
+            addOnTotal: next.addOnTotal,
+
+            discountMode: next.discountMode,
             discountRate: next.discountRate,
             discountAmount: next.discountAmount,
-            addOnTotal: next.addOnTotal,
+            legacyDiscountAmount:
+              next.legacyDiscountAmount,
+
             updatedAt: next.updatedAt
           });
 
@@ -1561,7 +1302,8 @@ checkoutBtn.addEventListener("click", async () => {
 
             items: items.map(item => ({
               ...item,
-              isAddon: true
+              isAddon: Boolean(item.isAddon),
+              addedToExistingOrder: true
             })),
 
             orderNumber: old.orderNumber,
@@ -1573,9 +1315,6 @@ checkoutBtn.addEventListener("click", async () => {
             printedAt: new Date().toISOString(),
 
             total: charge,
-            discountRate: discount.discountRate,
-            discountAmount: discount.discountAmount,
-
             updatedOrderTotal: next.total,
             receiptMode: "ADD-ON"
           };
@@ -1583,9 +1322,7 @@ checkoutBtn.addEventListener("click", async () => {
       );
 
     } else {
-
-      /* SAVE NEW ORDER */
-
+      // SAVE NEW ORDER
       const date = dayKey();
 
       const counterReference = doc(
@@ -1600,9 +1337,10 @@ checkoutBtn.addEventListener("click", async () => {
 
       const order = {
         ...delta,
-
         dayKey: date,
 
+        // Keep Firestore-compatible order type.
+        // Per-item serveType stores mixed service.
         orderType: items.some(
           item => item.serveType === "Take Out"
         )
@@ -1615,17 +1353,15 @@ checkoutBtn.addEventListener("click", async () => {
           $("customer-name").value.trim(),
 
         cashierRole: session.role,
-
         total: charge,
-
         addOnTotal: addonsTotal(delta)
       };
 
       const maxExistingToday = availableOrders()
         .reduce(
-          (number, item) => Math.max(
-            number,
-            Number(item.orderNumber) || 0
+          (max, order) => Math.max(
+            max,
+            Number(order.orderNumber) || 0
           ),
           0
         );
@@ -1668,8 +1404,7 @@ checkoutBtn.addEventListener("click", async () => {
       };
     }
 
-    /* CLEAR AFTER SUCCESS */
-
+    // CLEAR ONLY AFTER SUCCESSFUL FIRESTORE SAVE
     cart = [];
 
     $("customer-name").value = "";
@@ -1681,8 +1416,6 @@ checkoutBtn.addEventListener("click", async () => {
     $("box-25").value = "0";
     $("existing-order").value = "";
 
-    discountSelect.value = "0";
-
     renderCart();
 
     toast(
@@ -1691,7 +1424,6 @@ checkoutBtn.addEventListener("click", async () => {
 
     try {
       await printOrder(printPayload);
-
     } catch (printError) {
       console.error(printError);
 
@@ -1701,14 +1433,9 @@ checkoutBtn.addEventListener("click", async () => {
     }
 
   } catch (error) {
-    console.error(
-      "Checkout failed",
-      error
-    );
+    console.error("Checkout failed:", error);
 
-    toast(
-      `Not saved: ${error.message}`
-    );
+    toast(`Not saved: ${error.message}`);
 
   } finally {
     submitting = false;
@@ -1716,8 +1443,7 @@ checkoutBtn.addEventListener("click", async () => {
   }
 });
 
-/* RESET DAILY ORDER CHOICES */
-
+/* DAILY ORDER SELECTOR REFRESH */
 let lastBusinessDay = dayKey();
 
 setInterval(() => {
@@ -1726,12 +1452,187 @@ setInterval(() => {
   if (today === lastBusinessDay) return;
 
   lastBusinessDay = today;
-
   renderExistingOrders();
 }, 60000);
 
-/* START POS */
+/* DISCOUNT DESIGN */
+const discountStyle = document.createElement("style");
 
+discountStyle.textContent = `
+@media screen {
+  .line-discount-control {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin: 5px 0;
+    font-size: .77rem;
+  }
+
+  .item-discount-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .item-discount-check input {
+    width: 16px;
+    height: 16px;
+    accent-color: #c44379;
+  }
+
+  .item-discount-rate {
+    max-width: 85px;
+    min-height: 30px !important;
+    padding: 3px 5px !important;
+  }
+
+  .item-discount-amount {
+    font-weight: 800;
+    color: #b92d65;
+  }
+}`;
+
+document.head.append(discountStyle);
+
+/* PARTY BOX CHOICES DESIGN */
+const partyChoicesStyle = document.createElement("style");
+
+partyChoicesStyle.textContent = `
+@media screen {
+  .party-checkbox-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    border: 1px solid #e2d6d1;
+    padding: 12px;
+    border-radius: 12px;
+    margin: 12px 0;
+  }
+
+  .party-checkbox-group legend {
+    font-weight: 800;
+  }
+
+  .party-checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px;
+    background: #fff7fa;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .party-checkbox-group input {
+    accent-color: #bd3171;
+  }
+
+  .party-checkbox-group label:has(textarea) {
+    grid-column: 1 / -1;
+    display: block;
+  }
+
+  .party-checkbox-group textarea {
+    width: 100%;
+    display: block;
+  }
+
+  .party-checkbox-group .form-error {
+    grid-column: 1 / -1;
+    color: #b42318;
+  }
+}`;
+
+document.head.append(partyChoicesStyle);
+
+/* DINE IN / TAKE OUT VISUAL SEPARATION */
+const serviceStyles = document.createElement("style");
+
+serviceStyles.textContent = `
+@media screen {
+  .cart-service-group {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 8px 0 5px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    font-weight: 900;
+    font-size: .76rem;
+    letter-spacing: .2px;
+  }
+
+  .cart-service-group.service-dinein {
+    background: #edf7ee;
+    color: #245d35;
+    border: 1px solid #b9d9c0;
+  }
+
+  .cart-service-group.service-takeout {
+    background: #fff0e3;
+    color: #8c410d;
+    border: 1px solid #efbf91;
+  }
+
+  .cart-service-badge {
+    display: inline-block;
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-weight: 900;
+    font-size: .69rem;
+    margin: 4px 0;
+  }
+
+  .cart-service-badge.service-dinein {
+    background: #e4f4e8;
+    color: #205f33;
+  }
+
+  .cart-service-badge.service-takeout {
+    background: #ffead2;
+    color: #823b0c;
+  }
+
+  .cart-line.cart-takeout {
+    border-left: 3px solid #dc8a35;
+    padding-left: 8px;
+  }
+
+  .cart-line.cart-dinein {
+    border-left: 3px solid #63a574;
+    padding-left: 8px;
+  }
+
+  .cart-line .serve-select {
+    max-width: 100%;
+  }
+
+  .cart-line .split-serve {
+    font-weight: 800;
+  }
+}`;
+
+document.head.append(serviceStyles);
+
+/* MAIN ORDER TYPE HELPER */
+const defaultServiceHint = document.createElement("small");
+
+defaultServiceHint.textContent =
+  "Default for NEW items only. Set Dine In/Take Out for each item below.";
+
+defaultServiceHint.style.cssText =
+  "display:block;font-size:.7rem;line-height:1.25;" +
+  "margin:4px 0;color:#735847";
+
+$("order-type").insertAdjacentElement(
+  "afterend",
+  defaultServiceHint
+);
+
+/* START */
 listenMenu().catch(error => {
   console.error(error);
   connectionError(error.message);

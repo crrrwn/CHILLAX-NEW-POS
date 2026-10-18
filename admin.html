@@ -1,769 +1,1045 @@
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Chillax Café POS — Admin</title>
+  <meta charset="UTF-8">
 
-<link rel="icon" href="assets/logo.jpg">
-<link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/print.css">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
 
-<style>
-@media screen {
-  body.admin-page {
-    --header-height: 68px;
-    padding-top: var(--header-height);
-  }
+  <title>Chillax Café POS — Admin</title>
 
-  body.admin-page > .topbar {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0;
-    right: 0;
-    width: 100%;
-    min-height: var(--header-height);
-    z-index: 1000;
-  }
+  <link rel="icon" href="assets/logo.jpg">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/print.css">
 
-  body.admin-page .admin-layout {
-    min-height: calc(100dvh - var(--header-height));
-  }
+  <style>
 
-  body.admin-page .admin-main {
-    overflow-y: visible !important;
-    min-width: 0;
-  }
+    /* =========================================
+       ADMIN SCROLL AND PAGINATION FIX
+       ========================================= */
 
-  body.admin-page .admin-nav {
-    position: sticky !important;
-    top: var(--header-height) !important;
-    align-self: flex-start;
-    max-height: calc(100dvh - var(--header-height));
-    overflow-y: auto;
-  }
+    @media screen {
 
-  body.admin-page #modal-root .modal-backdrop {
-    z-index: 1100 !important;
-  }
+      html {
+        height: 100%;
+        overflow: hidden !important;
+        scroll-behavior: auto !important;
+      }
 
-  .admin-action-group {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 7px;
-  }
+      body.admin-page {
+        --header-height: 68px;
 
-  .admin-action-group .btn {
-    white-space: nowrap;
-  }
+        height: 100dvh !important;
+        min-height: 0 !important;
 
-  .admin-discount-panel {
-    border: 1px solid #e6c2d2;
-    background: #fff1f7;
-    border-radius: 12px;
-    padding: 13px;
-    margin: 10px 0 14px;
-  }
+        margin: 0 !important;
+        padding: 0 !important;
 
-  .admin-discount-panel strong {
-    display: block;
-    color: #653249;
-    font-size: .84rem;
-    margin-bottom: 9px;
-  }
+        overflow: hidden !important;
+        scroll-behavior: auto !important;
+      }
 
-  .admin-discount-buttons {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
+      /* FIXED ADMIN HEADER */
 
-  .admin-discount-buttons button {
-    min-width: 85px;
-    border: 1px solid #d6acbe;
-    background: white;
-    border-radius: 9px;
-    padding: 10px 13px;
-    color: #71354d;
-    font-weight: 800;
-    cursor: pointer;
-  }
+      body.admin-page > .topbar {
+        position: fixed !important;
 
-  .admin-discount-buttons button[aria-pressed="true"] {
-    background: #c44379;
-    color: white;
-    border-color: #c44379;
-  }
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
 
-  .admin-discount-buttons button:focus-visible {
-    outline: 3px solid #743757;
-    outline-offset: 2px;
-  }
+        width: 100% !important;
+        height: var(--header-height);
+        min-height: var(--header-height);
 
-  .admin-discount-panel small {
-    display: block;
-    margin-top: 7px;
-    font-size: .72rem;
-    color: #80576a;
-  }
+        z-index: 1000;
+      }
 
-  .menu-availability-select {
-    width: 140px;
-    max-width: 100%;
-    border: 1px solid #d8c4b8;
-    border-radius: 9px;
-    padding: 8px 10px;
-    background: #fff;
-    color: #593c30;
-    font-weight: 700;
-  }
+      /* ADMIN LAYOUT BELOW HEADER */
 
-  .menu-availability-select:disabled {
-    opacity: .55;
-  }
-}
+      body.admin-page > .admin-layout {
+        position: fixed !important;
 
-@media screen and (max-width: 900px) {
-  body.admin-page .admin-nav {
-    align-self: stretch;
-    max-height: none;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-  }
-}
+        top: var(--header-height) !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
 
-@media screen and (max-width: 650px) {
-  body.admin-page {
-    --header-height: 62px;
-  }
-}
+        display: flex !important;
+        flex-direction: row;
 
-@media print {
-  .admin-discount-panel {
-    display: none !important;
-  }
-}
-</style>
+        height: auto !important;
+        min-height: 0 !important;
+
+        overflow: hidden !important;
+      }
+
+      /* LEFT SIDEBAR */
+
+      body.admin-page .admin-nav {
+        position: relative !important;
+        top: auto !important;
+
+        flex: 0 0 218px;
+
+        width: 218px !important;
+        height: 100% !important;
+
+        max-height: 100% !important;
+        min-height: 0 !important;
+
+        align-self: stretch !important;
+
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+
+        overscroll-behavior: contain;
+      }
+
+      /* ONE SCROLL AREA ONLY */
+
+      body.admin-page .admin-main {
+        position: relative;
+
+        flex: 1 1 auto;
+        width: 100%;
+
+        min-width: 0 !important;
+        min-height: 0 !important;
+
+        height: 100% !important;
+
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+
+        overscroll-behavior-y: contain;
+        scroll-behavior: auto !important;
+
+        overflow-anchor: none;
+        scrollbar-gutter: stable;
+
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* PREVENT FINANCE TABLE SCROLL JUMPS */
+
+      body.admin-page #combined-finance-list,
+      body.admin-page .finance-separated-section {
+        overflow-anchor: none;
+      }
+
+      /* =====================================
+         FINANCE PAGINATION BUTTON ALIGNMENT
+         ===================================== */
+
+      body.admin-page
+      .finance-separated-section
+      .table-pagination {
+
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+
+        flex-wrap: wrap;
+        gap: 8px !important;
+
+        margin-top: 12px;
+        padding-top: 12px;
+      }
+
+      /* PAGE LABEL STAYS ON THE LEFT */
+
+      body.admin-page
+      .finance-separated-section
+      .table-pagination > span:first-child {
+
+        flex: 1 1 175px;
+        margin-right: auto !important;
+
+        min-width: 0;
+        line-height: 1.4;
+      }
+
+      /* PREV AND NEXT STAY TOGETHER */
+
+      body.admin-page
+      .finance-separated-section
+      .table-pagination > button {
+
+        flex: 0 0 auto !important;
+
+        width: auto !important;
+        min-width: 66px;
+
+        margin: 0 !important;
+        white-space: nowrap;
+      }
+
+      /* MODALS ABOVE HEADER */
+
+      body.admin-page
+      #modal-root .modal-backdrop {
+        z-index: 1100 !important;
+      }
+
+      body.admin-page .status-banner {
+        z-index: 1200;
+      }
+
+    }
+
+    /* MEDIUM DESKTOP */
+
+    @media screen and (max-width: 1100px)
+      and (min-width: 901px) {
+
+      body.admin-page .admin-nav {
+        flex-basis: 190px;
+        width: 190px !important;
+      }
+
+    }
+
+    /* TABLET */
+
+    @media screen and (max-width: 900px) {
+
+      body.admin-page > .admin-layout {
+        flex-direction: column;
+      }
+
+      body.admin-page .admin-nav {
+        flex: 0 0 auto;
+
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+
+        white-space: nowrap;
+        align-self: stretch !important;
+      }
+
+      body.admin-page .admin-main {
+        flex: 1 1 auto;
+        width: 100%;
+
+        height: auto !important;
+        min-height: 0 !important;
+      }
+
+    }
+
+    /* MOBILE */
+
+    @media screen and (max-width: 650px) {
+
+      body.admin-page {
+        --header-height: 62px;
+      }
+
+      body.admin-page
+      .finance-separated-section
+      .table-pagination > span:first-child {
+        flex-basis: 100%;
+      }
+
+    }
+
+    /* 58MM PRINTING COMPATIBILITY */
+
+    @media print {
+
+      html,
+      body.admin-page {
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+    }
+
+  </style>
 </head>
 
 <body class="admin-page">
 
-<!-- FIXED HEADER -->
-<header class="topbar">
-  <img class="logo" src="assets/logo.jpg" alt="Chillax Café">
-
-  <div class="titles">
-    <strong>Chillax Café</strong>
-    <span>Admin</span>
-  </div>
-
-  <span class="role-pill">Admin</span>
-
-  <a href="pos.html" class="icon-btn" title="Cashier" aria-label="Go to Cashier">
-    <svg class="icon-svg" viewBox="0 0 24 24">
-      <path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 4v12h10V6H7z" fill="currentColor"/>
-    </svg>
-  </a>
-
-  <button type="button" class="icon-btn" id="logout-btn" title="Sign out" aria-label="Sign out">
-    <svg class="icon-svg" viewBox="0 0 24 24">
-      <path d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z" fill="currentColor"/>
-    </svg>
-  </button>
-</header>
-
-<main class="admin-layout">
-
-  <!-- SIDEBAR -->
-  <nav class="admin-nav">
-    <button type="button" class="active" data-tab="dashboard">
-      <span>▥</span>
-      <span>Sales</span>
-    </button>
-
-    <button type="button" data-tab="menu">
-      <span>☰</span>
-      <span>Menu</span>
-    </button>
-
-    <button type="button" data-tab="finances">
-      <span>₱</span>
-      <span>Expenses &amp; Cash</span>
-    </button>
-
-    <button type="button" data-tab="settings">
-      <span>⚙</span>
-      <span>Settings</span>
-    </button>
-  </nav>
-
-  <section class="admin-main">
-
-    <!-- SALES DASHBOARD -->
-    <div id="section-dashboard">
-
-      <div class="section-head dashboard-section-head">
-        <div>
-          <p class="eyebrow">ADMIN · ANALYTICS</p>
-          <h2>Sales overview</h2>
-          <p class="section-description">
-            Live reporting from completed orders.
-          </p>
-        </div>
-
-        <div class="dashboard-filters">
-          <div class="range-tabs">
-            <button type="button" class="active" data-range="today">Today</button>
-            <button type="button" data-range="week">This week</button>
-            <button type="button" data-range="month">This month</button>
-            <button type="button" data-range="all">All time</button>
-          </div>
-
-          <div class="date-filter">
-            <label class="date-field">
-              <span class="field-label">From</span>
-              <input type="date" id="date-from">
-            </label>
-
-            <label class="date-field">
-              <span class="field-label">To</span>
-              <input type="date" id="date-to">
-            </label>
-
-            <button type="button" class="btn btn-sm btn-outline" id="date-filter-apply">
-              Apply
-            </button>
-
-            <button type="button" class="btn btn-sm btn-outline" id="date-filter-clear">
-              Clear
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- STATISTICS -->
-      <div class="stat-grid">
-        <div class="stat-card">
-          <div class="label">Total Sales</div>
-          <div class="value" id="stat-sales">₱0</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="label">Orders</div>
-          <div class="value" id="stat-orders">0</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="label">Total Takeout Boxes</div>
-          <div class="value" id="stat-boxes">₱0</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="label">Total Add-ons</div>
-          <div class="value" id="stat-addons">₱0</div>
-        </div>
-      </div>
-
-      <!-- SALES BY CATEGORY -->
-      <div class="card" style="margin-bottom:22px;">
-        <h3>Sales by category</h3>
-        <div id="category-sales" class="category-sales"></div>
-      </div>
-
-      <!-- BEST SELLERS -->
-      <div class="card" style="margin-bottom:22px;">
-        <h3 style="margin-bottom:14px;">Best sellers</h3>
-        <div id="best-sellers"></div>
-      </div>
-
-      <!-- SALES BREAKDOWN -->
-      <div class="card" style="margin-bottom:22px;">
-        <h3 style="margin-bottom:14px;">Full breakdown, by item</h3>
-
-        <div class="table-scroll-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Qty sold</th>
-                <th>Revenue</th>
-              </tr>
-            </thead>
-            <tbody id="sales-table-body"></tbody>
-          </table>
-        </div>
-
-        <div class="table-pagination" id="sales-table-pagination"></div>
-      </div>
-
-      <!-- RECENT ORDERS -->
-      <div class="card">
-        <h3 style="margin-bottom:6px;">Recent orders</h3>
-
-        <p class="section-description" style="margin:0 0 13px;">
-          Edit customer orders, quantities, unit prices, packaging and add-ons.
-          Reprint the updated receipt after saving.
-        </p>
-
-        <div class="table-scroll-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Time</th>
-                <th>Items</th>
-                <th>Total</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="recent-orders-body"></tbody>
-          </table>
-        </div>
-
-        <div class="table-pagination" id="recent-orders-pagination"></div>
-      </div>
-    </div>
-
-    <!-- MENU MANAGEMENT -->
-    <div id="section-menu" class="hidden">
-      <div class="section-head menu-section-head">
-        <div>
-          <p class="eyebrow">ADMIN · CATALOG</p>
-          <h2>Menu management</h2>
-          <p class="menu-section-intro">
-            Changes here update the cashier screen automatically.
-          </p>
-        </div>
-
-        <button type="button" class="btn btn-primary" id="add-category-btn">
-          + Add category
-        </button>
-      </div>
-
-      <div id="menu-admin-root" class="menu-admin-root"></div>
-    </div>
-
-    <!-- FINANCES -->
-    <div id="section-finances" class="hidden">
-      <div class="section-head">
-        <div>
-          <p class="eyebrow">ADMIN · DAILY FINANCES</p>
-          <h2>Expenses &amp; Cash on Hand</h2>
-          <p class="section-description">
-            Daily view resets at Philippine midnight.
-            Previous records are retained.
-          </p>
-        </div>
-      </div>
-
-      <div class="card daily-finance-bar">
-        <label for="finance-date" class="field-label">
-          Report day (Asia/Manila)
-        </label>
-
-        <input type="date" id="finance-date">
-
-        <button type="button" class="btn btn-outline" id="finance-today">
-          Today
-        </button>
-
-        <button type="button" class="btn btn-primary" id="print-finances">
-          Print daily finance (Admin)
-        </button>
-      </div>
-
-      <div class="finance-stats">
-        <div class="stat-card">
-          <div class="label">Cash on hand</div>
-          <div class="value" id="finance-cash-total">₱0</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="label">Expenses</div>
-          <div class="value" id="finance-expenses-total">₱0</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="label">GCash Payments</div>
-          <div class="value" id="finance-gcash-total">₱0</div>
-        </div>
-      </div>
-
-      <div class="card finance-ledger-card">
-        <div class="finance-actions">
-          <button type="button" class="btn btn-primary" data-finance-add="expenses">
-            + Add Expense
-          </button>
-
-          <button type="button" class="btn btn-outline" data-finance-add="cashEntries">
-            + Add Cash Entry
-          </button>
-
-          <button type="button" class="btn btn-primary" id="add-gcash-payment">
-            + Add GCash Payment
-          </button>
-        </div>
-
-        <h3>Daily entries</h3>
-        <div id="combined-finance-list"></div>
-
-        <div id="expenses-list" class="hidden"></div>
-        <div id="cashEntries-list" class="hidden"></div>
-      </div>
-    </div>
-
-    <!-- SETTINGS -->
-    <div id="section-settings" class="hidden">
-      <div class="section-head">
-        <div>
-          <p class="eyebrow">ADMIN · SECURITY</p>
-          <h2>Settings</h2>
-        </div>
-      </div>
-
-      <div class="card" style="max-width:420px;">
-        <h3 style="margin-bottom:14px;">Login PINs</h3>
-
-        <div class="modal-form">
-          <div class="field">
-            <span class="field-label">Admin PIN</span>
-            <input
-              type="password"
-              id="admin-pin-input"
-              inputmode="numeric"
-              minlength="4"
-              maxlength="6"
-              autocomplete="new-password"
-            >
-          </div>
-
-          <div class="field">
-            <span class="field-label">Cashier PIN</span>
-            <input
-              type="password"
-              id="staff-pin-input"
-              inputmode="numeric"
-              minlength="4"
-              maxlength="6"
-              autocomplete="new-password"
-            >
-          </div>
-        </div>
-
-        <button type="button" class="btn btn-primary" id="save-pins-btn">
-          Save PINs
-        </button>
-
-        <div id="settings-msg" style="margin-top:10px;font-size:.85rem;font-weight:700;"></div>
-      </div>
-    </div>
-
-  </section>
-</main>
-
-<!-- MODALS / PRINTING / CONNECTION -->
-<div id="modal-root"></div>
-<div id="print-area"></div>
-<div id="connection-banner" class="status-banner hidden" role="status"></div>
-
-<!-- ORIGINAL ADMIN FUNCTIONS -->
-<script type="module" src="js/admin.js"></script>
-
-<!-- DIRECT ADMIN DISCOUNT AND AVAILABILITY CONTROLS -->
-<script type="module">
-import { db, authReady } from "./js/firebase-config.js";
-
-import {
-  doc,
-  getDoc,
-  updateDoc
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-
-const ordersRoot = document.getElementById("recent-orders-body");
-const menuRoot = document.getElementById("menu-admin-root");
-const modalRoot = document.getElementById("modal-root");
-
-let activeEditId = "";
-let activeToken = 0;
-let loadedRate = 0;
-let discountReady = false;
-
-/* DISCOUNT BUTTON STATE */
-function updateButtons(form, rate) {
-  const field = form.querySelector("#edit-discount-rate");
-  if (!field) return;
-
-  const normalized = [0, 10, 20].includes(Number(rate))
-    ? Number(rate)
-    : 0;
-
-  field.value = String(normalized);
-
-  form.querySelectorAll("[data-direct-discount]").forEach(button => {
-    button.setAttribute(
-      "aria-pressed",
-      String(Number(button.dataset.directDiscount) === normalized)
-    );
-  });
-
-  // Recalculate through existing Admin order editor.
-  field.dispatchEvent(
-    new Event("input", { bubbles: true })
-  );
-}
-
-/* INSTALL DISCOUNT BUTTONS WHEN EDIT ORDER OPENS */
-function installDiscount() {
-  const form = modalRoot.querySelector("#order-edit-form");
-
-  if (!form || form.dataset.discountPanelReady === "yes") {
-    return;
-  }
-
-  form.dataset.discountPanelReady = "yes";
-
-  // Remove older helper's dropdown if present.
-  const old = form.querySelector("#edit-discount-rate");
-  if (old) {
-    old.closest("label")?.remove();
-  }
-
-  const panel = document.createElement("section");
-  panel.className = "admin-discount-panel";
-
-  panel.innerHTML = `
-    <strong>Discount — Edit Order</strong>
-
-    <div
-      class="admin-discount-buttons"
-      role="group"
-      aria-label="Order discount"
-    >
-      <button
-        type="button"
-        data-direct-discount="0"
-        aria-pressed="true"
-      >
-        No Discount
-      </button>
-
-      <button
-        type="button"
-        data-direct-discount="10"
-        aria-pressed="false"
-      >
-        10%
-      </button>
-
-      <button
-        type="button"
-        data-direct-discount="20"
-        aria-pressed="false"
-      >
-        20%
-      </button>
-    </div>
-
-    <input
-      type="hidden"
-      id="edit-discount-rate"
-      value="0"
+  <!-- ======================================
+       FIXED HEADER
+       ====================================== -->
+
+  <header class="topbar">
+
+    <img
+      class="logo"
+      src="assets/logo.jpg"
+      alt="Chillax Café"
     >
 
-    <small>
-      Discount sa products at add-ons lamang.
-      Hindi kasama ang takeout boxes.
-    </small>
-  `;
+    <div class="titles">
+      <strong>Chillax Café</strong>
+      <span>Admin</span>
+    </div>
 
-  const firstHeading = form.querySelector("h4");
+    <span class="role-pill">
+      Admin
+    </span>
 
-  if (firstHeading) {
-    form.insertBefore(panel, firstHeading);
-  } else {
-    form.prepend(panel);
-  }
+    <!-- CASHIER LINK -->
 
-  panel.querySelectorAll("[data-direct-discount]").forEach(button => {
-    button.addEventListener("click", () => {
-      if (!discountReady) return;
+    <a
+      href="pos.html"
+      class="icon-btn"
+      title="Cashier"
+      aria-label="Go to Cashier"
+    >
+      <svg
+        class="icon-svg"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 4v12h10V6H7z"
+          fill="currentColor"
+        />
+      </svg>
+    </a>
 
-      updateButtons(
-        form,
-        button.dataset.directDiscount
+    <!-- LOGOUT -->
+
+    <button
+      type="button"
+      class="icon-btn"
+      id="logout-btn"
+      title="Sign out"
+      aria-label="Sign out"
+    >
+      <svg
+        class="icon-svg"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z"
+          fill="currentColor"
+        />
+      </svg>
+    </button>
+
+  </header>
+
+  <!-- ======================================
+       MAIN ADMIN LAYOUT
+       ====================================== -->
+
+  <main class="admin-layout">
+
+    <!-- ADMIN SIDEBAR -->
+
+    <nav class="admin-nav">
+
+      <button
+        type="button"
+        class="active"
+        data-tab="dashboard"
+      >
+        <span>▥</span>
+        <span>Sales</span>
+      </button>
+
+      <button
+        type="button"
+        data-tab="menu"
+      >
+        <span>☰</span>
+        <span>Menu</span>
+      </button>
+
+      <button
+        type="button"
+        data-tab="finances"
+      >
+        <span>₱</span>
+        <span>Expenses &amp; Cash</span>
+      </button>
+
+      <button
+        type="button"
+        data-tab="settings"
+      >
+        <span>⚙</span>
+        <span>Settings</span>
+      </button>
+
+    </nav>
+
+    <!-- ======================================
+         ADMIN CONTENT
+         ====================================== -->
+
+    <section class="admin-main">
+
+      <!-- ==================================
+           SALES DASHBOARD
+           ================================== -->
+
+      <div id="section-dashboard">
+
+        <div class="section-head dashboard-section-head">
+
+          <div>
+            <p class="eyebrow">
+              ADMIN · ANALYTICS
+            </p>
+
+            <h2>Sales overview</h2>
+
+            <p class="section-description">
+              Live reporting from completed orders.
+            </p>
+          </div>
+
+          <div class="dashboard-filters">
+
+            <div class="range-tabs">
+
+              <button
+                type="button"
+                class="active"
+                data-range="today"
+              >
+                Today
+              </button>
+
+              <button
+                type="button"
+                data-range="week"
+              >
+                This week
+              </button>
+
+              <button
+                type="button"
+                data-range="month"
+              >
+                This month
+              </button>
+
+              <button
+                type="button"
+                data-range="all"
+              >
+                All time
+              </button>
+
+            </div>
+
+            <!-- DATE FILTER -->
+
+            <div class="date-filter">
+
+              <label class="date-field">
+                <span class="field-label">
+                  From
+                </span>
+
+                <input
+                  type="date"
+                  id="date-from"
+                >
+              </label>
+
+              <label class="date-field">
+                <span class="field-label">
+                  To
+                </span>
+
+                <input
+                  type="date"
+                  id="date-to"
+                >
+              </label>
+
+              <button
+                type="button"
+                class="btn btn-sm btn-outline"
+                id="date-filter-apply"
+              >
+                Apply
+              </button>
+
+              <button
+                type="button"
+                class="btn btn-sm btn-outline"
+                id="date-filter-clear"
+              >
+                Clear
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+
+        <!-- SALES STATISTICS -->
+
+        <div class="stat-grid">
+
+          <div class="stat-card">
+            <div class="label">
+              Total Sales
+            </div>
+
+            <div
+              class="value"
+              id="stat-sales"
+            >
+              ₱0
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="label">
+              Orders
+            </div>
+
+            <div
+              class="value"
+              id="stat-orders"
+            >
+              0
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="label">
+              Total Takeout Boxes
+            </div>
+
+            <div
+              class="value"
+              id="stat-boxes"
+            >
+              ₱0
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="label">
+              Total Add-ons
+            </div>
+
+            <div
+              class="value"
+              id="stat-addons"
+            >
+              ₱0
+            </div>
+          </div>
+
+        </div>
+
+        <!-- SALES BY CATEGORY -->
+
+        <div
+          class="card"
+          style="margin-bottom:22px;"
+        >
+          <h3>Sales by category</h3>
+
+          <div
+            id="category-sales"
+            class="category-sales"
+          ></div>
+        </div>
+
+        <!-- BEST SELLERS -->
+
+        <div
+          class="card"
+          style="margin-bottom:22px;"
+        >
+          <h3 style="margin-bottom:14px;">
+            Best sellers
+          </h3>
+
+          <div id="best-sellers"></div>
+        </div>
+
+        <!-- ITEM SALES BREAKDOWN -->
+
+        <div
+          class="card"
+          style="margin-bottom:22px;"
+        >
+
+          <h3 style="margin-bottom:14px;">
+            Full breakdown, by item
+          </h3>
+
+          <div class="table-scroll-wrap">
+
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Qty sold</th>
+                  <th>Revenue</th>
+                </tr>
+              </thead>
+
+              <tbody
+                id="sales-table-body"
+              ></tbody>
+
+            </table>
+          </div>
+
+          <div
+            class="table-pagination"
+            id="sales-table-pagination"
+          ></div>
+
+        </div>
+
+        <!-- RECENT ORDERS -->
+
+        <div class="card">
+
+          <h3 style="margin-bottom:6px;">
+            Recent orders
+          </h3>
+
+          <p
+            class="section-description"
+            style="margin:0 0 13px;"
+          >
+            Edit customer orders, quantities,
+            prices, packaging and add-ons.
+            Reprint the updated receipt after saving.
+          </p>
+
+          <div class="table-scroll-wrap">
+
+            <table class="data-table">
+
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Time</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody
+                id="recent-orders-body"
+              ></tbody>
+
+            </table>
+
+          </div>
+
+          <div
+            class="table-pagination"
+            id="recent-orders-pagination"
+          ></div>
+
+        </div>
+
+      </div>
+
+      <!-- ==================================
+           MENU MANAGEMENT
+           ================================== -->
+
+      <div
+        id="section-menu"
+        class="hidden"
+      >
+
+        <div class="section-head menu-section-head">
+
+          <div>
+
+            <p class="eyebrow">
+              ADMIN · CATALOG
+            </p>
+
+            <h2>Menu management</h2>
+
+            <p class="menu-section-intro">
+              Changes here update the cashier
+              screen automatically.
+            </p>
+
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="add-category-btn"
+          >
+            + Add category
+          </button>
+
+        </div>
+
+        <div
+          id="menu-admin-root"
+          class="menu-admin-root"
+        ></div>
+
+      </div>
+
+      <!-- ==================================
+           EXPENSES & CASH
+           ================================== -->
+
+      <div
+        id="section-finances"
+        class="hidden"
+      >
+
+        <div class="section-head">
+
+          <div>
+
+            <p class="eyebrow">
+              ADMIN · DAILY FINANCES
+            </p>
+
+            <h2>Expenses &amp; Cash on Hand</h2>
+
+            <p class="section-description">
+              Daily view resets at Philippine midnight.
+              Previous records are retained.
+            </p>
+
+          </div>
+        </div>
+
+        <!-- DAILY FINANCE FILTER -->
+
+        <div class="card daily-finance-bar">
+
+          <label
+            for="finance-date"
+            class="field-label"
+          >
+            Report day (Asia/Manila)
+          </label>
+
+          <input
+            type="date"
+            id="finance-date"
+          >
+
+          <button
+            type="button"
+            class="btn btn-outline"
+            id="finance-today"
+          >
+            Today
+          </button>
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="print-finances"
+          >
+            Print daily finance (Admin)
+          </button>
+
+        </div>
+
+        <!-- FINANCE TOTALS -->
+
+        <div class="finance-stats">
+
+          <div class="stat-card">
+
+            <div class="label">
+              Cash on hand
+            </div>
+
+            <div
+              class="value"
+              id="finance-cash-total"
+            >
+              ₱0
+            </div>
+
+          </div>
+
+          <div class="stat-card">
+
+            <div class="label">
+              Expenses
+            </div>
+
+            <div
+              class="value"
+              id="finance-expenses-total"
+            >
+              ₱0
+            </div>
+
+          </div>
+
+          <div class="stat-card">
+
+            <div class="label">
+              GCash Payments
+            </div>
+
+            <div
+              class="value"
+              id="finance-gcash-total"
+            >
+              ₱0
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- DAILY ENTRIES -->
+
+        <div class="card finance-ledger-card">
+
+          <!-- FINANCE ACTION BUTTONS -->
+
+          <div class="finance-actions">
+
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-finance-add="expenses"
+            >
+              + Add Expense
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-outline"
+              data-finance-add="cashEntries"
+            >
+              + Add Cash Entry
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="add-gcash-payment"
+            >
+              + Add GCash Payment
+            </button>
+
+          </div>
+
+          <h3>Daily entries</h3>
+
+          <!--
+            js/admin.js generates three separate tables:
+
+            1. Expenses
+            2. GCash Payments
+            3. Cash on Hand
+
+            Each table uses 5 records per page.
+          -->
+
+          <div
+            id="combined-finance-list"
+          ></div>
+
+          <!-- EXISTING COMPATIBILITY ELEMENTS -->
+
+          <div
+            id="expenses-list"
+            class="hidden"
+          ></div>
+
+          <div
+            id="cashEntries-list"
+            class="hidden"
+          ></div>
+
+        </div>
+
+      </div>
+
+      <!-- ==================================
+           SETTINGS
+           ================================== -->
+
+      <div
+        id="section-settings"
+        class="hidden"
+      >
+
+        <div class="section-head">
+
+          <div>
+            <p class="eyebrow">
+              ADMIN · SECURITY
+            </p>
+
+            <h2>Settings</h2>
+          </div>
+
+        </div>
+
+        <div
+          class="card"
+          style="max-width:420px;"
+        >
+
+          <h3 style="margin-bottom:14px;">
+            Login PINs
+          </h3>
+
+          <div class="modal-form">
+
+            <div class="field">
+
+              <span class="field-label">
+                Admin PIN
+              </span>
+
+              <input
+                type="password"
+                id="admin-pin-input"
+                inputmode="numeric"
+                minlength="4"
+                maxlength="6"
+                autocomplete="new-password"
+              >
+
+            </div>
+
+            <div class="field">
+
+              <span class="field-label">
+                Cashier PIN
+              </span>
+
+              <input
+                type="password"
+                id="staff-pin-input"
+                inputmode="numeric"
+                minlength="4"
+                maxlength="6"
+                autocomplete="new-password"
+              >
+
+            </div>
+
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="save-pins-btn"
+          >
+            Save PINs
+          </button>
+
+          <div
+            id="settings-msg"
+            style="margin-top:10px;font-size:.85rem;font-weight:700;"
+          ></div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ======================================
+       MODALS, PRINTING AND ERRORS
+       ====================================== -->
+
+  <div id="modal-root"></div>
+
+  <div id="print-area"></div>
+
+  <div
+    id="connection-banner"
+    class="status-banner hidden"
+    role="status"
+  ></div>
+
+  <!-- KEEP ORIGINAL ADMIN FUNCTIONS -->
+
+  <script
+    type="module"
+    src="js/admin.js"
+  ></script>
+
+  <!-- ======================================
+       FINANCE SCROLL POSITION STABILIZER
+       ====================================== -->
+
+  <script>
+    (() => {
+
+      const main = document.querySelector(
+        ".admin-main"
       );
-    });
-  });
 
-  const saveButton = form.querySelector("#edit-order-save");
-
-  if (saveButton && !discountReady) {
-    saveButton.disabled = true;
-  }
-
-  if (discountReady) {
-    updateButtons(form, loadedRate);
-  }
-}
-
-/* LOAD THE SAVED ORDER'S DISCOUNT FROM FIREBASE */
-ordersRoot.addEventListener("click", event => {
-  const button = event.target.closest("[data-edit-order]");
-  if (!button) return;
-
-  activeEditId = button.dataset.editOrder;
-
-  const token = ++activeToken;
-
-  loadedRate = 0;
-  discountReady = false;
-
-  // The original admin.js opens the edit form.
-  queueMicrotask(installDiscount);
-
-  (async () => {
-    try {
-      await authReady;
-
-      const snapshot = await getDoc(
-        doc(db, "orders", activeEditId)
+      const financeList = document.getElementById(
+        "combined-finance-list"
       );
 
-      if (token !== activeToken) return;
-
-      if (!snapshot.exists()) {
-        throw new Error("Order not found.");
+      if (!main || !financeList) {
+        return;
       }
 
-      const rate = Number(
-        snapshot.data().discountRate || 0
-      );
+      /*
+       * When a finance Prev/Next button is clicked,
+       * admin.js redraws that table.
+       *
+       * Preserve the current vertical scroll position
+       * after the synchronous redraw.
+       */
 
-      loadedRate = [0, 10, 20].includes(rate)
-        ? rate
-        : 0;
+      financeList.addEventListener(
+        "click",
+        event => {
 
-      discountReady = true;
+          const button = event.target.closest(
+            ".table-pagination > button"
+          );
 
-      installDiscount();
-
-      const form = modalRoot.querySelector("#order-edit-form");
-
-      if (form) {
-        updateButtons(form, loadedRate);
-
-        const saveButton = form.querySelector("#edit-order-save");
-        if (saveButton) saveButton.disabled = false;
-      }
-
-    } catch (error) {
-      if (token !== activeToken) return;
-
-      const errorField = modalRoot.querySelector(
-        "#edit-order-error"
-      );
-
-      if (errorField) {
-        errorField.textContent =
-          "Cannot load discount: " + error.message;
-      }
-    }
-  })();
-});
-
-/* DETECT NEW EDIT ORDER MODALS */
-new MutationObserver(
-  installDiscount
-).observe(modalRoot, {
-  childList: true,
-  subtree: true
-});
-
-/* AVAILABLE / NOT AVAILABLE DROPDOWN */
-function installMenuDropdowns() {
-  menuRoot.querySelectorAll("tr").forEach(row => {
-    const editButton = row.querySelector("[data-edit]");
-    const statusCell = row.querySelector(
-      'td[data-label="Status"]'
-    );
-
-    if (
-      !editButton ||
-      !statusCell ||
-      statusCell.querySelector("select")
-    ) {
-      return;
-    }
-
-    const itemId = editButton.dataset.edit;
-    const wasUnavailable =
-      row.classList.contains("row-unavailable");
-
-    const select = document.createElement("select");
-    select.className = "menu-availability-select";
-    select.setAttribute(
-      "aria-label",
-      "Menu availability"
-    );
-
-    select.innerHTML = `
-      <option value="available">Available</option>
-      <option value="unavailable">Not Available</option>
-    `;
-
-    select.value = wasUnavailable
-      ? "unavailable"
-      : "available";
-
-    statusCell.replaceChildren(select);
-
-    // Remove old Enable / Disable button.
-    row.querySelector("[data-toggle]")?.remove();
-
-    select.addEventListener("change", async () => {
-      const previous = select.value === "available"
-        ? "unavailable"
-        : "available";
-
-      select.disabled = true;
-
-      try {
-        await authReady;
-
-        await updateDoc(
-          doc(db, "menu", itemId),
-          {
-            available: select.value === "available"
+          if (
+            !button ||
+            button.disabled
+          ) {
+            return;
           }
-        );
 
-      } catch (error) {
-        select.value = previous;
+          const previousTop = main.scrollTop;
 
-        alert(
-          "Failed to update menu availability: " +
-          error.message
-        );
+          queueMicrotask(() => {
+            main.scrollTop = previousTop;
+          });
 
-      } finally {
-        select.disabled = false;
-      }
-    });
-  });
-}
+        },
+        true
+      );
 
-/* KEEP DROPDOWNS AFTER LIVE MENU UPDATES */
-new MutationObserver(
-  installMenuDropdowns
-).observe(menuRoot, {
-  childList: true,
-  subtree: true
-});
-
-installMenuDropdowns();
-</script>
+    })();
+  </script>
 
 </body>
 </html>
