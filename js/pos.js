@@ -1,7 +1,17 @@
 
-import { db, authReady } from "./firebase-config.js";
-import { requireRole, logout } from "./auth.js";
-import { printOrder } from "./receipt.js";
+import {
+  db,
+  authReady
+} from "./firebase-config.js";
+
+import {
+  requireRole,
+  logout
+} from "./auth.js";
+
+import {
+  printOrder
+} from "./receipt.js";
 
 import {
   dayKey,
@@ -28,24 +38,30 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-/* LOGIN */
+/* AUTHENTICATION */
 const session = requireRole(["staff", "admin"]);
 
 if (!session) {
-  throw new Error("Sign in is required.");
+  throw Error("Sign in required.");
 }
 
 const $ = id => document.getElementById(id);
 
-$("logout-btn").addEventListener("click", logout);
+$("logout-btn").addEventListener(
+  "click",
+  logout
+);
+
 $("role-pill").textContent =
-  session.role === "admin" ? "Admin" : "Cashier";
+  session.role === "admin"
+    ? "Admin"
+    : "Cashier";
 
 if (session.role !== "admin") {
   $("admin-link").classList.add("hidden");
 }
 
-/* POS STATE */
+/* ELEMENTS */
 const menuPane = $("item-grid");
 const tabsEl = $("category-tabs");
 const cartItemsEl = $("cart-items");
@@ -64,13 +80,16 @@ let searchText = "";
 const money = pesos;
 
 const escapeHtml = value =>
-  String(value ?? "").replace(/[&<>"']/g, c => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[c]);
+  String(value ?? "").replace(
+    /[&<>"']/g,
+    character => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[character]
+  );
 
 const isDrink = (category, name = "") =>
   /coffee|frapp|frappé|shake|tea|drink|juice|smoothie|soda|lemonade|chocolate|matcha|milktea/i
@@ -79,7 +98,10 @@ const isDrink = (category, name = "") =>
     .test(name);
 
 const positiveInt = value =>
-  Math.max(0, Math.floor(Number(value) || 0));
+  Math.max(
+    0,
+    Math.floor(Number(value) || 0)
+  );
 
 const lineTotal = line =>
   Number(line.qty || 0) *
@@ -90,7 +112,7 @@ function newKey() {
     `${Date.now()}-${Math.random()}`;
 }
 
-/* TAKEOUT BOX CALCULATIONS */
+/* TAKEOUT BOXES */
 function currentBoxes() {
   return boxesForCart(cart, {
     "15": positiveInt($("box-15").value),
@@ -98,7 +120,7 @@ function currentBoxes() {
   });
 }
 
-/* OPTIONAL MANUAL ADD-ONS */
+/* CUSTOM ADD-ONS */
 function currentAddons() {
   const name = $("addon-name").value.trim();
   const qty = positiveInt($("addon-qty").value);
@@ -115,10 +137,14 @@ function currentAddons() {
     return [];
   }
 
-  return [{ name, qty, unitPrice }];
+  return [{
+    name,
+    qty,
+    unitPrice
+  }];
 }
 
-/* NOTIFICATIONS */
+/* MESSAGES */
 function toast(message) {
   const node = $("toast");
 
@@ -127,32 +153,458 @@ function toast(message) {
 
   clearTimeout(toast.timer);
 
-  toast.timer = setTimeout(() => {
-    node.classList.add("hidden");
-  }, 3500);
+  toast.timer = setTimeout(
+    () => node.classList.add("hidden"),
+    3500
+  );
 }
 
 function connectionError(message) {
   const node = $("connection-banner");
-
   node.textContent = message;
   node.classList.remove("hidden");
+}
+
+/* WAITING LIST LOCAL STORAGE */
+const QUEUE_KEY = "chillax_waiting_v1";
+const ACTIVE_KEY = "chillax_active_draft_v1";
+
+let restoringDraft = false;
+let waitingOverlay = null;
+
+function readStore(key, fallback) {
+  try {
+    return JSON.parse(
+      localStorage.getItem(key) || "null"
+    ) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function drafts() {
+  return readStore(QUEUE_KEY, []);
+}
+
+function draftSnapshot() {
+  return {
+    id: newKey(),
+    name: $("customer-name").value.trim(),
+    created: new Date().toISOString(),
+
+    cart: cart.map(item => ({
+      ...item
+    })),
+
+    form: Object.fromEntries(
+      [
+        "order-type",
+        "existing-order",
+        "box-15",
+        "box-25",
+        "addon-name",
+        "addon-qty",
+        "addon-price"
+      ].map(id => [
+        id,
+        $(id).value
+      ])
+    )
+  };
+}
+
+function saveActiveDraft() {
+  if (restoringDraft || submitting) {
+    return;
+  }
+
+  try {
+    const hasData =
+      cart.length ||
+      $("customer-name").value.trim() ||
+      $("addon-name").value.trim() ||
+      positiveInt($("box-15").value) ||
+      positiveInt($("box-25").value);
+
+    if (hasData) {
+      localStorage.setItem(
+        ACTIVE_KEY,
+        JSON.stringify(draftSnapshot())
+      );
+    } else {
+      localStorage.removeItem(ACTIVE_KEY);
+    }
+
+  } catch (error) {
+    console.warn(
+      "Could not save unfinished order:",
+      error
+    );
+  }
+}
+
+function resetWorkingOrder() {
+  restoringDraft = true;
+  cart = [];
+
+  const fields = {
+    "customer-name": "",
+    "order-type": "Dine In",
+    "existing-order": "",
+    "box-15": "0",
+    "box-25": "0",
+    "addon-name": "",
+    "addon-qty": "1",
+    "addon-price": ""
+  };
+
+  for (const [id, value] of Object.entries(fields)) {
+    $(id).value = value;
+  }
+
+  restoringDraft = false;
+
+  try {
+    localStorage.removeItem(ACTIVE_KEY);
+  } catch {}
+
+  renderCart();
+}
+
+/* HOLD CURRENT ORDER */
+function holdCurrent() {
+  if (submitting) return false;
+
+  if (
+    !cart.length &&
+    !$("addon-name").value.trim() &&
+    !positiveInt($("box-15").value) &&
+    !positiveInt($("box-25").value)
+  ) {
+    toast(
+      "Add an item before putting the order on hold."
+    );
+
+    return false;
+  }
+
+  const list = drafts();
+
+  if (list.length >= 30) {
+    toast(
+      "Waiting List is full (30 orders)."
+    );
+    return false;
+  }
+
+  const current = draftSnapshot();
+
+  list.unshift(current);
+
+  try {
+    localStorage.setItem(
+      QUEUE_KEY,
+      JSON.stringify(list)
+    );
+  } catch {
+    toast(
+      "Could not save on this tablet. Check browser storage."
+    );
+
+    return false;
+  }
+
+  resetWorkingOrder();
+
+  toast(
+    `Waiting: ${current.name || "Unnamed customer"}. ` +
+    "No order number yet."
+  );
+
+  return true;
+}
+
+/* RESUME WAITING ORDER */
+function restoreWaiting(id) {
+  if (submitting) return;
+
+  const list = drafts();
+
+  const found = list.find(
+    item => item.id === id
+  );
+
+  if (!found) return;
+
+  const hasCurrent =
+    cart.length ||
+    $("addon-name").value.trim() ||
+    positiveInt($("box-15").value) ||
+    positiveInt($("box-25").value);
+
+  if (hasCurrent) {
+    if (
+      !confirm(
+        "Hold the current unfinished order before opening this waiting order?"
+      )
+    ) {
+      return;
+    }
+
+    if (!holdCurrent()) return;
+  }
+
+  restoringDraft = true;
+
+  cart = Array.isArray(found.cart)
+    ? found.cart
+    : [];
+
+  $("customer-name").value =
+    found.name || "";
+
+  for (
+    const [id, value] of
+    Object.entries(found.form || {})
+  ) {
+    if ($(id)) {
+      $(id).value = value;
+    }
+  }
+
+  restoringDraft = false;
+
+  try {
+    localStorage.setItem(
+      QUEUE_KEY,
+      JSON.stringify(
+        drafts().filter(
+          item => item.id !== id
+        )
+      )
+    );
+  } catch (error) {
+    console.warn(error);
+  }
+
+  renderCart();
+  closeWaiting();
+
+  toast(
+    "Waiting order restored. You can continue punching."
+  );
+}
+
+function closeWaiting() {
+  waitingOverlay?.remove();
+  waitingOverlay = null;
+}
+
+/* WAITING LIST MODAL */
+function showWaiting() {
+  closeWaiting();
+
+  waitingOverlay = document.createElement("div");
+  waitingOverlay.className = "wait-shade";
+
+  const panel = document.createElement("section");
+  panel.className = "wait-dialog";
+
+  const heading = document.createElement("h2");
+  heading.textContent =
+    "Waiting List — Unfinished Orders";
+
+  panel.append(heading);
+
+  const hint = document.createElement("p");
+  hint.textContent =
+    "Saved on this tablet only. " +
+    "No Firebase order number or receipt until checkout.";
+
+  panel.append(hint);
+
+  const list = drafts();
+
+  for (const record of list) {
+    const row = document.createElement("div");
+    row.className = "wait-row";
+
+    const details = document.createElement("div");
+
+    const name = document.createElement("strong");
+    name.textContent =
+      record.name || "Unnamed customer";
+
+    const description = document.createElement("small");
+
+    const quantity = (
+      record.cart || []
+    ).reduce(
+      (sum, item) =>
+        sum + Number(item.qty || 0),
+      0
+    );
+
+    description.textContent =
+      `${quantity} items · ` +
+      new Date(record.created).toLocaleString(
+        "en-PH"
+      );
+
+    details.append(name, description);
+
+    const resume = document.createElement("button");
+
+    resume.type = "button";
+    resume.className = "btn btn-primary";
+    resume.textContent = "Resume";
+
+    resume.onclick = () => restoreWaiting(record.id);
+
+    const remove = document.createElement("button");
+
+    remove.type = "button";
+    remove.className = "btn btn-outline";
+    remove.textContent = "Remove";
+
+    remove.onclick = () => {
+      if (
+        !confirm("Remove this unfinished order?")
+      ) {
+        return;
+      }
+
+      localStorage.setItem(
+        QUEUE_KEY,
+        JSON.stringify(
+          drafts().filter(
+            item => item.id !== record.id
+          )
+        )
+      );
+
+      showWaiting();
+    };
+
+    row.append(details, resume, remove);
+    panel.append(row);
+  }
+
+  if (!list.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No waiting orders.";
+    panel.append(empty);
+  }
+
+  const close = document.createElement("button");
+
+  close.type = "button";
+  close.className = "btn btn-outline";
+  close.textContent = "Close";
+  close.onclick = closeWaiting;
+
+  panel.append(close);
+
+  waitingOverlay.append(panel);
+
+  waitingOverlay.addEventListener(
+    "click",
+    event => {
+      if (event.target === waitingOverlay) {
+        closeWaiting();
+      }
+    }
+  );
+
+  document.body.append(waitingOverlay);
+}
+
+function initializeWaitingList() {
+  const toolbar = document.createElement("div");
+  toolbar.className = "wait-actions";
+
+  const hold = document.createElement("button");
+
+  hold.type = "button";
+  hold.className = "btn btn-outline";
+  hold.textContent = "Hold / Waiting";
+  hold.onclick = holdCurrent;
+
+  const view = document.createElement("button");
+
+  view.type = "button";
+  view.className = "btn btn-outline";
+  view.textContent = "Waiting List";
+  view.onclick = showWaiting;
+
+  toolbar.append(hold, view);
+
+  document.querySelector(
+    ".cart-footer"
+  )?.append(toolbar);
+
+  /* RESTORE ACTIVE DRAFT AFTER REFRESH */
+  const active = readStore(ACTIVE_KEY, null);
+
+  if (active && Array.isArray(active.cart)) {
+    restoringDraft = true;
+
+    cart = active.cart;
+
+    $("customer-name").value =
+      active.name || "";
+
+    for (
+      const [id, value] of
+      Object.entries(active.form || {})
+    ) {
+      if ($(id)) $(id).value = value;
+    }
+
+    restoringDraft = false;
+
+    renderCart();
+  }
+
+  for (
+    const id of [
+      "customer-name",
+      "order-type",
+      "existing-order",
+      "box-15",
+      "box-25",
+      "addon-name",
+      "addon-qty",
+      "addon-price"
+    ]
+  ) {
+    $(id)?.addEventListener(
+      "input",
+      saveActiveDraft
+    );
+
+    $(id)?.addEventListener(
+      "change",
+      saveActiveDraft
+    );
+  }
 }
 
 /* TODAY'S EXISTING ORDERS */
 function availableOrders() {
   const today = dayKey();
 
-  return recentOrders.filter(order => {
-    const date = order.dayKey ||
+  return recentOrders.filter(
+    order =>
       (
-        order.createdAt?.toDate
-          ? dayKey(order.createdAt.toDate())
-          : ""
-      );
-
-    return date === today;
-  });
+        order.dayKey ||
+        (
+          order.createdAt?.toDate
+            ? dayKey(order.createdAt.toDate())
+            : ""
+        )
+      ) === today
+  );
 }
 
 function renderExistingOrders() {
@@ -160,15 +612,18 @@ function renderExistingOrders() {
   const previous = select.value;
 
   select.replaceChildren(
-    new Option("New order (new number)", "")
+    new Option(
+      "New order (new number)",
+      ""
+    )
   );
 
   availableOrders().forEach(order => {
     select.add(
       new Option(
-        `#${order.orderNumber} · ${
-          order.customerName || "Walk-in"
-        } · ${money(order.total)}`,
+        `#${order.orderNumber} · ` +
+        `${order.customerName || "Walk-in"} · ` +
+        money(order.total),
         order.id
       )
     );
@@ -183,7 +638,7 @@ function renderExistingOrders() {
     : "Place order & print";
 }
 
-/* LIVE MENU AND ORDERS */
+/* LIVE FIREBASE MENU */
 async function listenMenu() {
   await authReady;
 
@@ -192,16 +647,19 @@ async function listenMenu() {
       collection(db, "categories"),
       orderBy("order")
     ),
+
     snapshot => {
       categoryOrder = snapshot.docs
-        .map(d => d.data().name)
+        .map(item => item.data().name)
         .flatMap(name =>
           name === "Shake & Frappé"
             ? ["Shake", "Frappé"]
             : [name]
         );
 
-      categoryOrder = [...new Set(categoryOrder)];
+      categoryOrder = [
+        ...new Set(categoryOrder)
+      ];
 
       if (
         categoryOrder.length &&
@@ -213,6 +671,7 @@ async function listenMenu() {
       renderTabs();
       renderGrid();
     },
+
     error => connectionError(
       `Categories failed: ${error.message}`
     )
@@ -223,6 +682,7 @@ async function listenMenu() {
       collection(db, "menu"),
       orderBy("sortOrder")
     ),
+
     snapshot => {
       menuByCategory = new Map();
 
@@ -250,13 +710,18 @@ async function listenMenu() {
         menuByCategory.set(category, list);
       });
 
-      if (!activeCategory && menuByCategory.size) {
-        activeCategory = [...menuByCategory.keys()][0];
+      if (
+        !activeCategory &&
+        menuByCategory.size
+      ) {
+        activeCategory =
+          [...menuByCategory.keys()][0];
       }
 
       renderTabs();
       renderGrid();
     },
+
     error => connectionError(
       `Menu failed: ${error.message}`
     )
@@ -267,21 +732,25 @@ async function listenMenu() {
       collection(db, "orders"),
       orderBy("createdAt", "desc")
     ),
+
     snapshot => {
-      recentOrders = snapshot.docs.map(d => ({
-        id: d.id,
-        ...d.data()
-      }));
+      recentOrders = snapshot.docs.map(
+        item => ({
+          id: item.id,
+          ...item.data()
+        })
+      );
 
       renderExistingOrders();
     },
+
     error => connectionError(
       `Orders failed: ${error.message}`
     )
   );
 }
 
-/* MENU CATEGORY TABS */
+/* CATEGORY TABS */
 function renderTabs() {
   tabsEl.replaceChildren();
 
@@ -299,10 +768,13 @@ function renderTabs() {
     button.textContent = category;
 
     button.className =
-      category === activeCategory ? "active" : "";
+      category === activeCategory
+        ? "active"
+        : "";
 
     button.onclick = () => {
       activeCategory = category;
+
       renderTabs();
       renderGrid();
     };
@@ -311,7 +783,7 @@ function renderTabs() {
   });
 }
 
-/* MENU PRODUCTS */
+/* PRODUCT GRID */
 function renderGrid() {
   const items = searchText
     ? [...menuByCategory.values()]
@@ -321,9 +793,7 @@ function renderGrid() {
             .toLowerCase()
             .includes(searchText)
         )
-    : (
-      menuByCategory.get(activeCategory) || []
-    );
+    : menuByCategory.get(activeCategory) || [];
 
   $("item-count").textContent =
     `${items.length} products${
@@ -335,6 +805,7 @@ function renderGrid() {
   if (!items.length) {
     menuPane.innerHTML =
       '<p class="menu-empty">No products found.</p>';
+
     return;
   }
 
@@ -391,7 +862,11 @@ function renderGrid() {
       ) {
         openSizeModal(item);
       } else {
-        addToCart(item, null, item.price);
+        addToCart(
+          item,
+          null,
+          item.price
+        );
       }
     };
 
@@ -399,16 +874,16 @@ function renderGrid() {
   });
 }
 
-/* ADD PRODUCT
- * Main Order Type is only the default for NEW items.
- */
+/* ADD PRODUCT TO CART */
 function addToCart(item, size, unitPrice) {
   cart.push({
     key: newKey(),
+
     menuId: item.id,
     name: item.name,
     category: item.category,
     size,
+
     unitPrice: Number(unitPrice),
     qty: 1,
 
@@ -426,7 +901,7 @@ function addToCart(item, size, unitPrice) {
   renderCart();
 }
 
-/* DINE IN / TAKE OUT ORDER PREVIEW */
+/* CURRENT ORDER */
 function renderCart() {
   cartItemsEl.replaceChildren();
 
@@ -438,364 +913,346 @@ function renderCart() {
     `;
   }
 
-  const counts = {
-    "Dine In": cart
-      .filter(item => item.serveType !== "Take Out")
-      .reduce(
-        (sum, item) => sum + Number(item.qty || 0),
-        0
-      ),
+  const serviceOrder = [...cart].sort(
+    (a, b) =>
+      Number(a.serveType === "Take Out") -
+      Number(b.serveType === "Take Out")
+  );
 
-    "Take Out": cart
-      .filter(item => item.serveType === "Take Out")
-      .reduce(
-        (sum, item) => sum + Number(item.qty || 0),
-        0
-      )
-  };
+  let previousService = "";
 
-  // Group the visible order without changing saved data.
-  for (const service of ["Dine In", "Take Out"]) {
-    const lines = cart.filter(item =>
-      (
-        item.serveType === "Take Out"
-          ? "Take Out"
-          : "Dine In"
-      ) === service
-    );
+  for (const line of serviceOrder) {
+    const service =
+      line.serveType === "Take Out"
+        ? "Take Out"
+        : "Dine In";
 
-    if (!lines.length) continue;
+    if (service !== previousService) {
+      const heading = document.createElement("div");
 
-    const heading = document.createElement("div");
+      heading.className = "cart-service-group";
 
-    heading.className =
-      "cart-service-group " +
-      (
+      heading.textContent =
         service === "Take Out"
-          ? "service-takeout"
-          : "service-dinein"
-      );
+          ? "TAKE OUT — PACK THESE ITEMS"
+          : "DINE IN — SERVE HERE";
 
-    heading.textContent =
-      service === "Take Out"
-        ? `TAKE OUT — PACK THESE ITEMS (${counts[service]} pcs)`
-        : `DINE IN — SERVE HERE (${counts[service]} pcs)`;
+      cartItemsEl.appendChild(heading);
 
-    cartItemsEl.appendChild(heading);
+      previousService = service;
+    }
 
-    for (const line of lines) {
-      const row = document.createElement("div");
+    const row = document.createElement("div");
+    row.className = "cart-line";
 
-      row.className =
-        "cart-line " +
-        (
-          service === "Take Out"
-            ? "cart-takeout"
-            : "cart-dinein"
-        );
+    const meal = isMealItem(line);
+    const boxPrice = lineBoxPrice(line);
 
-      const meal = isMealItem(line);
-      const boxPrice = lineBoxPrice(line);
+    const boxLabel = meal ? `
+      <label class="meal-box-label">
+        Box per serving
 
-      const boxLabel = meal ? `
-        <label class="meal-box-label">
-          Box per serving
+        <select
+          class="meal-box-select"
+          aria-label="Box for ${escapeHtml(line.name)}"
+        >
+          <option value="auto">
+            Auto: Regular ₱15; Sharing ₱25; Family manual
+          </option>
 
-          <select
-            class="meal-box-select"
-            aria-label="Box type for ${escapeHtml(line.name)}"
-          >
-            <option value="auto">
-              Auto: Meals/Fries ₱15; Sharing/Family ₱0
-            </option>
+          <option value="15">₱15 box</option>
+          <option value="25">₱25 box</option>
+          <option value="0">No box</option>
+        </select>
+      </label>
 
-            <option value="15">₱15 box</option>
-            <option value="25">₱25 box</option>
-            <option value="0">No box</option>
-          </select>
-        </label>
+      <div class="meal-box-cost">
+        ${
+          boxPrice
+            ? (
+                `${money(boxPrice)} × ${line.qty} = ` +
+                money(boxPrice * line.qty)
+              )
+            : "No box charge"
+        }
+      </div>
+    ` : "";
 
-        <div class="meal-box-cost">
-          ${
-            boxPrice
-              ? `${money(boxPrice)} × ${line.qty} box = ${
-                  money(boxPrice * line.qty)
-                }`
-              : "No box charge"
-          }
-        </div>
-      ` : "";
+    row.innerHTML = `
+      <div class="info">
 
-      row.innerHTML = `
-        <div class="info">
-
-          <div class="name">
-            ${escapeHtml(line.name)}
-          </div>
-
-          <div class="cart-service-badge ${
-            service === "Take Out"
-              ? "service-takeout"
-              : "service-dinein"
-          }">
-            ${
-              service === "Take Out"
-                ? "● TAKE OUT"
-                : "● DINE IN"
-            }
-          </div>
-
-          ${
-            line.size
-              ? `<div class="size">
-                   Size: ${escapeHtml(line.size)}
-                 </div>`
-              : ""
-          }
-
-          <div class="unit">
-            ${money(line.unitPrice)} each ·
-            ${escapeHtml(line.category)}
-          </div>
-
-          <select
-            class="serve-select"
-            aria-label="Service for ${escapeHtml(line.name)}"
-          >
-            <option value="Dine In">Dine In</option>
-            <option value="Take Out">Take Out</option>
-          </select>
-
-          ${boxLabel}
-
-          ${
-            isDiscountableFood(line)
-              ? `
-                <div class="line-discount-control">
-                  <label class="item-discount-check">
-                    <input
-                      class="discount-enabled"
-                      type="checkbox"
-                      ${
-                        Number(line.discountRate || 0) > 0
-                          ? "checked"
-                          : ""
-                      }
-                    >
-                    Discount this item
-                  </label>
-
-                  <select
-                    class="item-discount-rate"
-                    aria-label="Discount for ${escapeHtml(line.name)}"
-                    ${
-                      Number(line.discountRate || 0) > 0
-                        ? ""
-                        : "disabled"
-                    }
-                  >
-                    <option
-                      value="10"
-                      ${
-                        Number(line.discountRate) === 10
-                          ? "selected"
-                          : ""
-                      }
-                    >10%</option>
-
-                    <option
-                      value="20"
-                      ${
-                        Number(line.discountRate) === 20
-                          ? "selected"
-                          : ""
-                      }
-                    >20%</option>
-                  </select>
-
-                  <span class="item-discount-amount">
-                    ${
-                      line.discountRate
-                        ? `−${money(lineDiscountAmount(line))}`
-                        : ""
-                    }
-                  </span>
-                </div>
-              `
-              : ""
-          }
-
-          <input
-            class="custom-note"
-            placeholder="Notes (optional)"
-            maxlength="180"
-            value="${escapeHtml(line.note)}"
-          >
-
-          ${
-            line.qty > 1
-              ? `
-                <button
-                  class="split-serve"
-                  type="button"
-                >
-                  Move 1 serving to ${
-                    service === "Dine In"
-                      ? "TAKE OUT"
-                      : "DINE IN"
-                  }
-                </button>
-              `
-              : ""
-          }
-
+        <div class="name">
+          ${escapeHtml(line.name)}
         </div>
 
-        <div class="qty-control">
-          <button type="button" data-act="dec">−</button>
-          <span>${line.qty}</span>
-          <button type="button" data-act="inc">+</button>
-        </div>
-
-        <div class="line-total">
-          ${money(lineTotal(line))}
-        </div>
-
-        <button
-          type="button"
-          class="remove-btn"
-          data-act="remove"
-          aria-label="Remove"
-        >✕</button>
-      `;
-
-      // Service of this item only.
-      const serviceSelect = row.querySelector(
-        ".serve-select"
-      );
-
-      serviceSelect.value = line.serveType;
-
-      serviceSelect.onchange = event => {
-        line.serveType = event.target.value;
-        renderCart();
-      };
-
-      // Box for this item only.
-      const boxSelect = row.querySelector(
-        ".meal-box-select"
-      );
-
-      if (boxSelect) {
-        boxSelect.value = line.boxChoice ?? "auto";
-
-        boxSelect.onchange = event => {
-          line.boxChoice = event.target.value;
-          renderCart();
-        };
-      }
-
-      row.querySelector(".custom-note").oninput = event => {
-        line.note = event.target.value;
-      };
-
-      const discountToggle = row.querySelector(
-        ".discount-enabled"
-      );
-
-      if (discountToggle) {
-        discountToggle.onchange = event => {
-          line.discountRate = event.target.checked
-            ? Number(
-                row.querySelector(".item-discount-rate").value
-              ) || 10
-            : 0;
-
-          renderCart();
-        };
-
-        row.querySelector(
-          ".item-discount-rate"
-        ).onchange = event => {
-          line.discountRate = Number(event.target.value);
-          renderCart();
-        };
-      }
-
-      row.querySelector(
-        '[data-act="inc"]'
-      ).onclick = () => {
-        line.qty++;
-        renderCart();
-      };
-
-      row.querySelector(
-        '[data-act="dec"]'
-      ).onclick = () => {
-        line.qty--;
-
-        if (line.qty <= 0) {
-          cart = cart.filter(
-            item => item.key !== line.key
-          );
+        ${
+          line.size
+            ? `<div class="size">
+                 Size: ${escapeHtml(line.size)}
+               </div>`
+            : ""
         }
 
+        <div class="unit">
+          ${money(line.unitPrice)} each ·
+          ${escapeHtml(line.category)}
+        </div>
+
+        <select
+          class="serve-select"
+          aria-label="Service for ${escapeHtml(line.name)}"
+        >
+          <option value="Dine In">Dine In</option>
+          <option value="Take Out">Take Out</option>
+        </select>
+
+        ${boxLabel}
+
+        ${
+          isDiscountableFood(line)
+            ? `
+              <div class="line-discount-control">
+                <label class="item-discount-check">
+                  <input
+                    class="discount-enabled"
+                    type="checkbox"
+                    ${
+                      Number(line.discountRate || 0) > 0
+                        ? "checked"
+                        : ""
+                    }
+                  >
+                  Discount this item
+                </label>
+
+                <select
+                  class="item-discount-rate"
+                  aria-label="Discount for ${escapeHtml(line.name)}"
+                  ${
+                    Number(line.discountRate || 0) > 0
+                      ? ""
+                      : "disabled"
+                  }
+                >
+                  <option
+                    value="10"
+                    ${
+                      Number(line.discountRate) === 10
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    10%
+                  </option>
+
+                  <option
+                    value="20"
+                    ${
+                      Number(line.discountRate) === 20
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    20%
+                  </option>
+                </select>
+
+                <span class="item-discount-amount">
+                  ${
+                    line.discountRate
+                      ? `−${money(lineDiscountAmount(line))}`
+                      : ""
+                  }
+                </span>
+              </div>
+            `
+            : ""
+        }
+
+        <input
+          class="custom-note"
+          placeholder="Notes (optional)"
+          maxlength="180"
+          value="${escapeHtml(line.note)}"
+        >
+
+        ${
+          line.qty > 1
+            ? `
+              <button
+                class="split-serve"
+                type="button"
+              >
+                Split 1 serving
+              </button>
+            `
+            : ""
+        }
+
+      </div>
+
+      <div class="qty-control">
+        <button type="button" data-act="dec">−</button>
+        <span>${line.qty}</span>
+        <button type="button" data-act="inc">+</button>
+      </div>
+
+      <div class="line-total">
+        ${money(lineTotal(line))}
+      </div>
+
+      <button
+        type="button"
+        class="remove-btn"
+        data-act="remove"
+        aria-label="Remove"
+      >
+        ✕
+      </button>
+    `;
+
+    /* PER-ITEM SERVICE */
+    const serviceSelect = row.querySelector(
+      ".serve-select"
+    );
+
+    serviceSelect.value = line.serveType;
+
+    serviceSelect.onchange = event => {
+      line.serveType = event.target.value;
+      renderCart();
+    };
+
+    /* PER-ITEM BOX */
+    const boxSelect = row.querySelector(
+      ".meal-box-select"
+    );
+
+    if (boxSelect) {
+      boxSelect.value = line.boxChoice ?? "auto";
+
+      boxSelect.onchange = event => {
+        line.boxChoice = event.target.value;
+        renderCart();
+      };
+    }
+
+    /* NOTES */
+    row.querySelector(
+      ".custom-note"
+    ).oninput = event => {
+      line.note = event.target.value;
+      saveActiveDraft();
+    };
+
+    /* DISCOUNT */
+    const discountToggle = row.querySelector(
+      ".discount-enabled"
+    );
+
+    if (discountToggle) {
+      discountToggle.onchange = event => {
+        line.discountRate = event.target.checked
+          ? (
+              Number(
+                row.querySelector(
+                  ".item-discount-rate"
+                ).value
+              ) || 10
+            )
+          : 0;
+
         renderCart();
       };
 
       row.querySelector(
-        '[data-act="remove"]'
-      ).onclick = () => {
+        ".item-discount-rate"
+      ).onchange = event => {
+        line.discountRate = Number(event.target.value);
+        renderCart();
+      };
+    }
+
+    /* QUANTITY */
+    row.querySelector(
+      '[data-act="inc"]'
+    ).onclick = () => {
+      line.qty++;
+      renderCart();
+    };
+
+    row.querySelector(
+      '[data-act="dec"]'
+    ).onclick = () => {
+      line.qty--;
+
+      if (line.qty <= 0) {
         cart = cart.filter(
           item => item.key !== line.key
         );
+      }
+
+      renderCart();
+    };
+
+    /* REMOVE */
+    row.querySelector(
+      '[data-act="remove"]'
+    ).onclick = () => {
+      cart = cart.filter(
+        item => item.key !== line.key
+      );
+
+      renderCart();
+    };
+
+    /* SPLIT DINE IN AND TAKE OUT */
+    const split = row.querySelector(
+      ".split-serve"
+    );
+
+    if (split) {
+      split.onclick = () => {
+        if (line.qty <= 1) return;
+
+        line.qty--;
+
+        cart.push({
+          ...line,
+          key: newKey(),
+          qty: 1,
+
+          serveType:
+            line.serveType === "Dine In"
+              ? "Take Out"
+              : "Dine In"
+        });
 
         renderCart();
       };
-
-      // Splits one serving to the opposite service.
-      const split = row.querySelector(".split-serve");
-
-      if (split) {
-        split.onclick = () => {
-          if (line.qty <= 1) return;
-
-          line.qty--;
-
-          cart.push({
-            ...line,
-            key: newKey(),
-            qty: 1,
-
-            serveType:
-              line.serveType === "Dine In"
-                ? "Take Out"
-                : "Dine In"
-          });
-
-          renderCart();
-        };
-      }
-
-      cartItemsEl.appendChild(row);
     }
+
+    cartItemsEl.appendChild(row);
   }
 
-  // Recalculate complete order.
+  /* TOTAL CALCULATIONS */
   const boxes = currentBoxes();
   const extras = currentAddons();
 
   const subtotal = cart.reduce(
-    (sum, item) => sum + lineTotal(item),
+    (sum, item) =>
+      sum + lineTotal(item),
     0
   );
 
   const extraCost = extras.reduce(
-    (sum, item) => sum + lineTotal(item),
+    (sum, item) =>
+      sum + lineTotal(item),
     0
   );
 
-  const totalDiscount = itemDiscountTotal(cart);
+  const totalDiscount =
+    itemDiscountTotal(cart);
 
   const total = rounded(
     subtotal +
@@ -806,9 +1263,13 @@ function renderCart() {
 
   $("cart-total").textContent = money(total);
 
-  const addonsCost = extraCost +
-    cart.filter(item => item.isAddon).reduce(
-      (sum, item) => sum + lineTotal(item),
+  const addonsCost =
+    extraCost +
+    cart.filter(
+      item => item.isAddon
+    ).reduce(
+      (sum, item) =>
+        sum + lineTotal(item),
       0
     );
 
@@ -823,23 +1284,29 @@ function renderCart() {
     );
 
   $("cart-count").textContent = String(
-    counts["Dine In"] + counts["Take Out"]
+    cart.reduce(
+      (sum, item) =>
+        sum + item.qty,
+      0
+    )
   );
 
   checkoutBtn.disabled =
     submitting ||
     (
-      cart.length === 0 &&
-      extraCost === 0 &&
-      boxTotal(boxes) === 0
+      !cart.length &&
+      !extraCost &&
+      !boxTotal(boxes)
     );
 
   checkoutBtn.textContent = $("existing-order").value
     ? "Add to order & print"
     : "Place order & print";
+
+  saveActiveDraft();
 }
 
-/* PARTY BOX / VARIANT MODAL */
+/* PARTY BOX CHOICES AND TRAY SIZES */
 function openSizeModal(item) {
   const variants = item.variants?.length
     ? item.variants
@@ -854,12 +1321,10 @@ function openSizeModal(item) {
             price: Number(item.priceLarge)
           }
         ]
-      : [
-          {
-            label: "Regular",
-            price: Number(item.price)
-          }
-        ];
+      : [{
+          label: "Regular",
+          price: Number(item.price)
+        }];
 
   let selected = variants[0];
 
@@ -883,16 +1348,20 @@ function openSizeModal(item) {
     ]
   };
 
-  const choices = item.category === "Party Box on the Go"
-    ? (
-        item.comboOptions?.length
-          ? item.comboOptions
-          : fallback[item.name.toLowerCase()] || []
-      )
-    : [];
+  const choices =
+    item.category === "Party Box on the Go"
+      ? (
+          item.comboOptions?.length
+            ? item.comboOptions
+            : fallback[
+                item.name.toLowerCase()
+              ] || []
+        )
+      : [];
 
   modalRoot.innerHTML = `
     <div class="modal-backdrop">
+
       <div
         class="modal-sheet"
         style="max-height:90dvh;overflow:auto"
@@ -901,16 +1370,15 @@ function openSizeModal(item) {
 
         ${
           item.description
-            ? `<p class="modal-subtitle">
-                 ${escapeHtml(item.description)}
-               </p>`
+            ? `
+              <p class="modal-subtitle">
+                ${escapeHtml(item.description)}
+              </p>
+            `
             : ""
         }
 
-        <div
-          class="size-options"
-          style="flex-wrap:wrap"
-        >
+        <div class="size-options" style="flex-wrap:wrap">
           ${variants.map((variant, index) => `
             <button
               type="button"
@@ -941,6 +1409,7 @@ function openSizeModal(item) {
 
                 <label>
                   Other instructions
+
                   <textarea
                     id="combo-notes"
                     maxlength="80"
@@ -961,17 +1430,22 @@ function openSizeModal(item) {
 
         <div class="modal-actions">
           <button
-            type="button"
             class="btn btn-outline"
+            type="button"
             id="modal-cancel"
-          >Cancel</button>
+          >
+            Cancel
+          </button>
 
           <button
             type="button"
             class="btn btn-primary"
             id="modal-add"
-          >Add to order</button>
+          >
+            Add to order
+          </button>
         </div>
+
       </div>
     </div>
   `;
@@ -997,7 +1471,9 @@ function openSizeModal(item) {
 
   modalRoot.querySelector(
     "#modal-cancel"
-  ).onclick = () => modalRoot.replaceChildren();
+  ).onclick = () => {
+    modalRoot.replaceChildren();
+  };
 
   modalRoot.querySelector(
     "#modal-add"
@@ -1007,13 +1483,17 @@ function openSizeModal(item) {
         "[data-party-choice]:checked"
       )
     ].map(checkbox =>
-      choices[Number(checkbox.dataset.partyChoice)]
+      choices[
+        Number(checkbox.dataset.partyChoice)
+      ]
     );
 
     if (choices.length && !chosen.length) {
       modalRoot.querySelector(
         "#party-error"
-      ).textContent = "Choose at least one dish.";
+      ).textContent =
+        "Choose at least one dish.";
+
       return;
     }
 
@@ -1029,26 +1509,27 @@ function openSizeModal(item) {
       "#combo-notes"
     )?.value.trim();
 
-    const freebie = item.name.toLowerCase()
-      .includes("set a")
+    const freebie =
+      item.name.toLowerCase().includes("set a")
         ? "FREE 1.5L Coke"
         : "FREE 1.5L Coke + 1 tub Graham";
 
-    const noteParts = choices.length
+    const parts = choices.length
       ? [
           `Choices: ${chosen.join(", ")}`,
           freebie
         ]
       : [];
 
-    if (notes) noteParts.push(notes);
+    if (notes) parts.push(notes);
 
-    cart[cart.length - 1].note = noteParts
+    cart[cart.length - 1].note = parts
       .join(" | ")
       .slice(0, 450);
 
     if (chosen.length) {
-      cart[cart.length - 1].comboSelections = chosen;
+      cart[cart.length - 1].comboSelections =
+        chosen;
     }
 
     renderCart();
@@ -1069,29 +1550,42 @@ function openSizeModal(item) {
 }
 
 /* EVENTS */
-$("menu-search").addEventListener("input", event => {
-  searchText = event.target.value.trim().toLowerCase();
-  renderGrid();
-});
+$("menu-search").addEventListener(
+  "input",
+  event => {
+    searchText = event.target.value
+      .trim()
+      .toLowerCase();
 
-// Changing the main Order Type only affects
-// the default service for items added afterward.
-$("order-type").addEventListener("change", () => {
-  toast(
-    "Default updated for new items. Existing items are unchanged."
+    renderGrid();
+  }
+);
+
+/*
+ * Default Dine In / Take Out only affects
+ * NEW items, not previous cart items.
+ */
+$("order-type").addEventListener(
+  "change",
+  () => {
+    toast("Default changed for new items only.");
+    renderCart();
+  }
+);
+
+for (
+  const id of [
+    "box-15",
+    "box-25",
+    "addon-qty",
+    "addon-price",
+    "addon-name"
+  ]
+) {
+  $(id).addEventListener(
+    "input",
+    renderCart
   );
-
-  renderCart();
-});
-
-for (const id of [
-  "box-15",
-  "box-25",
-  "addon-qty",
-  "addon-price",
-  "addon-name"
-]) {
-  $(id).addEventListener("input", renderCart);
 }
 
 $("existing-order").addEventListener(
@@ -1099,351 +1593,409 @@ $("existing-order").addEventListener(
   renderCart
 );
 
-document.addEventListener("keydown", event => {
-  if (
-    event.key === "Escape" &&
-    modalRoot.hasChildNodes()
-  ) {
-    modalRoot.replaceChildren();
+document.addEventListener(
+  "keydown",
+  event => {
+    if (
+      event.key === "Escape" &&
+      modalRoot.hasChildNodes()
+    ) {
+      modalRoot.replaceChildren();
+    }
   }
-});
+);
 
-/* CHECKOUT / FIRESTORE */
-checkoutBtn.addEventListener("click", async () => {
-  if (submitting) return;
+/* CHECKOUT */
+checkoutBtn.addEventListener(
+  "click",
+  async () => {
+    if (submitting) return;
 
-  const addons = currentAddons();
-  const boxes = currentBoxes();
-  const rawName = $("addon-name").value.trim();
+    const addons = currentAddons();
+    const boxes = currentBoxes();
 
-  if (rawName && !addons.length) {
-    toast(
-      "Enter a valid add-on quantity and price."
-    );
-    return;
-  }
+    const rawName = $("addon-name").value.trim();
 
-  // Each item keeps its independent service type.
-  const items = cart.map(({ key, ...line }) => ({
-    ...line,
-    qty: Number(line.qty),
-    unitPrice: Number(line.unitPrice),
-    isDrink: isDrink(line.category, line.name),
-    boxUnitPrice: lineBoxPrice(line)
-  }));
-
-  const delta = {
-    items,
-    addons,
-    boxes,
-    packagingFee: boxTotal(boxes),
-
-    discountMode: "perItem",
-    discountRate: 0,
-    discountAmount: itemDiscountTotal(items),
-    legacyDiscountAmount: 0
-  };
-
-  const charge = orderTotal(delta);
-
-  if (
-    !items.length &&
-    !addons.length &&
-    !boxTotal(boxes)
-  ) {
-    return;
-  }
-
-  submitting = true;
-  renderCart();
-
-  checkoutBtn.textContent = "Saving order…";
-
-  try {
-    await authReady;
-
-    const selectedId = $("existing-order").value;
-    let printPayload;
-
-    if (selectedId) {
-      // ADD CHARGES TO AN EXISTING ORDER
-      const reference = doc(db, "orders", selectedId);
-
-      printPayload = await runTransaction(
-        db,
-        async transaction => {
-          const snapshot = await transaction.get(
-            reference
-          );
-
-          if (!snapshot.exists()) {
-            throw Error(
-              "Existing order no longer exists."
-            );
-          }
-
-          const old = snapshot.data();
-
-          const orderDate = old.dayKey ||
-            (
-              old.createdAt?.toDate
-                ? dayKey(old.createdAt.toDate())
-                : ""
-            );
-
-          if (orderDate !== dayKey()) {
-            throw Error(
-              "Only today's orders can receive new items."
-            );
-          }
-
-          const next = {
-            ...old,
-
-            items: [
-              ...(old.items || []),
-
-              ...items.map(item => ({
-                ...item,
-                isAddon: Boolean(item.isAddon),
-                addedToExistingOrder: true
-              }))
-            ],
-
-            addons: [
-              ...(old.addons || []),
-              ...addons
-            ],
-
-            boxes: {
-              "15":
-                Number(old.boxes?.["15"] || 0) +
-                boxes["15"],
-
-              "25":
-                Number(old.boxes?.["25"] || 0) +
-                boxes["25"]
-            }
-          };
-
-          next.legacyPackagingFee = Number(
-            old.legacyPackagingFee ??
-            (
-              old.boxes
-                ? 0
-                : old.packagingFee || 0
-            )
-          );
-
-          next.packagingFee = rounded(
-            next.legacyPackagingFee +
-            boxTotal(next.boxes)
-          );
-
-          next.total = rounded(
-            Number(old.total || 0) + charge
-          );
-
-          next.discountMode = "perItem";
-          next.discountRate = 0;
-
-          next.legacyDiscountAmount = Number(
-            old.legacyDiscountAmount ||
-            (
-              old.discountMode !== "perItem"
-                ? old.discountAmount || 0
-                : 0
-            )
-          );
-
-          next.discountAmount = rounded(
-            itemDiscountTotal(next.items) +
-            next.legacyDiscountAmount
-          );
-
-          next.addOnTotal = rounded(
-            Number(
-              old.addOnTotal ?? addonsTotal(old)
-            ) +
-
-            items.reduce(
-              (sum, item) => sum + lineTotal(item),
-              0
-            ) +
-
-            addons.reduce(
-              (sum, item) => sum + lineTotal(item),
-              0
-            )
-          );
-
-          next.updatedAt = serverTimestamp();
-
-          transaction.update(reference, {
-            items: next.items,
-            addons: next.addons,
-            boxes: next.boxes,
-            legacyPackagingFee: next.legacyPackagingFee,
-            packagingFee: next.packagingFee,
-            total: next.total,
-            addOnTotal: next.addOnTotal,
-
-            discountMode: next.discountMode,
-            discountRate: next.discountRate,
-            discountAmount: next.discountAmount,
-            legacyDiscountAmount:
-              next.legacyDiscountAmount,
-
-            updatedAt: next.updatedAt
-          });
-
-          return {
-            ...delta,
-
-            items: items.map(item => ({
-              ...item,
-              isAddon: Boolean(item.isAddon),
-              addedToExistingOrder: true
-            })),
-
-            orderNumber: old.orderNumber,
-            orderType: old.orderType,
-            paymentMethod: old.paymentMethod,
-            customerName: old.customerName,
-
-            dayKey: dayKey(),
-            printedAt: new Date().toISOString(),
-
-            total: charge,
-            updatedOrderTotal: next.total,
-            receiptMode: "ADD-ON"
-          };
-        }
+    if (rawName && !addons.length) {
+      toast(
+        "Enter valid add-on quantity and price."
       );
-
-    } else {
-      // SAVE NEW ORDER
-      const date = dayKey();
-
-      const counterReference = doc(
-        db,
-        "counters",
-        `orderNumber-${date}`
-      );
-
-      const orderReference = doc(
-        collection(db, "orders")
-      );
-
-      const order = {
-        ...delta,
-        dayKey: date,
-
-        // Keep Firestore-compatible order type.
-        // Per-item serveType stores mixed service.
-        orderType: items.some(
-          item => item.serveType === "Take Out"
-        )
-          ? "Take Out"
-          : $("order-type").value,
-
-        paymentMethod: "Cash",
-
-        customerName:
-          $("customer-name").value.trim(),
-
-        cashierRole: session.role,
-        total: charge,
-        addOnTotal: addonsTotal(delta)
-      };
-
-      const maxExistingToday = availableOrders()
-        .reduce(
-          (max, order) => Math.max(
-            max,
-            Number(order.orderNumber) || 0
-          ),
-          0
-        );
-
-      const orderNumber = await runTransaction(
-        db,
-        async transaction => {
-          const snapshot = await transaction.get(
-            counterReference
-          );
-
-          const next = Math.max(
-            Number(
-              snapshot.exists()
-                ? snapshot.data().value
-                : 0
-            ),
-            maxExistingToday
-          ) + 1;
-
-          transaction.set(counterReference, {
-            value: next,
-            dayKey: date
-          });
-
-          transaction.set(orderReference, {
-            ...order,
-            orderNumber: next,
-            createdAt: serverTimestamp()
-          });
-
-          return next;
-        }
-      );
-
-      printPayload = {
-        ...order,
-        orderNumber,
-        printedAt: new Date().toISOString()
-      };
+      return;
     }
 
-    // CLEAR ONLY AFTER SUCCESSFUL FIRESTORE SAVE
-    cart = [];
+    const items = cart.map(
+      ({ key, ...line }) => ({
+        ...line,
 
-    $("customer-name").value = "";
-    $("addon-name").value = "";
-    $("addon-price").value = "";
-    $("addon-qty").value = "1";
+        qty: Number(line.qty),
+        unitPrice: Number(line.unitPrice),
 
-    $("box-15").value = "0";
-    $("box-25").value = "0";
-    $("existing-order").value = "";
+        isDrink: isDrink(
+          line.category,
+          line.name
+        ),
 
+        boxUnitPrice: lineBoxPrice(line)
+      })
+    );
+
+    const delta = {
+      items,
+      addons,
+      boxes,
+
+      packagingFee: boxTotal(boxes),
+
+      discountMode: "perItem",
+      discountRate: 0,
+
+      discountAmount:
+        itemDiscountTotal(items),
+
+      legacyDiscountAmount: 0
+    };
+
+    const charge = orderTotal(delta);
+
+    if (
+      !items.length &&
+      !addons.length &&
+      !boxTotal(boxes)
+    ) {
+      return;
+    }
+
+    submitting = true;
     renderCart();
 
-    toast(
-      `Order #${printPayload.orderNumber} saved. Printing 3 copies…`
-    );
+    checkoutBtn.textContent = "Saving order…";
 
     try {
-      await printOrder(printPayload);
-    } catch (printError) {
-      console.error(printError);
+      await authReady;
+
+      const selectedId =
+        $("existing-order").value;
+
+      let printPayload;
+
+      if (selectedId) {
+
+        /* ADD ITEMS TO EXISTING ORDER */
+        const reference = doc(
+          db,
+          "orders",
+          selectedId
+        );
+
+        printPayload = await runTransaction(
+          db,
+          async transaction => {
+            const snapshot = await transaction.get(
+              reference
+            );
+
+            if (!snapshot.exists()) {
+              throw Error(
+                "Existing order no longer exists."
+              );
+            }
+
+            const old = snapshot.data();
+
+            const oldDate = old.dayKey ||
+              (
+                old.createdAt?.toDate
+                  ? dayKey(old.createdAt.toDate())
+                  : ""
+              );
+
+            if (oldDate !== dayKey()) {
+              throw Error(
+                "Only today's orders can receive new items."
+              );
+            }
+
+            const appendedItems = items.map(
+              item => ({
+                ...item,
+                isAddon: Boolean(item.isAddon)
+              })
+            );
+
+            const next = {
+              ...old,
+
+              items: [
+                ...(old.items || []),
+                ...appendedItems
+              ],
+
+              addons: [
+                ...(old.addons || []),
+                ...addons
+              ],
+
+              boxes: {
+                "15":
+                  Number(old.boxes?.["15"] || 0) +
+                  boxes["15"],
+
+                "25":
+                  Number(old.boxes?.["25"] || 0) +
+                  boxes["25"]
+              }
+            };
+
+            next.legacyPackagingFee = Number(
+              old.legacyPackagingFee ??
+              (
+                old.boxes
+                  ? 0
+                  : old.packagingFee || 0
+              )
+            );
+
+            next.packagingFee =
+              next.legacyPackagingFee +
+              boxTotal(next.boxes);
+
+            next.total = rounded(
+              Number(old.total || 0) + charge
+            );
+
+            next.discountMode = "perItem";
+            next.discountRate = 0;
+
+            next.legacyDiscountAmount = Number(
+              old.legacyDiscountAmount ||
+              (
+                old.discountMode !== "perItem"
+                  ? old.discountAmount || 0
+                  : 0
+              )
+            );
+
+            next.discountAmount = rounded(
+              itemDiscountTotal(next.items) +
+              next.legacyDiscountAmount
+            );
+
+            const newAddonRevenue =
+              appendedItems
+                .filter(item => item.isAddon)
+                .reduce(
+                  (sum, item) =>
+                    sum + lineTotal(item),
+                  0
+                ) +
+              addons.reduce(
+                (sum, item) =>
+                  sum + lineTotal(item),
+                0
+              );
+
+            next.addOnTotal = rounded(
+              Number(
+                old.addOnTotal ??
+                addonsTotal(old)
+              ) + newAddonRevenue
+            );
+
+            next.updatedAt = serverTimestamp();
+
+            transaction.update(reference, {
+              items: next.items,
+              addons: next.addons,
+              boxes: next.boxes,
+
+              legacyPackagingFee:
+                next.legacyPackagingFee,
+
+              packagingFee: next.packagingFee,
+              total: next.total,
+              addOnTotal: next.addOnTotal,
+
+              discountMode: next.discountMode,
+              discountRate: next.discountRate,
+              discountAmount: next.discountAmount,
+
+              legacyDiscountAmount:
+                next.legacyDiscountAmount,
+
+              updatedAt: next.updatedAt
+            });
+
+            return {
+              ...delta,
+
+              items: appendedItems,
+
+              orderNumber: old.orderNumber,
+              orderType: old.orderType,
+
+              paymentMethod: old.paymentMethod,
+              customerName: old.customerName,
+
+              dayKey: dayKey(),
+
+              printedAt:
+                new Date().toISOString(),
+
+              total: charge,
+
+              updatedOrderTotal:
+                next.total,
+
+              receiptMode: "ADD-ON"
+            };
+          }
+        );
+
+      } else {
+
+        /* NEW CUSTOMER ORDER */
+        const date = dayKey();
+
+        const counterReference = doc(
+          db,
+          "counters",
+          `orderNumber-${date}`
+        );
+
+        const orderReference = doc(
+          collection(db, "orders")
+        );
+
+        const order = {
+          ...delta,
+
+          dayKey: date,
+
+          orderType: items.some(
+            item =>
+              item.serveType === "Take Out"
+          )
+            ? "Take Out"
+            : $("order-type").value,
+
+          paymentMethod: "Cash",
+
+          customerName:
+            $("customer-name").value.trim(),
+
+          cashierRole: session.role,
+
+          total: charge,
+          addOnTotal: addonsTotal(delta)
+        };
+
+        const maxExistingToday =
+          availableOrders().reduce(
+            (number, item) =>
+              Math.max(
+                number,
+                Number(item.orderNumber) || 0
+              ),
+            0
+          );
+
+        const orderNumber = await runTransaction(
+          db,
+          async transaction => {
+            const snapshot = await transaction.get(
+              counterReference
+            );
+
+            const next = Math.max(
+              Number(
+                snapshot.exists()
+                  ? snapshot.data().value
+                  : 0
+              ),
+              maxExistingToday
+            ) + 1;
+
+            transaction.set(
+              counterReference,
+              {
+                value: next,
+                dayKey: date
+              }
+            );
+
+            transaction.set(
+              orderReference,
+              {
+                ...order,
+                orderNumber: next,
+                createdAt: serverTimestamp()
+              }
+            );
+
+            return next;
+          }
+        );
+
+        printPayload = {
+          ...order,
+          orderNumber,
+
+          printedAt:
+            new Date().toISOString()
+        };
+      }
+
+      /* CLEAR AFTER SUCCESSFUL SAVE */
+      cart = [];
+
+      try {
+        localStorage.removeItem(ACTIVE_KEY);
+      } catch {}
+
+      $("customer-name").value = "";
+      $("addon-name").value = "";
+      $("addon-price").value = "";
+      $("addon-qty").value = "1";
+
+      $("box-15").value = "0";
+      $("box-25").value = "0";
+
+      $("existing-order").value = "";
+
+      renderCart();
 
       toast(
-        "Saved! Reprint from Admin → Recent Orders."
+        `Order #${printPayload.orderNumber} saved. Printing…`
       );
+
+      try {
+        await printOrder(printPayload);
+      } catch (printError) {
+        console.error(printError);
+
+        toast(
+          "Saved! Reprint from Admin → Recent Orders."
+        );
+      }
+
+    } catch (error) {
+      console.error(
+        "Checkout failed:",
+        error
+      );
+
+      toast(
+        `Not saved: ${error.message}`
+      );
+
+    } finally {
+      submitting = false;
+      renderCart();
     }
-
-  } catch (error) {
-    console.error("Checkout failed:", error);
-
-    toast(`Not saved: ${error.message}`);
-
-  } finally {
-    submitting = false;
-    renderCart();
   }
-});
+);
 
-/* DAILY ORDER SELECTOR REFRESH */
+/* DAILY ORDER REFRESH */
 let lastBusinessDay = dayKey();
 
 setInterval(() => {
@@ -1455,11 +2007,22 @@ setInterval(() => {
   renderExistingOrders();
 }, 60000);
 
-/* DISCOUNT DESIGN */
-const discountStyle = document.createElement("style");
+/* POS DESIGN */
+const styles = document.createElement("style");
 
-discountStyle.textContent = `
+styles.textContent = `
 @media screen {
+
+  .cart-service-group {
+    background: #f7ece3;
+    color: #533626;
+    border-radius: 8px;
+    padding: 8px;
+    margin: 10px 0 5px;
+    font-weight: 850;
+    font-size: .78rem;
+  }
+
   .line-discount-control {
     display: flex;
     align-items: center;
@@ -1474,7 +2037,6 @@ discountStyle.textContent = `
     align-items: center;
     gap: 5px;
     font-weight: 700;
-    white-space: nowrap;
   }
 
   .item-discount-check input {
@@ -1493,15 +2055,70 @@ discountStyle.textContent = `
     font-weight: 800;
     color: #b92d65;
   }
-}`;
 
-document.head.append(discountStyle);
+  .wait-actions {
+    display: flex;
+    gap: 7px;
+    margin-top: 9px;
+  }
 
-/* PARTY BOX CHOICES DESIGN */
-const partyChoicesStyle = document.createElement("style");
+  .wait-actions button {
+    flex: 1;
+    min-width: 0;
+    font-size: .78rem;
+  }
 
-partyChoicesStyle.textContent = `
-@media screen {
+  .wait-shade {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0009;
+    padding: 12px;
+  }
+
+  .wait-dialog {
+    width: min(540px, 96vw);
+    max-height: 85dvh;
+    overflow: auto;
+    background: #fffaf5;
+    padding: 20px;
+    border-radius: 18px;
+    color: #513c2f;
+  }
+
+  .wait-dialog h2 {
+    margin: 0 0 8px;
+  }
+
+  .wait-dialog p {
+    font-size: .84rem;
+  }
+
+  .wait-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid #e7d9cf;
+  }
+
+  .wait-row div {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .wait-row small {
+    display: block;
+    color: #7c695d;
+  }
+
+  .wait-row button {
+    white-space: nowrap;
+  }
+
   .party-checkbox-group {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1544,95 +2161,31 @@ partyChoicesStyle.textContent = `
     grid-column: 1 / -1;
     color: #b42318;
   }
-}`;
+}
 
-document.head.append(partyChoicesStyle);
-
-/* DINE IN / TAKE OUT VISUAL SEPARATION */
-const serviceStyles = document.createElement("style");
-
-serviceStyles.textContent = `
-@media screen {
-  .cart-service-group {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    margin: 8px 0 5px;
-    padding: 8px 10px;
-    border-radius: 9px;
-    font-weight: 900;
-    font-size: .76rem;
-    letter-spacing: .2px;
+@media screen and (max-width: 480px) {
+  .party-checkbox-group {
+    grid-template-columns: 1fr;
   }
 
-  .cart-service-group.service-dinein {
-    background: #edf7ee;
-    color: #245d35;
-    border: 1px solid #b9d9c0;
+  .wait-row {
+    flex-wrap: wrap;
   }
+}
 
-  .cart-service-group.service-takeout {
-    background: #fff0e3;
-    color: #8c410d;
-    border: 1px solid #efbf91;
+@media print {
+  .wait-shade,
+  .wait-actions {
+    display: none !important;
   }
+}
+`;
 
-  .cart-service-badge {
-    display: inline-block;
-    border-radius: 6px;
-    padding: 3px 6px;
-    font-weight: 900;
-    font-size: .69rem;
-    margin: 4px 0;
-  }
+document.head.append(styles);
 
-  .cart-service-badge.service-dinein {
-    background: #e4f4e8;
-    color: #205f33;
-  }
+/* START POS */
+initializeWaitingList();
 
-  .cart-service-badge.service-takeout {
-    background: #ffead2;
-    color: #823b0c;
-  }
-
-  .cart-line.cart-takeout {
-    border-left: 3px solid #dc8a35;
-    padding-left: 8px;
-  }
-
-  .cart-line.cart-dinein {
-    border-left: 3px solid #63a574;
-    padding-left: 8px;
-  }
-
-  .cart-line .serve-select {
-    max-width: 100%;
-  }
-
-  .cart-line .split-serve {
-    font-weight: 800;
-  }
-}`;
-
-document.head.append(serviceStyles);
-
-/* MAIN ORDER TYPE HELPER */
-const defaultServiceHint = document.createElement("small");
-
-defaultServiceHint.textContent =
-  "Default for NEW items only. Set Dine In/Take Out for each item below.";
-
-defaultServiceHint.style.cssText =
-  "display:block;font-size:.7rem;line-height:1.25;" +
-  "margin:4px 0;color:#735847";
-
-$("order-type").insertAdjacentElement(
-  "afterend",
-  defaultServiceHint
-);
-
-/* START */
 listenMenu().catch(error => {
   console.error(error);
   connectionError(error.message);

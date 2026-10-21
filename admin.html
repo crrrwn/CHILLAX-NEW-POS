@@ -1,1045 +1,989 @@
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, viewport-fit=cover"
-  >
-
-  <title>Chillax Café POS — Admin</title>
-
-  <link rel="icon" href="assets/logo.jpg">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/print.css">
-
-  <style>
-
-    /* =========================================
-       ADMIN SCROLL AND PAGINATION FIX
-       ========================================= */
-
-    @media screen {
-
-      html {
-        height: 100%;
-        overflow: hidden !important;
-        scroll-behavior: auto !important;
-      }
-
-      body.admin-page {
-        --header-height: 68px;
-
-        height: 100dvh !important;
-        min-height: 0 !important;
-
-        margin: 0 !important;
-        padding: 0 !important;
-
-        overflow: hidden !important;
-        scroll-behavior: auto !important;
-      }
-
-      /* FIXED ADMIN HEADER */
-
-      body.admin-page > .topbar {
-        position: fixed !important;
-
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-
-        width: 100% !important;
-        height: var(--header-height);
-        min-height: var(--header-height);
-
-        z-index: 1000;
-      }
-
-      /* ADMIN LAYOUT BELOW HEADER */
-
-      body.admin-page > .admin-layout {
-        position: fixed !important;
-
-        top: var(--header-height) !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        left: 0 !important;
-
-        display: flex !important;
-        flex-direction: row;
-
-        height: auto !important;
-        min-height: 0 !important;
-
-        overflow: hidden !important;
-      }
-
-      /* LEFT SIDEBAR */
-
-      body.admin-page .admin-nav {
-        position: relative !important;
-        top: auto !important;
-
-        flex: 0 0 218px;
-
-        width: 218px !important;
-        height: 100% !important;
-
-        max-height: 100% !important;
-        min-height: 0 !important;
-
-        align-self: stretch !important;
-
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-
-        overscroll-behavior: contain;
-      }
-
-      /* ONE SCROLL AREA ONLY */
-
-      body.admin-page .admin-main {
-        position: relative;
-
-        flex: 1 1 auto;
-        width: 100%;
-
-        min-width: 0 !important;
-        min-height: 0 !important;
-
-        height: 100% !important;
-
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-
-        overscroll-behavior-y: contain;
-        scroll-behavior: auto !important;
-
-        overflow-anchor: none;
-        scrollbar-gutter: stable;
-
-        -webkit-overflow-scrolling: touch;
-      }
-
-      /* PREVENT FINANCE TABLE SCROLL JUMPS */
-
-      body.admin-page #combined-finance-list,
-      body.admin-page .finance-separated-section {
-        overflow-anchor: none;
-      }
-
-      /* =====================================
-         FINANCE PAGINATION BUTTON ALIGNMENT
-         ===================================== */
-
-      body.admin-page
-      .finance-separated-section
-      .table-pagination {
-
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-end !important;
-
-        flex-wrap: wrap;
-        gap: 8px !important;
-
-        margin-top: 12px;
-        padding-top: 12px;
-      }
-
-      /* PAGE LABEL STAYS ON THE LEFT */
-
-      body.admin-page
-      .finance-separated-section
-      .table-pagination > span:first-child {
-
-        flex: 1 1 175px;
-        margin-right: auto !important;
-
-        min-width: 0;
-        line-height: 1.4;
-      }
-
-      /* PREV AND NEXT STAY TOGETHER */
-
-      body.admin-page
-      .finance-separated-section
-      .table-pagination > button {
-
-        flex: 0 0 auto !important;
-
-        width: auto !important;
-        min-width: 66px;
-
-        margin: 0 !important;
-        white-space: nowrap;
-      }
-
-      /* MODALS ABOVE HEADER */
-
-      body.admin-page
-      #modal-root .modal-backdrop {
-        z-index: 1100 !important;
-      }
-
-      body.admin-page .status-banner {
-        z-index: 1200;
-      }
-
-    }
-
-    /* MEDIUM DESKTOP */
-
-    @media screen and (max-width: 1100px)
-      and (min-width: 901px) {
-
-      body.admin-page .admin-nav {
-        flex-basis: 190px;
-        width: 190px !important;
-      }
-
-    }
-
-    /* TABLET */
-
-    @media screen and (max-width: 900px) {
-
-      body.admin-page > .admin-layout {
-        flex-direction: column;
-      }
-
-      body.admin-page .admin-nav {
-        flex: 0 0 auto;
-
-        width: 100% !important;
-        height: auto !important;
-        max-height: none !important;
-
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-
-        white-space: nowrap;
-        align-self: stretch !important;
-      }
-
-      body.admin-page .admin-main {
-        flex: 1 1 auto;
-        width: 100%;
-
-        height: auto !important;
-        min-height: 0 !important;
-      }
-
-    }
-
-    /* MOBILE */
-
-    @media screen and (max-width: 650px) {
-
-      body.admin-page {
-        --header-height: 62px;
-      }
-
-      body.admin-page
-      .finance-separated-section
-      .table-pagination > span:first-child {
-        flex-basis: 100%;
-      }
-
-    }
-
-    /* 58MM PRINTING COMPATIBILITY */
-
-    @media print {
-
-      html,
-      body.admin-page {
-        height: auto !important;
-        overflow: visible !important;
-      }
-
-    }
-
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chillax Café POS — Admin</title>
+
+<link rel="icon" href="assets/logo.jpg">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/print.css">
+
+<style>
+@media screen {
+  html,
+  body.admin-page {
+    height: 100%;
+    overflow: hidden !important;
+  }
+
+  body.admin-page {
+    --header-height: 68px;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100dvh !important;
+  }
+
+  body.admin-page > .topbar {
+    position: fixed !important;
+    inset: 0 0 auto 0;
+    height: var(--header-height);
+    min-height: var(--header-height);
+    z-index: 1000;
+  }
+
+  body.admin-page > .admin-layout {
+    position: fixed !important;
+    top: var(--header-height);
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex !important;
+    flex-direction: row;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.admin-page .admin-nav {
+    position: relative !important;
+    top: auto !important;
+    flex: 0 0 235px;
+    width: 235px;
+    height: 100%;
+    min-height: 0;
+    max-height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    align-self: stretch !important;
+  }
+
+  body.admin-page .admin-main {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    scroll-behavior: auto !important;
+    overflow-anchor: none;
+  }
+
+  body.admin-page #modal-root .modal-backdrop {
+    z-index: 1100 !important;
+  }
+
+  .admin-action-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .order-delete-btn {
+    color: #a22b2b !important;
+    border-color: #d5a0a0 !important;
+  }
+
+  .finance-separated-section .table-pagination {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    flex-wrap: wrap;
+  }
+
+  .finance-separated-section
+  .table-pagination > span:first-child {
+    margin-right: auto !important;
+  }
+
+  .finance-separated-section
+  .table-pagination > button {
+    margin: 0 !important;
+    flex: 0 0 auto !important;
+  }
+
+  /* OWNER SALES */
+
+  .owner-card {
+    padding: 18px;
+    border: 1px solid #e9d9cb;
+    border-radius: 15px;
+    background: #fff;
+    margin-bottom: 18px;
+  }
+
+  .owner-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 14px 0;
+  }
+
+  .owner-filters,
+  .owner-assign-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .owner-filters select,
+  .owner-filters input,
+  .owner-assign-row select {
+    min-height: 40px;
+    max-width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #dfcfc5;
+    border-radius: 9px;
+    background: #fff;
+    color: #523729;
+  }
+
+  .owner-assign-row {
+    margin: 12px 0;
+  }
+
+  .owner-assign-row select {
+    flex: 1 1 230px;
+    min-width: 140px;
+  }
+
+  .owner-rule-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 10px 0;
+  }
+
+  .owner-rule {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f7edf0;
+    color: #6e3546;
+    border-radius: 9px;
+    padding: 6px 10px;
+    font-size: .78rem;
+  }
+
+  .owner-rule button {
+    font-size: 18px;
+    background: none;
+    border: 0;
+    color: #82263d;
+    cursor: pointer;
+  }
+
+  .owner-pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 13px;
+  }
+
+  .owner-pager > span {
+    margin-right: auto;
+  }
+
+  #owner-status {
+    min-height: 20px;
+    font-size: .84rem;
+    margin-bottom: 10px;
+  }
+
+  .owner-note {
+    font-size: .84rem;
+    color: #80695c;
+    line-height: 1.5;
+  }
+}
+
+@media screen and (max-width: 900px) {
+  body.admin-page > .admin-layout {
+    flex-direction: column;
+  }
+
+  body.admin-page .admin-nav {
+    width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    flex: 0 0 auto;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap;
+  }
+
+  body.admin-page .admin-main {
+    height: auto !important;
+    flex: 1 1 auto;
+  }
+}
+
+@media screen and (max-width: 650px) {
+  body.admin-page {
+    --header-height: 62px;
+  }
+
+  .owner-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .owner-pager > span {
+    flex-basis: 100%;
+  }
+}
+
+@media print {
+  html,
+  body.admin-page {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
+</style>
 </head>
 
 <body class="admin-page">
 
-  <!-- ======================================
-       FIXED HEADER
-       ====================================== -->
+<!-- HEADER -->
+<header class="topbar">
+  <img
+    class="logo"
+    src="assets/logo.jpg"
+    alt="Chillax logo"
+  >
 
-  <header class="topbar">
+  <div class="titles">
+    <strong>Chillax Café</strong>
+    <span>Admin</span>
+  </div>
 
-    <img
-      class="logo"
-      src="assets/logo.jpg"
-      alt="Chillax Café"
+  <span class="role-pill">Admin</span>
+
+  <a
+    href="pos.html"
+    class="icon-btn"
+    title="Cashier"
+    aria-label="Cashier"
+  >
+    <svg
+      class="icon-svg"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
     >
+      <path
+        d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 4v12h10V6H7z"
+        fill="currentColor"
+      />
+    </svg>
+  </a>
 
-    <div class="titles">
-      <strong>Chillax Café</strong>
-      <span>Admin</span>
-    </div>
-
-    <span class="role-pill">
-      Admin
-    </span>
-
-    <!-- CASHIER LINK -->
-
-    <a
-      href="pos.html"
-      class="icon-btn"
-      title="Cashier"
-      aria-label="Go to Cashier"
+  <button
+    class="icon-btn"
+    id="logout-btn"
+    title="Sign out"
+    aria-label="Sign out"
+  >
+    <svg
+      class="icon-svg"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
     >
-      <svg
-        class="icon-svg"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-      >
-        <path
-          d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 4v12h10V6H7z"
-          fill="currentColor"
-        />
-      </svg>
-    </a>
+      <path
+        d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8v-2zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z"
+        fill="currentColor"
+      />
+    </svg>
+  </button>
+</header>
 
-    <!-- LOGOUT -->
+<main class="admin-layout">
+
+  <!-- SIDEBAR -->
+  <nav class="admin-nav">
 
     <button
       type="button"
-      class="icon-btn"
-      id="logout-btn"
-      title="Sign out"
-      aria-label="Sign out"
+      class="active"
+      data-tab="dashboard"
     >
-      <svg
-        class="icon-svg"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-      >
-        <path
-          d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z"
-          fill="currentColor"
-        />
-      </svg>
+      <span>▥</span>
+      <span>Sales</span>
     </button>
 
-  </header>
-
-  <!-- ======================================
-       MAIN ADMIN LAYOUT
-       ====================================== -->
-
-  <main class="admin-layout">
-
-    <!-- ADMIN SIDEBAR -->
-
-    <nav class="admin-nav">
-
-      <button
-        type="button"
-        class="active"
-        data-tab="dashboard"
-      >
-        <span>▥</span>
-        <span>Sales</span>
-      </button>
-
-      <button
-        type="button"
-        data-tab="menu"
-      >
-        <span>☰</span>
-        <span>Menu</span>
-      </button>
-
-      <button
-        type="button"
-        data-tab="finances"
-      >
-        <span>₱</span>
-        <span>Expenses &amp; Cash</span>
-      </button>
-
-      <button
-        type="button"
-        data-tab="settings"
-      >
-        <span>⚙</span>
-        <span>Settings</span>
-      </button>
-
-    </nav>
-
-    <!-- ======================================
-         ADMIN CONTENT
-         ====================================== -->
-
-    <section class="admin-main">
-
-      <!-- ==================================
-           SALES DASHBOARD
-           ================================== -->
-
-      <div id="section-dashboard">
-
-        <div class="section-head dashboard-section-head">
-
-          <div>
-            <p class="eyebrow">
-              ADMIN · ANALYTICS
-            </p>
-
-            <h2>Sales overview</h2>
-
-            <p class="section-description">
-              Live reporting from completed orders.
-            </p>
-          </div>
-
-          <div class="dashboard-filters">
-
-            <div class="range-tabs">
-
-              <button
-                type="button"
-                class="active"
-                data-range="today"
-              >
-                Today
-              </button>
-
-              <button
-                type="button"
-                data-range="week"
-              >
-                This week
-              </button>
-
-              <button
-                type="button"
-                data-range="month"
-              >
-                This month
-              </button>
-
-              <button
-                type="button"
-                data-range="all"
-              >
-                All time
-              </button>
-
-            </div>
-
-            <!-- DATE FILTER -->
-
-            <div class="date-filter">
-
-              <label class="date-field">
-                <span class="field-label">
-                  From
-                </span>
-
-                <input
-                  type="date"
-                  id="date-from"
-                >
-              </label>
-
-              <label class="date-field">
-                <span class="field-label">
-                  To
-                </span>
-
-                <input
-                  type="date"
-                  id="date-to"
-                >
-              </label>
-
-              <button
-                type="button"
-                class="btn btn-sm btn-outline"
-                id="date-filter-apply"
-              >
-                Apply
-              </button>
-
-              <button
-                type="button"
-                class="btn btn-sm btn-outline"
-                id="date-filter-clear"
-              >
-                Clear
-              </button>
-
-            </div>
-
-          </div>
-        </div>
-
-        <!-- SALES STATISTICS -->
-
-        <div class="stat-grid">
-
-          <div class="stat-card">
-            <div class="label">
-              Total Sales
-            </div>
-
-            <div
-              class="value"
-              id="stat-sales"
-            >
-              ₱0
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="label">
-              Orders
-            </div>
-
-            <div
-              class="value"
-              id="stat-orders"
-            >
-              0
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="label">
-              Total Takeout Boxes
-            </div>
-
-            <div
-              class="value"
-              id="stat-boxes"
-            >
-              ₱0
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="label">
-              Total Add-ons
-            </div>
-
-            <div
-              class="value"
-              id="stat-addons"
-            >
-              ₱0
-            </div>
-          </div>
-
-        </div>
-
-        <!-- SALES BY CATEGORY -->
-
-        <div
-          class="card"
-          style="margin-bottom:22px;"
-        >
-          <h3>Sales by category</h3>
-
-          <div
-            id="category-sales"
-            class="category-sales"
-          ></div>
-        </div>
-
-        <!-- BEST SELLERS -->
-
-        <div
-          class="card"
-          style="margin-bottom:22px;"
-        >
-          <h3 style="margin-bottom:14px;">
-            Best sellers
-          </h3>
-
-          <div id="best-sellers"></div>
-        </div>
-
-        <!-- ITEM SALES BREAKDOWN -->
-
-        <div
-          class="card"
-          style="margin-bottom:22px;"
-        >
-
-          <h3 style="margin-bottom:14px;">
-            Full breakdown, by item
-          </h3>
-
-          <div class="table-scroll-wrap">
-
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Qty sold</th>
-                  <th>Revenue</th>
-                </tr>
-              </thead>
-
-              <tbody
-                id="sales-table-body"
-              ></tbody>
-
-            </table>
-          </div>
-
-          <div
-            class="table-pagination"
-            id="sales-table-pagination"
-          ></div>
-
-        </div>
-
-        <!-- RECENT ORDERS -->
-
-        <div class="card">
-
-          <h3 style="margin-bottom:6px;">
-            Recent orders
-          </h3>
-
-          <p
-            class="section-description"
-            style="margin:0 0 13px;"
-          >
-            Edit customer orders, quantities,
-            prices, packaging and add-ons.
-            Reprint the updated receipt after saving.
+    <button
+      type="button"
+      data-tab="owner-gaa"
+    >
+      <span>☕</span>
+      <span>Kuya Gaa Sales</span>
+    </button>
+
+    <button
+      type="button"
+      data-tab="owner-boss"
+    >
+      <span>🍜</span>
+      <span>Kuya Boss Sales</span>
+    </button>
+
+    <button type="button" data-tab="menu">
+      <span>☰</span>
+      <span>Menu</span>
+    </button>
+
+    <button type="button" data-tab="finances">
+      <span>₱</span>
+      <span>Expenses &amp; Cash</span>
+    </button>
+
+    <button type="button" data-tab="settings">
+      <span>⚙</span>
+      <span>Settings</span>
+    </button>
+
+  </nav>
+
+  <section class="admin-main">
+
+    <!-- SALES DASHBOARD -->
+    <div id="section-dashboard">
+
+      <div class="section-head dashboard-section-head">
+        <div>
+          <p class="eyebrow">ADMIN · ANALYTICS</p>
+          <h2>Sales overview</h2>
+          <p class="section-description">
+            Live reporting from completed orders.
           </p>
-
-          <div class="table-scroll-wrap">
-
-            <table class="data-table">
-
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Time</th>
-                  <th>Items</th>
-                  <th>Total</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody
-                id="recent-orders-body"
-              ></tbody>
-
-            </table>
-
-          </div>
-
-          <div
-            class="table-pagination"
-            id="recent-orders-pagination"
-          ></div>
-
         </div>
 
+        <div class="dashboard-filters">
+
+          <div class="range-tabs">
+            <button class="active" data-range="today">Today</button>
+            <button data-range="week">This week</button>
+            <button data-range="month">This month</button>
+            <button data-range="all">All time</button>
+          </div>
+
+          <div class="date-filter">
+            <label class="date-field">
+              <span class="field-label">From</span>
+              <input type="date" id="date-from">
+            </label>
+
+            <label class="date-field">
+              <span class="field-label">To</span>
+              <input type="date" id="date-to">
+            </label>
+
+            <button
+              type="button"
+              class="btn btn-sm btn-outline"
+              id="date-filter-apply"
+            >
+              Apply
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-sm btn-outline"
+              id="date-filter-clear"
+            >
+              Clear
+            </button>
+          </div>
+
+        </div>
       </div>
 
-      <!-- ==================================
-           MENU MANAGEMENT
-           ================================== -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="label">Total Sales</div>
+          <div class="value" id="stat-sales">₱0</div>
+        </div>
 
-      <div
-        id="section-menu"
-        class="hidden"
-      >
+        <div class="stat-card">
+          <div class="label">Orders</div>
+          <div class="value" id="stat-orders">0</div>
+        </div>
 
-        <div class="section-head menu-section-head">
+        <div class="stat-card">
+          <div class="label">Total Takeout Boxes</div>
+          <div class="value" id="stat-boxes">₱0</div>
+        </div>
 
-          <div>
+        <div class="stat-card">
+          <div class="label">Total Add-ons</div>
+          <div class="value" id="stat-addons">₱0</div>
+        </div>
+      </div>
 
-            <p class="eyebrow">
-              ADMIN · CATALOG
-            </p>
+      <div class="card" style="margin-bottom:22px">
+        <h3>Sales by category</h3>
+        <div id="category-sales" class="category-sales"></div>
+      </div>
 
-            <h2>Menu management</h2>
+      <div class="card" style="margin-bottom:22px">
+        <h3>Best sellers</h3>
+        <div id="best-sellers"></div>
+      </div>
 
-            <p class="menu-section-intro">
-              Changes here update the cashier
-              screen automatically.
-            </p>
+      <div class="card" style="margin-bottom:22px">
+        <h3>Full breakdown, by item</h3>
 
+        <div class="table-scroll-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty sold</th>
+                <th>Revenue</th>
+              </tr>
+            </thead>
+            <tbody id="sales-table-body"></tbody>
+          </table>
+        </div>
+
+        <div
+          class="table-pagination"
+          id="sales-table-pagination"
+        ></div>
+      </div>
+
+      <!-- RECENT ORDERS -->
+      <div class="card">
+        <h3>Recent orders</h3>
+
+        <p class="section-description">
+          Edit, reprint, or delete a saved order.
+          Deleting also removes its linked GCash entry.
+        </p>
+
+        <div class="table-scroll-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Time</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="recent-orders-body"></tbody>
+          </table>
+        </div>
+
+        <div
+          class="table-pagination"
+          id="recent-orders-pagination"
+        ></div>
+      </div>
+    </div>
+
+    <!-- KUYA GAA SALES -->
+    <div id="section-owner-gaa" class="hidden">
+
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">ADMIN · ASSIGNED PRODUCT SALES</p>
+          <h2>Kuya Gaa Sales</h2>
+          <p class="section-description">
+            Iced Coffee, Hot Coffee, Frappé, and
+            Alacarte Lumpia Shanghai by default.
+          </p>
+        </div>
+      </div>
+
+      <div class="owner-card">
+
+        <div class="owner-filters">
+          <label>
+            Date range
+            <select id="owner-gaa-range">
+              <option value="today">Today</option>
+              <option value="week">This week</option>
+              <option value="month">This month</option>
+              <option value="all">All time</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+
+          <div id="owner-gaa-custom" hidden>
+            <label>
+              From
+              <input type="date" id="owner-gaa-from">
+            </label>
+
+            <label>
+              To
+              <input type="date" id="owner-gaa-to">
+            </label>
           </div>
+        </div>
+
+        <div class="owner-stats">
+          <div class="stat-card">
+            <div class="label">Product sales</div>
+            <div class="value" id="owner-gaa-sales">₱0</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="label">Quantity sold</div>
+            <div class="value" id="owner-gaa-qty">0</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="label">Orders with assigned items</div>
+            <div class="value" id="owner-gaa-orders">0</div>
+          </div>
+        </div>
+
+        <h3>Sales by item</h3>
+
+        <div class="table-scroll-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Sales after discount</th>
+              </tr>
+            </thead>
+            <tbody id="owner-gaa-body"></tbody>
+          </table>
+        </div>
+
+        <div class="owner-pager">
+          <span id="owner-gaa-page">Page 1 of 1</span>
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            id="owner-gaa-prev"
+          >
+            Prev
+          </button>
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            id="owner-gaa-next"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+
+      <div class="owner-card">
+
+        <h3>Assign categories and products</h3>
+
+        <p class="owner-note">
+          Changes apply automatically to saved orders,
+          including earlier sales. A product is counted
+          under one owner only.
+        </p>
+
+        <div class="owner-assign-row">
+          <select
+            id="owner-gaa-category"
+            aria-label="Category for Kuya Gaa"
+          ></select>
 
           <button
             type="button"
             class="btn btn-primary"
-            id="add-category-btn"
+            data-owner-rule
+            id="owner-gaa-add-category"
           >
             + Add category
           </button>
+        </div>
 
+        <div class="owner-assign-row">
+          <select
+            id="owner-gaa-product"
+            aria-label="Product for Kuya Gaa"
+          ></select>
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-owner-rule
+            id="owner-gaa-add-product"
+          >
+            + Add item
+          </button>
         </div>
 
         <div
-          id="menu-admin-root"
-          class="menu-admin-root"
+          class="owner-rule-list"
+          id="owner-gaa-rules"
         ></div>
 
       </div>
+    </div>
 
-      <!-- ==================================
-           EXPENSES & CASH
-           ================================== -->
+    <!-- KUYA BOSS SALES -->
+    <div id="section-owner-boss" class="hidden">
 
-      <div
-        id="section-finances"
-        class="hidden"
-      >
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">ADMIN · ASSIGNED PRODUCT SALES</p>
+          <h2>Kuya Boss Sales</h2>
 
-        <div class="section-head">
+          <p class="section-description">
+            Samyang &amp; Ramen products and
+            Samyang &amp; Ramen Add Ons by default.
+          </p>
+        </div>
+      </div>
 
-          <div>
+      <div class="owner-card">
 
-            <p class="eyebrow">
-              ADMIN · DAILY FINANCES
-            </p>
+        <div class="owner-filters">
+          <label>
+            Date range
+            <select id="owner-boss-range">
+              <option value="today">Today</option>
+              <option value="week">This week</option>
+              <option value="month">This month</option>
+              <option value="all">All time</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
 
-            <h2>Expenses &amp; Cash on Hand</h2>
+          <div id="owner-boss-custom" hidden>
+            <label>
+              From
+              <input type="date" id="owner-boss-from">
+            </label>
 
-            <p class="section-description">
-              Daily view resets at Philippine midnight.
-              Previous records are retained.
-            </p>
-
+            <label>
+              To
+              <input type="date" id="owner-boss-to">
+            </label>
           </div>
         </div>
 
-        <!-- DAILY FINANCE FILTER -->
+        <div class="owner-stats">
+          <div class="stat-card">
+            <div class="label">Product sales</div>
+            <div class="value" id="owner-boss-sales">₱0</div>
+          </div>
 
-        <div class="card daily-finance-bar">
+          <div class="stat-card">
+            <div class="label">Quantity sold</div>
+            <div class="value" id="owner-boss-qty">0</div>
+          </div>
 
-          <label
-            for="finance-date"
-            class="field-label"
+          <div class="stat-card">
+            <div class="label">Orders with assigned items</div>
+            <div class="value" id="owner-boss-orders">0</div>
+          </div>
+        </div>
+
+        <h3>Sales by item</h3>
+
+        <div class="table-scroll-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Sales after discount</th>
+              </tr>
+            </thead>
+            <tbody id="owner-boss-body"></tbody>
+          </table>
+        </div>
+
+        <div class="owner-pager">
+          <span id="owner-boss-page">Page 1 of 1</span>
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            id="owner-boss-prev"
           >
-            Report day (Asia/Manila)
-          </label>
+            Prev
+          </button>
 
-          <input
-            type="date"
-            id="finance-date"
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            id="owner-boss-next"
           >
+            Next
+          </button>
+        </div>
+      </div>
+
+      <div class="owner-card">
+
+        <h3>Assign categories and products</h3>
+
+        <p class="owner-note">
+          Separate Samyang/Ramen add-ons are counted
+          when their saved order lines identify the
+          category. Generic unlabelled extras are not guessed.
+        </p>
+
+        <div class="owner-assign-row">
+          <select
+            id="owner-boss-category"
+            aria-label="Category for Kuya Boss"
+          ></select>
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-owner-rule
+            id="owner-boss-add-category"
+          >
+            + Add category
+          </button>
+        </div>
+
+        <div class="owner-assign-row">
+          <select
+            id="owner-boss-product"
+            aria-label="Product for Kuya Boss"
+          ></select>
+
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-owner-rule
+            id="owner-boss-add-product"
+          >
+            + Add item
+          </button>
+        </div>
+
+        <div
+          class="owner-rule-list"
+          id="owner-boss-rules"
+        ></div>
+
+      </div>
+    </div>
+
+    <!-- MENU MANAGEMENT -->
+    <div id="section-menu" class="hidden">
+
+      <div class="section-head menu-section-head">
+        <div>
+          <p class="eyebrow">ADMIN · CATALOG</p>
+          <h2>Menu management</h2>
+
+          <p class="menu-section-intro">
+            Changes update the cashier screen automatically.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="add-category-btn"
+        >
+          + Add category
+        </button>
+      </div>
+
+      <div
+        id="menu-admin-root"
+        class="menu-admin-root"
+      ></div>
+    </div>
+
+    <!-- EXPENSES AND CASH -->
+    <div id="section-finances" class="hidden">
+
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">ADMIN · DAILY FINANCES</p>
+          <h2>Expenses &amp; Cash on Hand</h2>
+
+          <p class="section-description">
+            Daily records remain saved when the date changes.
+          </p>
+        </div>
+      </div>
+
+      <div class="card daily-finance-bar">
+        <label class="field-label" for="finance-date">
+          Report day (Asia/Manila)
+        </label>
+
+        <input type="date" id="finance-date">
+
+        <button
+          type="button"
+          class="btn btn-outline"
+          id="finance-today"
+        >
+          Today
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="print-finances"
+        >
+          Print daily finance (Admin)
+        </button>
+      </div>
+
+      <div class="finance-stats">
+        <div class="stat-card">
+          <div class="label">Cash on hand</div>
+          <div class="value" id="finance-cash-total">₱0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="label">Expenses</div>
+          <div class="value" id="finance-expenses-total">₱0</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="label">GCash Payments</div>
+          <div class="value" id="finance-gcash-total">₱0</div>
+        </div>
+      </div>
+
+      <div class="card finance-ledger-card">
+
+        <div class="finance-actions">
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-finance-add="expenses"
+          >
+            + Add Expense
+          </button>
 
           <button
             type="button"
             class="btn btn-outline"
-            id="finance-today"
+            data-finance-add="cashEntries"
           >
-            Today
+            + Add Cash Entry
           </button>
 
           <button
             type="button"
             class="btn btn-primary"
-            id="print-finances"
+            id="add-gcash-payment"
           >
-            Print daily finance (Admin)
+            + Add GCash Payment
           </button>
-
         </div>
 
-        <!-- FINANCE TOTALS -->
+        <h3>Daily entries</h3>
 
-        <div class="finance-stats">
+        <div id="combined-finance-list"></div>
 
-          <div class="stat-card">
-
-            <div class="label">
-              Cash on hand
-            </div>
-
-            <div
-              class="value"
-              id="finance-cash-total"
-            >
-              ₱0
-            </div>
-
-          </div>
-
-          <div class="stat-card">
-
-            <div class="label">
-              Expenses
-            </div>
-
-            <div
-              class="value"
-              id="finance-expenses-total"
-            >
-              ₱0
-            </div>
-
-          </div>
-
-          <div class="stat-card">
-
-            <div class="label">
-              GCash Payments
-            </div>
-
-            <div
-              class="value"
-              id="finance-gcash-total"
-            >
-              ₱0
-            </div>
-
-          </div>
-
-        </div>
-
-        <!-- DAILY ENTRIES -->
-
-        <div class="card finance-ledger-card">
-
-          <!-- FINANCE ACTION BUTTONS -->
-
-          <div class="finance-actions">
-
-            <button
-              type="button"
-              class="btn btn-primary"
-              data-finance-add="expenses"
-            >
-              + Add Expense
-            </button>
-
-            <button
-              type="button"
-              class="btn btn-outline"
-              data-finance-add="cashEntries"
-            >
-              + Add Cash Entry
-            </button>
-
-            <button
-              type="button"
-              class="btn btn-primary"
-              id="add-gcash-payment"
-            >
-              + Add GCash Payment
-            </button>
-
-          </div>
-
-          <h3>Daily entries</h3>
-
-          <!--
-            js/admin.js generates three separate tables:
-
-            1. Expenses
-            2. GCash Payments
-            3. Cash on Hand
-
-            Each table uses 5 records per page.
-          -->
-
-          <div
-            id="combined-finance-list"
-          ></div>
-
-          <!-- EXISTING COMPATIBILITY ELEMENTS -->
-
-          <div
-            id="expenses-list"
-            class="hidden"
-          ></div>
-
-          <div
-            id="cashEntries-list"
-            class="hidden"
-          ></div>
-
-        </div>
+        <div id="expenses-list" class="hidden"></div>
+        <div id="cashEntries-list" class="hidden"></div>
 
       </div>
+    </div>
 
-      <!-- ==================================
-           SETTINGS
-           ================================== -->
+    <!-- SETTINGS -->
+    <div id="section-settings" class="hidden">
 
-      <div
-        id="section-settings"
-        class="hidden"
-      >
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">ADMIN · SECURITY</p>
+          <h2>Settings</h2>
+        </div>
+      </div>
 
-        <div class="section-head">
+      <div class="card" style="max-width:420px">
 
-          <div>
-            <p class="eyebrow">
-              ADMIN · SECURITY
-            </p>
+        <h3>Login PINs</h3>
 
-            <h2>Settings</h2>
+        <div class="modal-form">
+
+          <div class="field">
+            <span class="field-label">Admin PIN</span>
+            <input
+              type="password"
+              id="admin-pin-input"
+              inputmode="numeric"
+              minlength="4"
+              maxlength="6"
+              autocomplete="new-password"
+            >
+          </div>
+
+          <div class="field">
+            <span class="field-label">Cashier PIN</span>
+            <input
+              type="password"
+              id="staff-pin-input"
+              inputmode="numeric"
+              minlength="4"
+              maxlength="6"
+              autocomplete="new-password"
+            >
           </div>
 
         </div>
+
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="save-pins-btn"
+        >
+          Save PINs
+        </button>
 
         <div
-          class="card"
-          style="max-width:420px;"
-        >
-
-          <h3 style="margin-bottom:14px;">
-            Login PINs
-          </h3>
-
-          <div class="modal-form">
-
-            <div class="field">
-
-              <span class="field-label">
-                Admin PIN
-              </span>
-
-              <input
-                type="password"
-                id="admin-pin-input"
-                inputmode="numeric"
-                minlength="4"
-                maxlength="6"
-                autocomplete="new-password"
-              >
-
-            </div>
-
-            <div class="field">
-
-              <span class="field-label">
-                Cashier PIN
-              </span>
-
-              <input
-                type="password"
-                id="staff-pin-input"
-                inputmode="numeric"
-                minlength="4"
-                maxlength="6"
-                autocomplete="new-password"
-              >
-
-            </div>
-
-          </div>
-
-          <button
-            type="button"
-            class="btn btn-primary"
-            id="save-pins-btn"
-          >
-            Save PINs
-          </button>
-
-          <div
-            id="settings-msg"
-            style="margin-top:10px;font-size:.85rem;font-weight:700;"
-          ></div>
-
-        </div>
+          id="settings-msg"
+          style="margin-top:10px;font-size:.85rem;font-weight:700"
+        ></div>
 
       </div>
+    </div>
 
-    </section>
+  </section>
+</main>
 
-  </main>
+<!-- MODALS AND PRINT AREA -->
+<div id="modal-root"></div>
+<div id="print-area"></div>
 
-  <!-- ======================================
-       MODALS, PRINTING AND ERRORS
-       ====================================== -->
+<div
+  id="connection-banner"
+  class="status-banner hidden"
+  role="status"
+></div>
 
-  <div id="modal-root"></div>
+<div
+  id="owner-status"
+  role="status"
+  style="position:fixed;bottom:3px;right:14px;z-index:1300;background:#fff;padding:4px 7px;border-radius:7px;max-width:360px"
+></div>
 
-  <div id="print-area"></div>
+<!-- EXISTING ADMIN FUNCTIONS -->
+<script type="module" src="js/admin.js"></script>
 
-  <div
-    id="connection-banner"
-    class="status-banner hidden"
-    role="status"
-  ></div>
-
-  <!-- KEEP ORIGINAL ADMIN FUNCTIONS -->
-
-  <script
-    type="module"
-    src="js/admin.js"
-  ></script>
-
-  <!-- ======================================
-       FINANCE SCROLL POSITION STABILIZER
-       ====================================== -->
-
-  <script>
-    (() => {
-
-      const main = document.querySelector(
-        ".admin-main"
-      );
-
-      const financeList = document.getElementById(
-        "combined-finance-list"
-      );
-
-      if (!main || !financeList) {
-        return;
-      }
-
-      /*
-       * When a finance Prev/Next button is clicked,
-       * admin.js redraws that table.
-       *
-       * Preserve the current vertical scroll position
-       * after the synchronous redraw.
-       */
-
-      financeList.addEventListener(
-        "click",
-        event => {
-
-          const button = event.target.closest(
-            ".table-pagination > button"
-          );
-
-          if (
-            !button ||
-            button.disabled
-          ) {
-            return;
-          }
-
-          const previousTop = main.scrollTop;
-
-          queueMicrotask(() => {
-            main.scrollTop = previousTop;
-          });
-
-        },
-        true
-      );
-
-    })();
-  </script>
+<!-- NEW OWNER SALES + DELETE ORDER -->
+<script type="module" src="js/admin-owners.js"></script>
 
 </body>
 </html>
