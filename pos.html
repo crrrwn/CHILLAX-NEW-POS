@@ -1,17 +1,24 @@
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
   <title>Chillax Café POS — Cashier</title>
 
-  <link rel="icon" href="assets/logo.jpg" />
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/print.css" />
+  <link rel="icon" href="assets/logo.jpg">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/print.css">
 
   <style>
-    /* GENERAL POS LAYOUT */
+    /* GENERAL POS */
+
     @media screen {
       .pos-layout,
       .menu-pane,
@@ -40,8 +47,8 @@
       }
 
       .cart-items {
-        min-height: 0;
         flex: 1 1 auto;
+        min-height: 0;
         overflow-y: auto;
         overscroll-behavior: contain;
       }
@@ -51,10 +58,11 @@
       }
 
       /* COLLAPSIBLE CUSTOMER DETAILS */
+
       .order-details {
         flex: 0 0 auto;
-        border-bottom: 1px solid var(--line, #e9e2dc);
-        background: #fff;
+        border-bottom: 1px solid #e9e2dc;
+        background: white;
       }
 
       .order-details summary {
@@ -62,15 +70,19 @@
         align-items: center;
         justify-content: space-between;
         gap: 8px;
+
         padding: 10px 16px;
         cursor: pointer;
+
+        color: #594036;
+        background: #faf6f3;
+
         font-size: .83rem;
         font-weight: 800;
-        color: #594036;
+
         list-style: none;
         user-select: none;
         touch-action: manipulation;
-        background: #faf6f3;
       }
 
       .order-details summary::-webkit-details-marker {
@@ -104,6 +116,324 @@
         outline-offset: -3px;
       }
 
+      /* ORDER TYPE */
+
+      .service-main-control {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+
+        padding: 9px 15px;
+        background: #fff7f0;
+        border-bottom: 1px solid #eadfd5;
+        flex-shrink: 0;
+      }
+
+      .service-main-control strong {
+        font-size: .85rem;
+        color: #543b2c;
+        white-space: nowrap;
+      }
+
+      .service-main-control select {
+        min-height: 36px;
+        min-width: 130px;
+
+        border: 1px solid #d8bbac;
+        border-radius: 9px;
+
+        padding: 5px 10px;
+
+        background: white;
+        color: #4c3122;
+        font-weight: 700;
+      }
+
+      /* EXTRA BOX AND ADD-ON FIELDS */
+
+      .box-qty-row {
+        display: grid;
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .box-charge-title {
+        font-size: .74rem;
+        font-weight: 800;
+        color: #5e4437;
+        margin-top: 5px;
+      }
+
+      .order-options #existing-order {
+        width: 100%;
+      }
+
+      .order-options label {
+        min-width: 0;
+      }
+
+      .order-options input,
+      .order-options select {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .order-details[open] .order-options {
+        max-height: min(55dvh, 450px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+
+      /* PER-ITEM DINE IN / TAKE OUT */
+
+      .cart-line .serve-select {
+        display: block;
+        width: 100%;
+        max-width: 230px;
+        margin-top: 5px;
+
+        padding: 5px;
+
+        border: 1px solid #e1d6cc;
+        border-radius: 7px;
+        background: white;
+      }
+
+      .cart-service-group {
+        padding: 8px;
+        margin: 10px 0 5px;
+
+        border-radius: 8px;
+        background: #f7ece3;
+
+        color: #533626;
+        font-weight: 850;
+        font-size: .78rem;
+      }
+
+      /* PER-ITEM BOX */
+
+      .cart-line .meal-box-label {
+        display: block;
+
+        font-size: .69rem;
+        font-weight: 800;
+        color: #654936;
+
+        margin-top: 5px;
+      }
+
+      .cart-line .meal-box-select {
+        display: block;
+
+        width: 100%;
+        max-width: 230px;
+
+        margin-top: 3px;
+        padding: 5px;
+
+        border: 1px solid #d8c5b9;
+        border-radius: 7px;
+
+        background: white;
+        color: #50362b;
+        font-size: .72rem;
+      }
+
+      .cart-line .meal-box-cost {
+        color: #a43f66;
+        font-size: .7rem;
+        font-weight: 700;
+        margin-top: 3px;
+      }
+
+      .cart-line .split-serve {
+        display: inline-block;
+
+        margin-top: 5px;
+        padding: 4px 8px;
+
+        border: 1px solid #cfaabb;
+        border-radius: 7px;
+
+        background: #fff3f8;
+        color: #833755;
+
+        font-size: .72rem;
+        cursor: pointer;
+      }
+
+      /* MENU CATEGORY LABEL */
+
+      .item-card .product-category {
+        display: block;
+
+        margin: 3px 0 7px;
+        color: #967866;
+
+        font-size: .72rem;
+        font-weight: 700;
+      }
+
+      /* ITEM DISCOUNTS */
+
+      .line-discount-control {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin: 5px 0;
+        font-size: .77rem;
+      }
+
+      .item-discount-check {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+
+        font-weight: 700;
+      }
+
+      .item-discount-check input {
+        width: 16px;
+        height: 16px;
+        accent-color: #c44379;
+      }
+
+      .item-discount-rate {
+        max-width: 85px;
+        min-height: 30px !important;
+        padding: 3px 5px !important;
+      }
+
+      .item-discount-amount {
+        font-weight: 800;
+        color: #b92d65;
+      }
+
+      /* PARTY BOX CHOICES */
+
+      .party-checkbox-group {
+        display: grid;
+
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+
+        border: 1px solid #e2d6d1;
+        border-radius: 12px;
+
+        padding: 12px;
+        margin: 12px 0;
+      }
+
+      .party-checkbox-group legend {
+        font-weight: 800;
+      }
+
+      .party-checkbox-group label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px;
+
+        background: #fff7fa;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+
+      .party-checkbox-group input {
+        accent-color: #bd3171;
+      }
+
+      .party-checkbox-group label:has(textarea) {
+        grid-column: 1 / -1;
+        display: block;
+      }
+
+      .party-checkbox-group textarea {
+        width: 100%;
+        display: block;
+      }
+
+      .party-checkbox-group .form-error {
+        grid-column: 1 / -1;
+        color: #b42318;
+      }
+
+      /* WAITING LIST */
+
+      .wait-actions {
+        display: flex;
+        gap: 7px;
+        margin-top: 9px;
+      }
+
+      .wait-actions button {
+        flex: 1;
+        min-width: 0;
+        font-size: .78rem;
+      }
+
+      .wait-shade {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        background: #0009;
+        padding: 12px;
+      }
+
+      .wait-dialog {
+        width: min(540px, 96vw);
+        max-height: 85dvh;
+
+        overflow: auto;
+
+        background: #fffaf5;
+        padding: 20px;
+        border-radius: 18px;
+        color: #513c2f;
+      }
+
+      .wait-dialog h2 {
+        margin: 0 0 8px;
+      }
+
+      .wait-dialog p {
+        font-size: .84rem;
+      }
+
+      .wait-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        padding: 10px 0;
+        border-bottom: 1px solid #e7d9cf;
+      }
+
+      .wait-row div {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .wait-row small {
+        display: block;
+        color: #7c695d;
+      }
+
+      .wait-row button {
+        white-space: nowrap;
+      }
+
+      /* MOBILE ELEMENTS HIDDEN ON DESKTOP */
+
       .order-close,
       .order-mobile-bar,
       .order-backdrop {
@@ -113,25 +443,37 @@
       .order-close {
         width: 38px;
         height: 38px;
+
         border: none;
         border-radius: 10px;
+
         background: #f4efea;
         color: #50362b;
+
         font-size: 25px;
         cursor: pointer;
       }
     }
 
-    /* DESKTOP AND HONOR PAD LANDSCAPE */
+    /* ====================================
+       DESKTOP AND HONOR PAD 10 LANDSCAPE
+       ==================================== */
+
     @media screen and (min-width: 901px),
-           screen and (min-width: 700px) and (orientation: landscape) {
+           screen and (min-width: 700px)
+           and (orientation: landscape) {
 
       .pos-layout {
         display: grid !important;
+
         grid-template-columns:
           minmax(0, 1fr)
           clamp(315px, 35%, 400px) !important;
-        height: calc(100dvh - var(--pos-header-height, 68px)) !important;
+
+        height:
+          calc(100dvh - var(--pos-header-height, 68px))
+          !important;
+
         min-height: 0 !important;
         overflow: hidden !important;
       }
@@ -142,23 +484,30 @@
         padding-bottom: 24px !important;
       }
 
+      /* CURRENT ORDER ALWAYS VISIBLE */
+
       .cart-pane {
         display: flex !important;
+
         position: static !important;
+
         inset: auto !important;
         transform: none !important;
         visibility: visible !important;
         pointer-events: auto !important;
+
         width: 100% !important;
         max-width: none !important;
+
         height: 100% !important;
         min-height: 0 !important;
+
         margin: 0 !important;
         border-radius: 0 !important;
+
         overflow: hidden !important;
       }
 
-      /* COMPACT ORDER HEADER */
       .cart-header {
         padding: 12px 15px 9px !important;
       }
@@ -196,12 +545,14 @@
         font-size: .67rem !important;
       }
 
-      /* ORDER ITEMS GET REMAINING SPACE */
       .cart-items {
         flex: 1 1 auto !important;
+
         min-height: 0 !important;
         max-height: none !important;
+
         overflow-y: auto !important;
+
         padding: 3px 15px !important;
       }
 
@@ -215,7 +566,6 @@
         padding: 5px 8px !important;
       }
 
-      /* COMPACT CHECKOUT */
       .cart-footer {
         padding: 9px 15px 11px !important;
       }
@@ -233,12 +583,6 @@
         padding: 7px 12px !important;
       }
 
-      .cart-footer .reprint-btn {
-        min-height: 31px !important;
-        margin-top: 5px !important;
-        padding: 5px 10px !important;
-      }
-
       .order-close,
       .order-mobile-bar,
       .order-backdrop {
@@ -246,8 +590,8 @@
       }
     }
 
-    /* SHORT TABLET LANDSCAPE:
-       ALLOW PANEL SCROLL WHEN FORM IS OPEN */
+    /* SHORT LANDSCAPE TABLET */
+
     @media screen and (min-width: 700px)
       and (orientation: landscape)
       and (max-height: 740px) {
@@ -259,28 +603,33 @@
 
       .cart-pane.form-expanded .cart-items {
         flex: 0 0 auto !important;
+
         min-height: 155px !important;
-        max-height: none !important;
+
         overflow: visible !important;
+        max-height: none !important;
       }
 
       .cart-pane.form-expanded .cart-footer {
         position: static !important;
       }
-
-      .order-options small {
-        display: none;
-      }
     }
 
-    /* PHONE AND PORTRAIT TABLET */
+    /* ====================================
+       MOBILE AND PORTRAIT TABLET
+       ==================================== */
+
     @media screen and (max-width: 699px),
-           screen and (max-width: 900px) and (orientation: portrait) {
+           screen and (max-width: 900px)
+           and (orientation: portrait) {
 
       .pos-layout {
         display: block !important;
+
         height: auto !important;
-        min-height: calc(100dvh - 62px) !important;
+        min-height:
+          calc(100dvh - 62px) !important;
+
         overflow: visible !important;
       }
 
@@ -289,33 +638,51 @@
         padding-bottom: 110px !important;
       }
 
+      /* DARK BACKDROP */
+
       .order-backdrop:not([hidden]) {
         display: block !important;
+
         position: fixed;
         inset: 0;
-        background: rgba(30,20,15,.58);
+
         z-index: 80;
+
+        background: rgba(30, 20, 15, .58);
       }
+
+      /* SLIDING CURRENT ORDER */
 
       .cart-pane {
         display: flex !important;
         flex-direction: column;
+
         position: fixed !important;
+
         inset: 0 0 0 auto !important;
+
         width: min(100%, 430px) !important;
         max-width: 100% !important;
+
         height: 100dvh !important;
         min-height: 0 !important;
+
         margin: 0 !important;
         border: 0 !important;
         border-radius: 18px 0 0 18px !important;
-        background: #fff;
+
+        background: white;
         z-index: 90;
-        box-shadow: -10px 0 36px rgba(0,0,0,.23);
+
+        box-shadow:
+          -10px 0 36px rgba(0, 0, 0, .23);
+
         transform: translateX(105%) !important;
         visibility: hidden !important;
         pointer-events: none !important;
+
         overflow: hidden !important;
+
         transition:
           transform .2s ease,
           visibility .2s ease;
@@ -353,33 +720,51 @@
 
       .cart-items {
         flex: 1 1 auto !important;
+
         min-height: 0 !important;
         max-height: none !important;
+
         overflow-y: auto !important;
         padding: 5px 16px !important;
       }
 
       .cart-footer {
-        padding: 10px 16px max(13px, env(safe-area-inset-bottom)) !important;
+        padding:
+          10px 16px
+          max(13px, env(safe-area-inset-bottom))
+          !important;
       }
+
+      /* MOBILE VIEW ORDER BUTTON */
 
       .order-mobile-bar {
         display: flex !important;
+
         align-items: center;
         justify-content: space-between;
         gap: 12px;
+
         position: fixed;
+
         left: 12px;
         right: 12px;
-        bottom: max(12px, env(safe-area-inset-bottom));
+        bottom:
+          max(12px, env(safe-area-inset-bottom));
+
         z-index: 70;
+
         min-height: 64px;
         padding: 11px 17px;
+
         border: 0;
         border-radius: 16px;
+
         background: #563626;
-        color: #fff;
-        box-shadow: 0 12px 28px rgba(31,20,15,.25);
+        color: white;
+
+        box-shadow:
+          0 12px 28px rgba(31, 20, 15, .25);
+
         text-align: left;
         cursor: pointer;
       }
@@ -405,7 +790,8 @@
       }
     }
 
-    /* SMALL PHONE LANDSCAPE */
+    /* SMALL LANDSCAPE PHONE */
+
     @media screen and (max-width: 699px)
       and (orientation: landscape)
       and (max-height: 500px) {
@@ -421,69 +807,85 @@
       }
     }
 
+    @media screen and (max-width: 480px) {
+      .party-checkbox-group {
+        grid-template-columns: 1fr;
+      }
+
+      .wait-row {
+        flex-wrap: wrap;
+      }
+    }
+
     @media screen and (prefers-reduced-motion: reduce) {
       .cart-pane {
         transition: none !important;
       }
     }
 
-    @media screen {
-      .box-qty-row { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
-      .box-charge-title { font-size:.74rem;font-weight:800;color:#5e4437;margin-top:5px; }
-      .order-options #existing-order { width:100%; }
-      .cart-line .serve-select { display:block;width:100%;max-width:230px;margin-top:5px;padding:5px;border:1px solid #e1d6cc;border-radius:7px;background:#fff; }
-      .cart-line .meal-box-label { display:block;font-size:.69rem;font-weight:800;color:#654936;margin-top:5px; }
-      .cart-line .meal-box-select { display:block;width:100%;max-width:230px;margin-top:3px;padding:5px;border:1px solid #d8c5b9;border-radius:7px;background:#fff;color:#50362b;font-size:.72rem; }
-      .cart-line .meal-box-cost { font-size:.7rem;font-weight:700;color:#a43f66;margin-top:3px; }
-      .cart-line .split-serve { display:inline-block;margin-top:5px;border:1px solid #cfaabb;background:#fff3f8;color:#833755;border-radius:7px;padding:4px 8px;cursor:pointer;font-size:.72rem; }
-      .item-card .product-category { display:block;margin:3px 0 7px;color:#967866;font-size:.72rem;font-weight:700; }
-      .order-details[open] .order-options { max-height:min(55dvh,450px);overflow-y:auto;overscroll-behavior:contain; }
-      .order-options label { min-width:0; }
-      .order-options input,.order-options select { width:100%;min-width:0; }
-    }
-    @media screen {
-      .service-main-control {display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 15px;background:#fff7f0;border-bottom:1px solid #eadfd5;flex-shrink:0;}
-      .service-main-control strong {font-size:.85rem;color:#543b2c;white-space:nowrap;}
-      .service-main-control select {min-height:36px;min-width:130px;border:1px solid #d8bbac;border-radius:9px;background:white;color:#4c3122;font-weight:700;padding:5px 10px;}
-    }
-    /* RETAIN EXISTING 58MM PRINTING */
+    /* THERMAL PRINT COMPATIBILITY */
+
     @media print {
       .order-backdrop,
       .order-mobile-bar,
-      .order-close {
+      .order-close,
+      .wait-shade,
+      .wait-actions {
         display: none !important;
       }
     }
+
   </style>
 </head>
 
 <body>
 
-  <!-- POS HEADER -->
+  <!-- ====================================
+       POS HEADER
+       ==================================== -->
+
   <header class="topbar">
-    <img class="logo" src="assets/logo.jpg" alt="Chillax Café logo" />
+
+    <img
+      class="logo"
+      src="assets/logo.jpg"
+      alt="Chillax Café logo"
+    >
 
     <div class="titles">
       <strong>Chillax Café</strong>
       <span>Point of Sale</span>
     </div>
 
-    <span class="role-pill" id="role-pill">Cashier</span>
+    <span
+      class="role-pill"
+      id="role-pill"
+    >
+      Cashier
+    </span>
+
+    <!-- ADMIN LINK -->
 
     <a
       href="admin.html"
       class="icon-btn"
       id="admin-link"
       title="Admin"
-      aria-label="Admin dashboard"
+      aria-label="Admin Dashboard"
     >
-      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+      <svg
+        class="icon-svg"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
         <path
           d="M3 13h2v8H3v-8zm7 0h2v8h-2v-8zm7 0h2v6h-2V3zm7 0h2v6h-2V3zM3 3h2v6H3V3zm7 0h2v6h-2V3z"
           fill="currentColor"
         />
       </svg>
     </a>
+
+    <!-- LOGOUT -->
 
     <button
       type="button"
@@ -492,138 +894,365 @@
       title="Sign out"
       aria-label="Sign out"
     >
-      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+      <svg
+        class="icon-svg"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
         <path
           d="M10 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3zm-1.4 4.6L12.2 12l-3.6 4.4 1.4 1.2L15 12l-4-5.8-1.4 1.4zM3 11v2h8v-2H3z"
           fill="currentColor"
         />
       </svg>
     </button>
+
   </header>
 
-  <!-- MAIN POS -->
+  <!-- ====================================
+       MAIN POS
+       ==================================== -->
+
   <main class="pos-layout">
 
     <!-- PRODUCT MENU -->
-    <section class="menu-pane" aria-label="Product menu">
+
+    <section
+      class="menu-pane"
+      aria-label="Product menu"
+    >
+
       <div class="menu-heading">
+
         <div>
-          <p class="eyebrow">CASHIER · MENU</p>
-          <h1>Choose a favorite</h1>
-          <p class="section-description">
-            Tap a product to add it to the current order.
+
+          <p class="eyebrow">
+            CASHIER · MENU
           </p>
+
+          <h1>Choose a favorite</h1>
+
+          <p class="section-description">
+            Tap a product to add it to the order.
+            Unavailable products cannot be selected.
+          </p>
+
         </div>
 
         <label class="search-box">
-          <span aria-hidden="true">⌕</span>
+
+          <span aria-hidden="true">
+            ⌕
+          </span>
+
           <input
             id="menu-search"
             type="search"
             placeholder="Search menu..."
             autocomplete="off"
             aria-label="Search menu"
-          />
+          >
+
         </label>
+
       </div>
+
+      <!-- MENU COUNTER -->
 
       <div class="menu-result-bar">
-        <span id="item-count">Loading menu...</span>
+
+        <span id="item-count">
+          Loading menu...
+        </span>
+
       </div>
 
-      <div class="category-tabs" id="category-tabs"></div>
-      <div class="item-grid" id="item-grid"></div>
+      <!-- CATEGORY TABS -->
+
+      <div
+        class="category-tabs"
+        id="category-tabs"
+      ></div>
+
+      <!-- PRODUCTS FROM FIREBASE -->
+
+      <div
+        class="item-grid"
+        id="item-grid"
+      ></div>
+
     </section>
 
-    <!-- CURRENT ORDER -->
+    <!-- ====================================
+         CURRENT ORDER
+         ==================================== -->
+
     <aside
       class="cart-pane"
       id="current-order-panel"
-      aria-label="Current order"
+      aria-label="Current Order"
     >
 
       <div class="cart-header">
+
         <div class="cart-header-top">
+
           <h2>
             Current Order
-            <span class="cart-count" id="cart-count">0</span>
+
+            <span
+              class="cart-count"
+              id="cart-count"
+            >
+              0
+            </span>
           </h2>
 
           <button
             type="button"
             class="order-close"
             id="close-current-order"
-            aria-label="Close current order"
+            aria-label="Close Current Order"
           >
             &times;
           </button>
+
         </div>
 
         <div class="order-no">
-          Order number will be assigned at checkout.
+          Order number is assigned at checkout.
         </div>
+
       </div>
 
-      <!-- VISIBLE ORDER TYPE: always accessible without opening details -->
+      <!-- ==================================
+           DEFAULT ORDER TYPE
+           ================================== -->
+
       <div class="service-main-control">
+
         <strong>Order Type</strong>
-        <select id="order-type" aria-label="Order Type">
-          <option value="Dine In">Dine In</option>
-          <option value="Take Out">Take Out</option>
+
+        <select
+          id="order-type"
+          aria-label="Order Type"
+        >
+          <option value="Dine In">
+            Dine In
+          </option>
+
+          <option value="Take Out">
+            Take Out
+          </option>
         </select>
+
       </div>
-      <details class="order-details" id="order-details" open>
-        <summary>Customer &amp; Add-ons <span id="order-details-summary">New order</span></summary>
+
+      <!-- ==================================
+           CUSTOMER AND ADD-ONS
+           ================================== -->
+
+      <details
+        class="order-details"
+        id="order-details"
+        open
+      >
+
+        <summary>
+          Customer &amp; Add-ons
+
+          <span id="order-details-summary">
+            New order
+          </span>
+        </summary>
+
         <div class="order-options">
+
+          <!-- CUSTOMER -->
+
           <label for="customer-name">
+
             Customer / Order Name
+
             <input
               type="text"
               id="customer-name"
               placeholder="Customer name (optional)"
               autocomplete="off"
-            />
+            >
+
           </label>
 
+          <!-- EXISTING ORDER -->
+
           <label for="existing-order">
+
             Add to Existing Order (today only)
-            <select id="existing-order"><option value="">New order (new number)</option></select>
+
+            <select id="existing-order">
+              <option value="">
+                New order (new number)
+              </option>
+            </select>
+
           </label>
-          <div class="box-charge-title">Extra boxes only (optional) — Regular meals/fries: ₱15; Sharing/Family: manual box only</div>
-          <div class="box-qty-row">
-            <label for="box-15">₱15 box · Qty<input id="box-15" type="number" min="0" max="999" step="1" value="0" inputmode="numeric" /></label>
-            <label for="box-25">₱25 box · Qty<input id="box-25" type="number" min="0" max="999" step="1" value="0" inputmode="numeric" /></label>
+
+          <!-- EXTRA BOXES -->
+
+          <div class="box-charge-title">
+            Extra takeout boxes (optional)
+
+            Regular meals: automatic ₱15.
+            Sharing Take Out: automatic ₱25.
+            Family: manual.
           </div>
-          <div class="box-charge-title">Extra add-on charge (optional)</div>
-          <label for="addon-name">Add-on name<input id="addon-name" type="text" placeholder="e.g. Extra gravy" maxlength="70" /></label>
+
           <div class="box-qty-row">
-            <label for="addon-qty">Quantity<input id="addon-qty" type="number" min="1" max="999" step="1" value="1" inputmode="numeric" /></label>
-            <label for="addon-price">Unit price (₱)<input id="addon-price" type="number" min="0" step="0.01" placeholder="0.00" inputmode="decimal" /></label>
+
+            <label for="box-15">
+
+              ₱15 box · Qty
+
+              <input
+                id="box-15"
+                type="number"
+                min="0"
+                max="999"
+                step="1"
+                value="0"
+                inputmode="numeric"
+              >
+
+            </label>
+
+            <label for="box-25">
+
+              ₱25 box · Qty
+
+              <input
+                id="box-25"
+                type="number"
+                min="0"
+                max="999"
+                step="1"
+                value="0"
+                inputmode="numeric"
+              >
+
+            </label>
+
           </div>
-          <small>Take Out: Rice Meals and Fries & Nachos automatically use ₱15; Sharing and Family Combos have no automatic box charge. Select a different box only when needed. Dine In meals: no automatic box; choose ₱15/₱25 if needed. Extra box quantities above are charged on top. For mixed orders, use each item’s service selector or “Split 1 serving.”</small>
+
+          <!-- MANUAL ADD-ONS -->
+
+          <div class="box-charge-title">
+            Extra add-on charge (optional)
+          </div>
+
+          <label for="addon-name">
+
+            Add-on name
+
+            <input
+              id="addon-name"
+              type="text"
+              placeholder="e.g. Extra gravy"
+              maxlength="70"
+            >
+
+          </label>
+
+          <div class="box-qty-row">
+
+            <label for="addon-qty">
+
+              Quantity
+
+              <input
+                id="addon-qty"
+                type="number"
+                min="1"
+                max="999"
+                step="1"
+                value="1"
+                inputmode="numeric"
+              >
+
+            </label>
+
+            <label for="addon-price">
+
+              Unit price (₱)
+
+              <input
+                id="addon-price"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                inputmode="decimal"
+              >
+
+            </label>
+
+          </div>
+
+          <small>
+            For mixed Dine In and Take Out orders,
+            set the service individually for each
+            item in Current Order.
+
+            Use Split 1 serving if two servings
+            of the same food have different services.
+
+            Extra boxes above are charged on top
+            of automatic boxes.
+          </small>
+
         </div>
       </details>
 
-      <!-- ORDER PREVIEW -->
+      <!-- ==================================
+           ORDER PREVIEW
+           ================================== -->
+
       <div
         class="cart-items"
         id="cart-items"
         aria-live="polite"
       >
         <div class="cart-empty">
-          Tap a product to start a new order.
+          Tap a product to start an order.
         </div>
       </div>
 
-      <!-- TOTAL AND CHECKOUT -->
+      <!-- ==================================
+           ORDER TOTAL
+           ================================== -->
+
       <div class="cart-footer">
+
         <div class="cart-total-row">
+
           <span class="label">
+
             Total
-            <small id="box-fee-label"></small>
+
+            <small
+              id="box-fee-label"
+            ></small>
+
           </span>
-          <span class="amount" id="cart-total">₱0</span>
+
+          <span
+            class="amount"
+            id="cart-total"
+          >
+            ₱0
+          </span>
+
         </div>
+
+        <!-- COMPLETE ORDER -->
 
         <button
           type="button"
@@ -634,18 +1263,27 @@
           Place order &amp; print
         </button>
 
+        <!--
+          Hold / Waiting and Waiting List buttons
+          are created by the latest js/pos.js.
+        -->
+
       </div>
+
     </aside>
+
   </main>
 
-  <!-- MOBILE ORDER BACKDROP -->
+  <!-- ====================================
+       MOBILE CURRENT ORDER
+       ==================================== -->
+
   <div
     class="order-backdrop"
     id="order-backdrop"
     hidden
   ></div>
 
-  <!-- MOBILE ORDER BUTTON -->
   <button
     type="button"
     class="order-mobile-bar"
@@ -653,45 +1291,91 @@
     aria-controls="current-order-panel"
     aria-expanded="false"
   >
+
     <span>
+
       <strong>
         View Current Order
         (<span id="mobile-cart-count">0</span>)
       </strong>
-      <small>Tap to review and checkout</small>
+
+      <small>
+        Tap to review and checkout
+      </small>
+
     </span>
 
-    <span class="mobile-order-price" id="mobile-cart-total">
+    <span
+      class="mobile-order-price"
+      id="mobile-cart-total"
+    >
       ₱0
     </span>
+
   </button>
 
-  <!-- EXISTING POS ELEMENTS -->
+  <!-- ====================================
+       MODALS AND PRINTING
+       ==================================== -->
+
+  <!-- PARTY BOX / VARIANT MODALS -->
   <div id="modal-root"></div>
-  <div class="status-banner hidden" role="status" id="connection-banner"></div>
-  <div class="toast hidden" id="toast"></div>
+
+  <!-- FIREBASE CONNECTION ERROR -->
+  <div
+    class="status-banner hidden"
+    id="connection-banner"
+    role="status"
+  ></div>
+
+  <!-- POS NOTIFICATIONS -->
+  <div
+    class="toast hidden"
+    id="toast"
+  ></div>
+
+  <!-- 58MM RECEIPTS -->
   <div id="print-area"></div>
 
-  <!-- ORIGINAL POS FUNCTIONS -->
-  <script type="module" src="js/pos.js"></script>
+  <!-- ====================================
+       JAVASCRIPT MODULES
+       ==================================== -->
 
-  <!-- RESPONSIVE ORDER CONTROLLER -->
+  <!-- MAIN POS WITH WAITING LIST -->
+  <script
+    type="module"
+    src="js/pos.js"
+  ></script>
+
+  <!-- NOT AVAILABLE TODAY -->
+  <script
+    type="module"
+    src="js/today-unavailable.js"
+  ></script>
+
+  <!-- ====================================
+       RESPONSIVE CURRENT ORDER CONTROLLER
+       ==================================== -->
+
   <script>
     (() => {
-      const panel = document.getElementById("current-order-panel");
-      const toggle = document.getElementById("mobile-order-toggle");
-      const close = document.getElementById("close-current-order");
-      const backdrop = document.getElementById("order-backdrop");
+      const $ = id => document.getElementById(id);
 
-      const details = document.getElementById("order-details");
-      const summary = document.getElementById("order-details-summary");
-      const orderType = document.getElementById("order-type");
-      
+      const panel = $("current-order-panel");
+      const toggle = $("mobile-order-toggle");
+      const close = $("close-current-order");
+      const backdrop = $("order-backdrop");
 
-      const count = document.getElementById("cart-count");
-      const total = document.getElementById("cart-total");
-      const mobileCount = document.getElementById("mobile-cart-count");
-      const mobileTotal = document.getElementById("mobile-cart-total");
+      const details = $("order-details");
+      const summary = $("order-details-summary");
+
+      const orderType = $("order-type");
+
+      const count = $("cart-count");
+      const total = $("cart-total");
+
+      const mobileCount = $("mobile-cart-count");
+      const mobileTotal = $("mobile-cart-total");
 
       const drawerMode = window.matchMedia(
         "(max-width: 699px), " +
@@ -700,9 +1384,14 @@
 
       let previousCount = 0;
 
-      // USE REAL HEADER HEIGHT
+      /* REAL HEADER HEIGHT */
+
       function updateHeaderSize() {
-        const header = document.querySelector(".topbar");
+        const header = document.querySelector(
+          ".topbar"
+        );
+
+        if (!header) return;
 
         document.documentElement.style.setProperty(
           "--pos-header-height",
@@ -710,70 +1399,145 @@
         );
       }
 
-      // SYNC DESKTOP / MOBILE MODE
-      function syncPanelMode() {
-        if (!drawerMode.matches) {
-          panel.classList.remove("is-open");
-          document.body.classList.remove("order-drawer-open");
-          backdrop.hidden = true;
-          toggle.setAttribute("aria-expanded", "false");
-          panel.removeAttribute("aria-hidden");
-        } else if (!panel.classList.contains("is-open")) {
-          panel.setAttribute("aria-hidden", "true");
+      /* CLOSE MOBILE DRAWER */
+
+      function closeOrder() {
+        const wasOpen = panel.classList.contains(
+          "is-open"
+        );
+
+        panel.classList.remove("is-open");
+
+        document.body.classList.remove(
+          "order-drawer-open"
+        );
+
+        backdrop.hidden = true;
+
+        toggle.setAttribute(
+          "aria-expanded",
+          "false"
+        );
+
+        if (drawerMode.matches) {
+          panel.setAttribute(
+            "aria-hidden",
+            "true"
+          );
+
+          if (wasOpen) {
+            toggle.focus();
+          }
+
+        } else {
+          panel.removeAttribute(
+            "aria-hidden"
+          );
         }
       }
 
-      // CUSTOMER AND PAYMENT PANEL
-      function syncForm() {
-        panel.classList.toggle("form-expanded", details.open);
-        summary.textContent = document.getElementById("existing-order").selectedOptions[0]?.textContent || "New order";
-      }
+      /* OPEN MOBILE DRAWER */
 
-      function applyScreenMode() {
-        updateHeaderSize();
-        syncPanelMode();
-      }
-
-      // OPEN MOBILE CURRENT ORDER
       function openOrder() {
-        if (!drawerMode.matches) return;
+        if (!drawerMode.matches) {
+          return;
+        }
 
         panel.classList.add("is-open");
-        document.body.classList.add("order-drawer-open");
+
+        document.body.classList.add(
+          "order-drawer-open"
+        );
+
         backdrop.hidden = false;
 
-        panel.removeAttribute("aria-hidden");
-        toggle.setAttribute("aria-expanded", "true");
+        panel.removeAttribute(
+          "aria-hidden"
+        );
+
+        toggle.setAttribute(
+          "aria-expanded",
+          "true"
+        );
+
         close.focus();
       }
 
-      // CLOSE MOBILE CURRENT ORDER
-      function closeOrder() {
-        const wasOpen = panel.classList.contains("is-open");
+      /* SWITCH DESKTOP / MOBILE */
 
-        panel.classList.remove("is-open");
-        document.body.classList.remove("order-drawer-open");
-        backdrop.hidden = true;
+      function syncPanelMode() {
+        if (!drawerMode.matches) {
 
-        toggle.setAttribute("aria-expanded", "false");
+          panel.classList.remove("is-open");
 
-        if (drawerMode.matches) {
-          panel.setAttribute("aria-hidden", "true");
-          if (wasOpen) toggle.focus();
-        } else {
-          panel.removeAttribute("aria-hidden");
+          document.body.classList.remove(
+            "order-drawer-open"
+          );
+
+          backdrop.hidden = true;
+
+          toggle.setAttribute(
+            "aria-expanded",
+            "false"
+          );
+
+          panel.removeAttribute(
+            "aria-hidden"
+          );
+
+        } else if (
+          !panel.classList.contains("is-open")
+        ) {
+          panel.setAttribute(
+            "aria-hidden",
+            "true"
+          );
         }
       }
 
-      // UPDATE ORDER COUNT AND TOTAL
+      /* CUSTOMER DETAILS FORM */
+
+      function syncForm() {
+        panel.classList.toggle(
+          "form-expanded",
+          details.open
+        );
+
+        const existing = $("existing-order");
+
+        summary.textContent =
+          existing.selectedOptions[0]?.textContent ||
+          "New order";
+      }
+
+      /* SHORT LANDSCAPE CHECK */
+
+      function shouldCompact() {
+        return (
+          window.innerWidth >= 700 &&
+          window.innerHeight <= 740 &&
+          window.matchMedia(
+            "(orientation: landscape)"
+          ).matches
+        );
+      }
+
+      /* MOBILE CART COUNT AND TOTAL */
+
       function refreshMobileBar() {
         const qty = Math.max(
           0,
-          parseInt(count.textContent, 10) || 0
+          parseInt(
+            count.textContent,
+            10
+          ) || 0
         );
 
-        mobileCount.textContent = String(qty);
-        mobileTotal.textContent = total.textContent || "₱0";
+        mobileCount.textContent =
+          String(qty);
+
+        mobileTotal.textContent =
+          total.textContent || "₱0";
 
         if (
           drawerMode.matches &&
@@ -786,57 +1550,101 @@
         previousCount = qty;
       }
 
-      // COMPACT FORM ON SHORT LANDSCAPE SCREEN
-      function shouldCompact() {
-        return (
-          window.innerWidth >= 700 &&
-          window.innerHeight <= 740 &&
-          window.matchMedia("(orientation: landscape)").matches
-        );
-      }
+      /* INITIAL SETUP */
 
       details.open = !shouldCompact();
+
       syncForm();
-      applyScreenMode();
+      updateHeaderSize();
+      syncPanelMode();
 
-      // CUSTOMER DETAILS EVENTS
-      details.addEventListener("toggle", syncForm);
-      orderType.addEventListener("change", syncForm);
-      document.getElementById("existing-order").addEventListener("change", syncForm);
+      /* CUSTOMER DETAILS EVENTS */
 
-      // MOBILE DRAWER EVENTS
-      toggle.addEventListener("click", openOrder);
-      close.addEventListener("click", closeOrder);
-      backdrop.addEventListener("click", closeOrder);
+      details.addEventListener(
+        "toggle",
+        syncForm
+      );
 
-      document.addEventListener("keydown", event => {
-        if (
-          event.key === "Escape" &&
-          panel.classList.contains("is-open") &&
-          !document.querySelector("#modal-root .modal-backdrop")
-        ) {
-          closeOrder();
+      orderType.addEventListener(
+        "change",
+        syncForm
+      );
+
+      $("existing-order").addEventListener(
+        "change",
+        syncForm
+      );
+
+      /* MOBILE DRAWER EVENTS */
+
+      toggle.addEventListener(
+        "click",
+        openOrder
+      );
+
+      close.addEventListener(
+        "click",
+        closeOrder
+      );
+
+      backdrop.addEventListener(
+        "click",
+        closeOrder
+      );
+
+      /* ESCAPE BUTTON */
+
+      document.addEventListener(
+        "keydown",
+        event => {
+          if (
+            event.key === "Escape" &&
+            panel.classList.contains("is-open") &&
+            !document.querySelector(
+              "#modal-root .modal-backdrop"
+            )
+          ) {
+            closeOrder();
+          }
         }
-      });
+      );
 
-      drawerMode.addEventListener("change", () => {
-        closeOrder();
-        applyScreenMode();
-      });
+      /* SCREEN SIZE CHANGES */
 
-      window.addEventListener("resize", updateHeaderSize);
+      drawerMode.addEventListener(
+        "change",
+        () => {
+          closeOrder();
+          updateHeaderSize();
+          syncPanelMode();
+        }
+      );
 
-      // TABLET ORIENTATION CHANGE
-      window.addEventListener("orientationchange", () => {
-        requestAnimationFrame(() => {
-          details.open = !shouldCompact();
-          syncForm();
-          applyScreenMode();
-        });
-      });
+      window.addEventListener(
+        "resize",
+        updateHeaderSize
+      );
 
-      // WATCH CART CHANGES FROM js/pos.js
-      new MutationObserver(refreshMobileBar).observe(
+      /* TABLET ROTATION */
+
+      window.addEventListener(
+        "orientationchange",
+        () => {
+          requestAnimationFrame(() => {
+            details.open = !shouldCompact();
+
+            syncForm();
+            updateHeaderSize();
+            syncPanelMode();
+          });
+        }
+      );
+
+      /* OBSERVE REAL CART CHANGES */
+
+      new MutationObserver(
+        refreshMobileBar
+      ).observe(
         count,
         {
           childList: true,
@@ -845,7 +1653,9 @@
         }
       );
 
-      new MutationObserver(refreshMobileBar).observe(
+      new MutationObserver(
+        refreshMobileBar
+      ).observe(
         total,
         {
           childList: true,
@@ -855,7 +1665,9 @@
       );
 
       refreshMobileBar();
+
     })();
   </script>
+
 </body>
 </html>
