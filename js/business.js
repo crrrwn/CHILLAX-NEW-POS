@@ -1,32 +1,49 @@
-
 /**
- * CHILLAX CAFE POS
+ * CHILLAX CAFE POS — BUSINESS.JS
+ *
  * COMPLETE BUSINESS CALCULATIONS
  *
- * Regular food Take Out: P15
- * Sharing Take Out: P25
- * Family Combos: manual box
- * All menu items: 0%, 10%, 20% discount
+ * TAKEOUT BOXES:
+ * Regular meals: P15
+ * Sharing / Creamy Beef Broccoli: P15
+ * Other Sharing products: P25
+ * Family Combos: Manual only
+ * Party Boxes / Party Trays: No automatic box
+ *
+ * DISCOUNTS:
+ * All menu products, including drinks: 10% / 20%
+ * Packaging fees are not discounted.
  */
 
-const dayFormatter = new Intl.DateTimeFormat("en-US", {
-  timeZone: "Asia/Manila",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit"
-});
+const dayFormatter = new Intl.DateTimeFormat(
+  "en-US",
+  {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }
+);
 
 export function dayKey(input = new Date()) {
   const date = input instanceof Date
     ? input
     : new Date(input);
 
-  const parts = Object.fromEntries(
-    dayFormatter.formatToParts(date)
-      .map(part => [part.type, part.value])
+  const fields = Object.fromEntries(
+    dayFormatter
+      .formatToParts(date)
+      .map(part => [
+        part.type,
+        part.value
+      ])
   );
 
-  return `${parts.year}-${parts.month}-${parts.day}`;
+  return (
+    `${fields.year}-` +
+    `${fields.month}-` +
+    `${fields.day}`
+  );
 }
 
 export const pesos = value =>
@@ -77,46 +94,82 @@ const LARGE = new Set([
   "family meals"
 ]);
 
-/*
- * SHARING = P25 AUTOMATIC
- * FAMILY = MANUAL ONLY
+/**
+ * AUTOMATIC TAKEOUT BOX RATE
+ *
+ * Important:
+ * Both category and product name must be checked.
  */
-export function automaticBoxRate(category) {
-  const name = normalizeCategory(category);
 
-  if (name === "sharing" || name === "for sharing") {
+export function automaticBoxRate(
+  category,
+  productName = ""
+) {
+  const cat = normalizeCategory(category);
+  const name = normalizeCategory(productName);
+
+  // SHARING CATEGORY
+  if (
+    cat === "sharing" ||
+    cat === "for sharing"
+  ) {
+    // ONLY this Sharing product gets P15.
+    if (name === "creamy beef broccoli") {
+      return 15;
+    }
+
+    // All other Sharing products get P25.
     return 25;
   }
 
-  return REGULAR.has(name) ? 15 : 0;
+  // REGULAR FOOD
+  if (REGULAR.has(cat)) {
+    return 15;
+  }
+
+  // Family, Party Boxes, Party Trays,
+  // drinks and other products:
+  // no automatic takeout box.
+  return 0;
 }
 
-export function isMealItem(item) {
-  const name = normalizeCategory(item?.category);
+/* CHECK IF PRODUCT CAN HAVE A MEAL BOX */
 
+export function isMealItem(item) {
   return (
     !item?.isAddon &&
     (
-      REGULAR.has(name) ||
-      LARGE.has(name)
+      REGULAR.has(
+        normalizeCategory(item?.category)
+      ) ||
+      LARGE.has(
+        normalizeCategory(item?.category)
+      )
     )
   );
 }
+
+/* BOX PRICE PER SERVING */
 
 export function lineBoxPrice(item) {
   if (!isMealItem(item)) {
     return 0;
   }
 
+  // AUTOMATIC BOX OPTION
   if (
     item.boxChoice == null ||
     item.boxChoice === "auto"
   ) {
     return item.serveType === "Take Out"
-      ? automaticBoxRate(item.category)
+      ? automaticBoxRate(
+          item.category,
+          item.name
+        )
       : 0;
   }
 
+  // MANUAL BOX OVERRIDE
   const price = Number(item.boxChoice);
 
   return [0, 15, 25].includes(price)
@@ -124,72 +177,99 @@ export function lineBoxPrice(item) {
     : 0;
 }
 
+/* COUNT BOXES FOR CURRENT ORDER */
+
 export function boxesForCart(
   cart,
   extraBoxes = {}
 ) {
   const counts = {
-    "15": Number(extraBoxes?.["15"] || 0),
-    "25": Number(extraBoxes?.["25"] || 0)
+    "15": Number(
+      extraBoxes?.["15"] || 0
+    ),
+    "25": Number(
+      extraBoxes?.["25"] || 0
+    )
   };
 
   for (const item of cart || []) {
     const price = lineBoxPrice(item);
 
     if (price) {
-      counts[String(price)] += Number(item.qty || 0);
+      counts[String(price)] +=
+        Number(item.qty || 0);
     }
   }
 
   return counts;
 }
 
-/* ADD-ON REVENUE */
+/* TOTAL ADD-ON SALES */
+
 export function addonsTotal(order) {
-  const menuAddons = (order.items || []).reduce(
-    (sum, item) => {
-      const isAddon =
-        item.isAddon ||
-        /add\s*ons?/i.test(item.category || "");
+  const menuAddons = (order.items || [])
+    .reduce(
+      (sum, item) => {
+        const isAddon =
+          item.isAddon ||
+          /add\s*ons?/i.test(
+            item.category || ""
+          );
 
-      return sum + (
-        isAddon
-          ? Number(item.qty || 0) *
-            Number(item.unitPrice || 0)
-          : 0
-      );
-    },
-    0
+        return sum + (
+          isAddon
+            ? Number(item.qty || 0) *
+              Number(item.unitPrice || 0)
+            : 0
+        );
+      },
+      0
+    );
+
+  const extraAddons = (order.addons || [])
+    .reduce(
+      (sum, item) =>
+        sum +
+        Number(item.qty || 0) *
+        Number(item.unitPrice || 0),
+      0
+    );
+
+  return rounded(
+    menuAddons + extraAddons
   );
-
-  const extraAddons = (order.addons || []).reduce(
-    (sum, item) =>
-      sum +
-      Number(item.qty || 0) *
-      Number(item.unitPrice || 0),
-    0
-  );
-
-  return rounded(menuAddons + extraAddons);
 }
 
-/* ALL MENU ITEMS ARE DISCOUNTABLE */
+/* ALL MENU ITEMS ALLOW SELECTED DISCOUNTS */
+
 export function isDiscountableFood(item) {
-  return item != null &&
-    typeof item === "object";
+  return (
+    item != null &&
+    typeof item === "object"
+  );
 }
+
+/* PER-ITEM DISCOUNT */
 
 export function lineDiscountAmount(line) {
-  const rate = Number(line?.discountRate || 0);
+  const rate = Number(
+    line?.discountRate || 0
+  );
 
   if (![0, 10, 20].includes(rate)) {
     throw Error(
-      "Invalid discount: choose 0%, 10%, or 20%."
+      "Invalid item discount. " +
+      "Choose 0%, 10%, or 20%."
     );
   }
 
-  if (rate && !isDiscountableFood(line)) {
-    throw Error("Discount requires an order item.");
+  if (
+    rate &&
+    !isDiscountableFood(line)
+  ) {
+    throw Error(
+      "Discount requires an order item."
+    );
   }
 
   return rounded(
@@ -199,61 +279,97 @@ export function lineDiscountAmount(line) {
   );
 }
 
+/* TOTAL SELECTED ITEM DISCOUNTS */
+
 export function itemDiscountTotal(items = []) {
   return rounded(
     items.reduce(
-      (sum, item) =>
-        sum + lineDiscountAmount(item),
+      (sum, line) =>
+        sum + lineDiscountAmount(line),
       0
     )
   );
 }
 
-/* TOTAL AFTER ITEM DISCOUNTS */
-export function orderTotal(order) {
-  const items = (order.items || []).reduce(
-    (sum, item) =>
-      sum +
-      Number(item.qty || 0) *
-      Number(item.unitPrice || 0),
-    0
-  );
+/* TOTAL ORDER AMOUNT */
 
-  const extras = (order.addons || []).reduce(
-    (sum, item) =>
-      sum +
-      Number(item.qty || 0) *
-      Number(item.unitPrice || 0),
-    0
-  );
+export function orderTotal(order) {
+  const products = (order.items || [])
+    .reduce(
+      (sum, item) =>
+        sum +
+        Number(item.qty || 0) *
+        Number(item.unitPrice || 0),
+      0
+    );
+
+  const extras = (order.addons || [])
+    .reduce(
+      (sum, item) =>
+        sum +
+        Number(item.qty || 0) *
+        Number(item.unitPrice || 0),
+      0
+    );
 
   const packaging = order.boxes
-    ? boxTotal(order.boxes) +
-      Number(order.legacyPackagingFee || 0)
-    : Number(order.packagingFee || 0);
+    ? (
+        boxTotal(order.boxes) +
+        Number(
+          order.legacyPackagingFee || 0
+        )
+      )
+    : Number(
+        order.packagingFee || 0
+      );
 
   const discount =
     order.discountMode === "perItem"
-      ? itemDiscountTotal(order.items || []) +
-        Number(order.legacyDiscountAmount || 0)
-      : Number(order.discountAmount || 0);
+      ? (
+          itemDiscountTotal(
+            order.items || []
+          ) +
+          Number(
+            order.legacyDiscountAmount || 0
+          )
+        )
+      : Number(
+          order.discountAmount || 0
+        );
 
   return rounded(
-    items + extras + packaging - discount
+    products +
+    extras +
+    packaging -
+    discount
   );
 }
 
+/* TAKEOUT BOX REVENUE */
+
 export function orderBoxes(order) {
   return order.boxes
-    ? boxTotal(order.boxes) +
-      Number(order.legacyPackagingFee || 0)
-    : Number(order.packagingFee || 0);
+    ? (
+        boxTotal(order.boxes) +
+        Number(
+          order.legacyPackagingFee || 0
+        )
+      )
+    : Number(
+        order.packagingFee || 0
+      );
 }
 
-export function timestampDate(value) {
-  if (value?.toDate) return value.toDate();
+/* FIREBASE TIMESTAMP CONVERSION */
 
-  if (value instanceof Date) return value;
+export function timestampDate(value) {
+  if (value?.toDate) {
+    return value.toDate();
+  }
+
+  if (value instanceof Date) {
+    return value;
+  }
 
   if (
     typeof value === "string" ||
@@ -265,19 +381,26 @@ export function timestampDate(value) {
   return null;
 }
 
-/* ADMIN SALES SUMMARY */
+/* ADMIN SALES TOTALS */
+
 export function countRevenue(orders) {
   return orders.reduce(
     (result, order) => {
-      result.sales += Number(order.total || 0);
+      result.sales += Number(
+        order.total || 0
+      );
+
       result.boxes += orderBoxes(order);
 
       result.addons +=
         order.addOnTotal == null
           ? addonsTotal(order)
-          : Number(order.addOnTotal || 0);
+          : Number(
+              order.addOnTotal || 0
+            );
 
       result.orders++;
+
       return result;
     },
     {
@@ -289,25 +412,35 @@ export function countRevenue(orders) {
   );
 }
 
-/* PRESERVE MANUAL BOXES IN ADMIN EDITOR */
+/* MANUALLY PUNCHED EXTRA BOXES */
+
 export function manualBoxesForOrder(order) {
   const remaining = {
     "15": Math.max(
       0,
-      Number(order.boxes?.["15"] || 0)
+      Number(
+        order.boxes?.["15"] || 0
+      )
     ),
+
     "25": Math.max(
       0,
-      Number(order.boxes?.["25"] || 0)
+      Number(
+        order.boxes?.["25"] || 0
+      )
     )
   };
 
   for (const item of order.items || []) {
-    const saved = item.boxUnitPrice == null
-      ? lineBoxPrice(item)
-      : Number(item.boxUnitPrice);
+    const saved =
+      item.boxUnitPrice == null
+        ? lineBoxPrice(item)
+        : Number(item.boxUnitPrice);
 
-    if (saved === 15 || saved === 25) {
+    if (
+      saved === 15 ||
+      saved === 25
+    ) {
       remaining[String(saved)] = Math.max(
         0,
         remaining[String(saved)] -
@@ -319,7 +452,13 @@ export function manualBoxesForOrder(order) {
   return remaining;
 }
 
-/* FULL ADMIN ORDER RECALCULATION */
+/**
+ * RECALCULATE ORDER WHEN EDITED IN ADMIN
+ *
+ * Preserves existing product metadata,
+ * including Party Box comboSelections.
+ */
+
 export function repriceEditedOrder(
   original,
   changes
@@ -372,10 +511,17 @@ export function repriceEditedOrder(
     return qty;
   };
 
-  const items = (changes.items || []).map(
-    (item, index) => {
-      const name = String(item.name || "").trim();
-      const category = String(item.category || "").trim();
+  /* ORDERED PRODUCTS */
+
+  const items = (changes.items || [])
+    .map((item, index) => {
+      const name = String(
+        item.name || ""
+      ).trim();
+
+      const category = String(
+        item.category || ""
+      ).trim();
 
       if (
         !name ||
@@ -384,7 +530,7 @@ export function repriceEditedOrder(
         category.length > 80
       ) {
         throw Error(
-          `Item ${index + 1} requires name and category.`
+          `Item ${index + 1} needs a name and category.`
         );
       }
 
@@ -395,25 +541,33 @@ export function repriceEditedOrder(
 
       const boxChoice =
         ["auto", "0", "15", "25"].includes(
-          String(item.boxChoice ?? "auto")
+          String(
+            item.boxChoice ?? "auto"
+          )
         )
-          ? String(item.boxChoice ?? "auto")
+          ? String(
+              item.boxChoice ?? "auto"
+            )
           : "auto";
 
       const normalized = {
         ...item,
+
         name,
         category,
 
-        size: String(item.size || "")
-          .trim()
-          .slice(0, 40) || null,
+        size: String(
+          item.size || ""
+        ).trim().slice(0, 40) || null,
 
-        note: String(item.note || "")
-          .trim()
-          .slice(0, 180),
+        note: String(
+          item.note || ""
+        ).trim().slice(0, 180),
 
-        qty: validQty(item.qty, name),
+        qty: validQty(
+          item.qty,
+          name
+        ),
 
         unitPrice: validMoney(
           item.unitPrice,
@@ -428,49 +582,73 @@ export function repriceEditedOrder(
           /add\s*ons?/i.test(category)
         ),
 
-        discountRate: [0, 10, 20].includes(
-          Number(item.discountRate || 0)
-        )
-          ? Number(item.discountRate || 0)
-          : 0
+        discountRate:
+          [0, 10, 20].includes(
+            Number(
+              item.discountRate || 0
+            )
+          )
+            ? Number(
+                item.discountRate || 0
+              )
+            : 0
       };
 
       normalized.boxUnitPrice =
         lineBoxPrice(normalized);
 
       return normalized;
-    }
-  );
+    });
 
-  const addons = (changes.addons || []).map(
-    (addon, index) => {
-      const name = String(addon.name || "").trim();
+  /* EXTRA ADD-ONS */
 
-      if (!name || name.length > 120) {
+  const addons = (changes.addons || [])
+    .map((addon, index) => {
+      const name = String(
+        addon.name || ""
+      ).trim();
+
+      if (
+        !name ||
+        name.length > 120
+      ) {
         throw Error(
-          `Add-on ${index + 1} requires a name.`
+          `Add-on ${index + 1} needs a name.`
         );
       }
 
       return {
         ...addon,
+
         name,
-        qty: validQty(addon.qty, name),
-        unitPrice: validMoney(addon.unitPrice, name)
+
+        qty: validQty(
+          addon.qty,
+          name
+        ),
+
+        unitPrice: validMoney(
+          addon.unitPrice,
+          name
+        )
       };
-    }
-  );
+    });
+
+  /* MANUAL EXTRA TAKEOUT BOXES */
 
   const manuallyPunched = {
     "15": validBoxes(
       changes.manualBoxes?.["15"] ?? 0,
       "₱15"
     ),
+
     "25": validBoxes(
       changes.manualBoxes?.["25"] ?? 0,
       "₱25"
     )
   };
+
+  /* AUTOMATIC + MANUAL BOXES */
 
   const boxes = boxesForCart(
     items,
@@ -502,8 +680,12 @@ export function repriceEditedOrder(
       : original.paymentMethod;
 
   if (
-    !["Dine In", "Take Out"].includes(orderType) ||
-    !["Cash", "GCash"].includes(paymentMethod)
+    !["Dine In", "Take Out"].includes(
+      orderType
+    ) ||
+    !["Cash", "GCash"].includes(
+      paymentMethod
+    )
   ) {
     throw Error(
       "Select a valid order type and payment method."
@@ -520,8 +702,12 @@ export function repriceEditedOrder(
     !boxes["15"] &&
     !boxes["25"]
   ) {
-    throw Error("Order cannot be empty.");
+    throw Error(
+      "An order must contain at least one item, add-on or box."
+    );
   }
+
+  /* UPDATED ORDER */
 
   const payload = {
     items,
@@ -542,7 +728,8 @@ export function repriceEditedOrder(
     ),
 
     packagingFee: rounded(
-      boxTotal(boxes) + legacyPackagingFee
+      boxTotal(boxes) +
+      legacyPackagingFee
     ),
 
     customerName,
@@ -550,7 +737,8 @@ export function repriceEditedOrder(
     paymentMethod
   };
 
-  payload.addOnTotal = addonsTotal(payload);
+  payload.addOnTotal =
+    addonsTotal(payload);
 
   payload.discountAmount = rounded(
     itemDiscountTotal(items) +
@@ -560,17 +748,22 @@ export function repriceEditedOrder(
   payload.total = rounded(
     items.reduce(
       (sum, item) =>
-        sum + item.qty * item.unitPrice,
+        sum +
+        item.qty * item.unitPrice,
       0
     ) +
+
     addons.reduce(
       (sum, item) =>
-        sum + item.qty * item.unitPrice,
+        sum +
+        item.qty * item.unitPrice,
       0
     ) +
+
     payload.packagingFee -
     payload.discountAmount
   );
 
   return payload;
 }
+

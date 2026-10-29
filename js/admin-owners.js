@@ -1,17 +1,33 @@
 
 /**
- * CHILLAX CAFE POS — ADMIN OWNERS
+ * CHILLAX CAFE POS — ADMIN OWNER SALES
+ * COMPLETE js/admin-owners.js
  *
- * Kuya Gaa and Kuya Boss sales
- * Delete Order confirmation
- * Combined GCash payments for two orders
- * Editable GCash totals
- * From / To date filters
- * Owner report printing
+ * KUYA GAA:
+ * Iced Coffee, Hot Coffee, Frappe,
+ * Lumpia Shanghai Alacarte,
+ * Shanghai Silog = P30/serving,
+ * Party Box/Party Tray Set A with Shanghai = P450/set,
+ * Lumpia Shanghai Party Trays = actual saved price,
+ * NO takeout boxes.
+ *
+ * KUYA BOSS:
+ * Samyang, Buldak, Ramen and related add-ons,
+ * linked P15/P25 takeout boxes.
+ *
+ * Other features:
+ * From/To dates, printing, category assignments,
+ * delete confirmation, combined GCash payments.
  */
 
-import { db, authReady } from "./firebase-config.js";
-import { requireRole } from "./auth.js";
+import {
+  db,
+  authReady
+} from "./firebase-config.js";
+
+import {
+  requireRole
+} from "./auth.js";
 
 import {
   dayKey,
@@ -22,21 +38,23 @@ import {
   lineBoxPrice
 } from "./business.js";
 
-import { printOwnerReport } from "./receipt.js";
+import {
+  printOwnerReport
+} from "./receipt.js";
 
 import {
   collection,
   doc,
-  getDoc,
-  getDocs,
   onSnapshot,
+  getDocs,
   query,
-  orderBy,
   where,
   runTransaction,
-  serverTimestamp,
-  writeBatch
+  writeBatch,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+/* ADMIN ACCESS */
 
 const session = requireRole(["admin"]);
 
@@ -44,13 +62,10 @@ if (!session || session.role !== "admin") {
   throw Error("Admin login required.");
 }
 
-const $ = id => document.getElementById(id);
-const owners = ["gaa", "boss"];
-const money = pesos;
-const num = value => Number(value || 0);
+/* HELPERS */
 
-const cents = value =>
-  Math.round((Number(value) + Number.EPSILON) * 100);
+const $ = id =>
+  document.getElementById(id);
 
 const norm = value =>
   String(value ?? "")
@@ -64,33 +79,58 @@ const norm = value =>
 const keyOf = (category, name) =>
   `${norm(category)}|${norm(name)}`;
 
-const unique = values =>
-  [...new Set(values.filter(Boolean))];
+const uniq = values => [
+  ...new Set(
+    (values || []).filter(
+      value =>
+        typeof value === "string" &&
+        value.trim()
+    )
+  )
+];
+
+const num = value =>
+  Number(value || 0);
+
+const toCents = value =>
+  Math.round(
+    (Number(value) + Number.EPSILON) * 100
+  );
 
 const escapeHtml = value =>
   String(value ?? "").replace(
     /[&<>"']/g,
-    c => ({
+    character => ({
       "&": "&amp;",
       "<": "&lt;",
       ">": "&gt;",
       '"': "&quot;",
       "'": "&#39;"
-    })[c]
+    })[character]
   );
 
-/* DEFAULT OWNER PRODUCTS */
+const OWNERS = ["gaa", "boss"];
 
-const defaults = {
+/* DEFAULT SALES ASSIGNMENTS */
+
+const DEFAULTS = {
   gaa: {
     categories: [
       "Iced Coffee (16oz)",
       "Hot Coffee (12oz)",
       "Frappé"
     ],
+
     items: [
-      keyOf("Alacarte", "Lumpia Shanghai"),
-      keyOf("All Day Breakfast", "Shanghai Silog")
+      keyOf(
+        "Alacarte",
+        "Lumpia Shanghai"
+      ),
+
+      keyOf(
+        "All Day Breakfast",
+        "Shanghai Silog"
+      )
     ]
   },
 
@@ -99,11 +139,20 @@ const defaults = {
       "Samyang & Ramen",
       "Samyang & Ramen Add Ons"
     ],
+
     items: []
   }
 };
 
-const settingsRef = doc(db, "settings", "salesOwners");
+/* FIRESTORE SETTINGS */
+
+const settingsRef = doc(
+  db,
+  "settings",
+  "salesOwners"
+);
+
+/* APPLICATION STATE */
 
 const state = {
   orders: [],
@@ -111,71 +160,146 @@ const state = {
   categories: [],
   payments: [],
 
-  assignments: structuredClone(defaults),
+  rules: structuredClone(DEFAULTS),
 
   dates: {
     gaa: {
       from: dayKey(),
       to: dayKey()
     },
+
     boss: {
       from: dayKey(),
       to: dayKey()
     }
   },
 
-  pages: {
+  page: {
     gaa: 1,
     boss: 1
   }
 };
 
-function notify(message, error = false) {
-  const node = $("owner-status");
-  if (!node) return;
+/* NOTIFICATIONS */
 
-  node.textContent = message;
-  node.style.color = error ? "#a12222" : "#216238";
+function showStatus(
+  message,
+  error = false
+) {
+  const element = $("owner-status");
+
+  if (!element) return;
+
+  element.textContent = message;
+
+  element.style.color = error
+    ? "#a22"
+    : "#27613a";
 }
 
-/* ORDER DATE */
+/* CLEAN OWNER SETTINGS */
 
-function orderDay(order) {
+function cleanRules(saved) {
+  const result = {};
+
+  for (const owner of OWNERS) {
+    const source =
+      saved?.[owner] || DEFAULTS[owner];
+
+    result[owner] = {
+      categories: uniq(
+        source.categories
+      ),
+
+      items: uniq(
+        source.items
+      )
+    };
+  }
+
+  result.gaa.items = uniq([
+    ...result.gaa.items,
+
+    keyOf(
+      "All Day Breakfast",
+      "Shanghai Silog"
+    )
+  ]);
+
+  return result;
+}
+
+/* PHILIPPINE DATE */
+
+function orderDate(order) {
   if (
-    /^\d{4}-\d{2}-\d{2}$/.test(order.dayKey || "")
+    /^\d{4}-\d{2}-\d{2}$/.test(
+      order.dayKey || ""
+    )
   ) {
     return order.dayKey;
   }
 
-  const date = timestampDate(order.createdAt);
+  const date = timestampDate(
+    order.createdAt
+  );
 
-  return date && !isNaN(date.getTime())
-    ? dayKey(date)
-    : "";
+  return date &&
+    Number.isFinite(date.getTime())
+      ? dayKey(date)
+      : "";
 }
 
-function withinDates(order, owner) {
-  const date = orderDay(order);
-  const { from, to } = state.dates[owner];
+function paymentDate(payment) {
+  if (payment.dayKey) {
+    return payment.dayKey;
+  }
+
+  const date = timestampDate(
+    payment.createdAt
+  );
+
+  return date &&
+    Number.isFinite(date.getTime())
+      ? dayKey(date)
+      : "";
+}
+
+/* FROM / TO DATE FILTER */
+
+function inRange(order, owner) {
+  const date = orderDate(order);
+
+  const {
+    from,
+    to
+  } = state.dates[owner];
 
   return Boolean(date) &&
     (!from || date >= from) &&
     (!to || date <= to);
 }
 
-/* PRODUCT OWNER */
+/* PRODUCT CATEGORY */
 
 function categoryOf(item) {
-  if (item.category) return item.category;
+  if (item.category) {
+    return item.category;
+  }
 
   const byId = state.menu.find(
-    product => product.id === item.menuId
+    product =>
+      product.id === item.menuId
   );
 
-  if (byId) return byId.category || "";
+  if (byId) {
+    return byId.category || "";
+  }
 
   const matches = state.menu.filter(
-    product => norm(product.name) === norm(item.name)
+    product =>
+      norm(product.name) ===
+      norm(item.name)
   );
 
   return matches.length === 1
@@ -183,39 +307,181 @@ function categoryOf(item) {
     : "";
 }
 
-function ownerOf(item) {
-  const category = categoryOf(item);
-  const key = keyOf(category, item.name);
+/* SHANGHAI SILOG */
+
+function isShanghaiSilog(item) {
+  return (
+    norm(item.name) === "shanghai silog" &&
+    norm(categoryOf(item)) ===
+      "all day breakfast"
+  );
+}
+
+/* LUMPIANG SHANGHAI PARTY TRAYS */
+
+function isShanghaiPartyTray(item) {
+  const category = norm(
+    categoryOf(item)
+  );
+
+  const name = norm(
+    item.name
+  );
+
+  return (
+    category.includes("party tray") &&
+    (
+      name === "lumpiang shanghai" ||
+      name === "lumpia shanghai"
+    )
+  );
+}
+
+/* PARTY BOX / PARTY TRAY SET A */
+
+function isSetA(item) {
+  const name = norm(item.name);
+
+  const category = norm(
+    categoryOf(item)
+  );
+
+  const validName = [
+    "party box set a",
+    "party tray set a",
+    "set a",
+    "party box on the go set a"
+  ].includes(name);
+
+  const validCategory =
+    category.includes("party box") ||
+    category.includes("party tray");
+
+  return validName && validCategory;
+}
+
+/**
+ * CHECK IF SHANGHAI WAS SELECTED
+ *
+ * New POS:
+ * comboSelections: ["Lumpia (30 pcs)"]
+ *
+ * Old POS:
+ * note: "Choices: Lumpia (30 pcs), ..."
+ */
+
+function hasShanghaiInSetA(item) {
+  if (!isSetA(item)) {
+    return false;
+  }
 
   if (
-    key === keyOf("All Day Breakfast", "Shanghai Silog")
+    Array.isArray(
+      item.comboSelections
+    )
+  ) {
+    return item.comboSelections.some(
+      choice => {
+        const name = norm(
+          typeof choice === "string"
+            ? choice
+            : choice?.name
+        );
+
+        return /\b(lumpia|lumpiang|shanghai)\b/
+          .test(name);
+      }
+    );
+  }
+
+  const note = String(
+    item.note || ""
+  );
+
+  const selected =
+    /(?:choices|selected dishes|selected)\s*:\s*([^|;\n]+)/i
+      .exec(note)?.[1] || "";
+
+  return selected
+    .split(",")
+    .some(choice =>
+      /\b(lumpia|lumpiang|shanghai)\b/
+        .test(norm(choice))
+    );
+}
+
+/* IDENTIFY OWNER */
+
+function ownerOf(item) {
+  if (
+    isShanghaiSilog(item) ||
+    isShanghaiPartyTray(item)
   ) {
     return "gaa";
   }
 
-  if (state.assignments.gaa.items.includes(key)) {
-    return "gaa";
+  /*
+   * SET A:
+   * Count only the Shanghai share.
+   * Never count the complete Set A price.
+   */
+
+  if (isSetA(item)) {
+    return hasShanghaiInSetA(item)
+      ? "gaa"
+      : null;
   }
 
-  if (state.assignments.boss.items.includes(key)) {
-    return "boss";
-  }
+  const category = categoryOf(item);
 
-  if (/\b(samyang|buldak)\b/.test(norm(item.name))) {
-    return "boss";
-  }
+  const product = keyOf(
+    category,
+    item.name
+  );
 
   if (
-    state.assignments.gaa.categories.some(
-      value => norm(value) === norm(category)
+    state.rules.gaa.items.includes(
+      product
     )
   ) {
     return "gaa";
   }
 
   if (
-    state.assignments.boss.categories.some(
-      value => norm(value) === norm(category)
+    state.rules.boss.items.includes(
+      product
+    )
+  ) {
+    return "boss";
+  }
+
+  /* SAMYANG AND BULDAK */
+
+  if (
+    /\b(samyang|buldak)\b/.test(
+      norm(item.name)
+    )
+  ) {
+    return "boss";
+  }
+
+  /* CUSTOM CATEGORY ASSIGNMENTS */
+
+  if (
+    state.rules.gaa.categories.some(
+      categoryName =>
+        norm(categoryName) ===
+        norm(category)
+    )
+  ) {
+    return "gaa";
+  }
+
+  if (
+    state.rules.boss.categories.some(
+      categoryName =>
+        norm(categoryName) ===
+        norm(category)
     )
   ) {
     return "boss";
@@ -224,34 +490,39 @@ function ownerOf(item) {
   return null;
 }
 
-function positiveQty(value) {
-  const n = Number(value);
+/* ITEM-LINKED TAKEOUT BOX PRICE */
 
-  return Number.isInteger(n) && n > 0
-    ? n
-    : 0;
-}
-
-/* TAKEOUT BOX ACCOUNTING */
-
-function linkedBoxRate(item, order) {
+function linkedBoxRate(
+  item,
+  order
+) {
   if (item.boxUnitPrice != null) {
-    const rate = Number(item.boxUnitPrice);
+    const rate = Number(
+      item.boxUnitPrice
+    );
 
-    return [15, 25].includes(rate) ? rate : 0;
+    return [15, 25].includes(rate)
+      ? rate
+      : 0;
   }
 
   if (
     item.boxChoice != null &&
     item.boxChoice !== "auto"
   ) {
-    const rate = Number(item.boxChoice);
+    const rate = Number(
+      item.boxChoice
+    );
 
-    return [15, 25].includes(rate) ? rate : 0;
+    return [15, 25].includes(rate)
+      ? rate
+      : 0;
   }
 
   const service =
-    item.serveType || order.orderType || "Dine In";
+    item.serveType ||
+    order.orderType ||
+    "Dine In";
 
   return service === "Take Out"
     ? lineBoxPrice({
@@ -262,77 +533,124 @@ function linkedBoxRate(item, order) {
     : 0;
 }
 
-function bossBoxTotals(order) {
-  const items = Array.isArray(order.items)
-    ? order.items
-    : [];
+/* KUYA BOSS TAKEOUT BOX SALES */
 
-  const hasCounts =
+function bossBoxes(order) {
+  const items =
+    Array.isArray(order.items)
+      ? order.items
+      : [];
+
+  const savedKnown =
     order.boxes &&
     typeof order.boxes === "object";
 
   const saved = {
-    15: hasCounts ? positiveQty(order.boxes["15"]) : 0,
-    25: hasCounts ? positiveQty(order.boxes["25"]) : 0
+    15: Math.max(
+      0,
+      num(order.boxes?.["15"])
+    ),
+
+    25: Math.max(
+      0,
+      num(order.boxes?.["25"])
+    )
   };
 
-  const allocated = { 15: 0, 25: 0 };
-  const bossAllocated = { 15: 0, 25: 0 };
+  const allocated = {
+    15: 0,
+    25: 0
+  };
+
+  const boss = {
+    15: 0,
+    25: 0
+  };
 
   for (const item of items) {
-    const rate = linkedBoxRate(item, order);
-    const qty = positiveQty(item.qty);
+    const rate = linkedBoxRate(
+      item,
+      order
+    );
 
-    if (!rate || !qty) continue;
+    const qty = Math.max(
+      0,
+      Math.floor(num(item.qty))
+    );
+
+    if (!rate || !qty) {
+      continue;
+    }
 
     allocated[rate] += qty;
 
     if (ownerOf(item) === "boss") {
-      bossAllocated[rate] += qty;
+      boss[rate] += qty;
     }
   }
 
-  const result = { 15: 0, 25: 0 };
+  const result = {
+    15: 0,
+    25: 0
+  };
 
-  if (hasCounts) {
+  if (savedKnown) {
     for (const rate of [15, 25]) {
       result[rate] = Math.min(
         saved[rate],
-        bossAllocated[rate]
+        boss[rate]
       );
     }
 
-    const eligible = items.filter(item =>
-      isMealItem({
-        ...item,
-        category: categoryOf(item)
-      })
+    /*
+     * Extra boxes can be attributed to Boss
+     * when all box-eligible meals in the order
+     * belong to Boss.
+     */
+
+    const eligible = items.filter(
+      item =>
+        isMealItem({
+          ...item,
+          category: categoryOf(item)
+        })
     );
 
     const bossOnly =
       eligible.length > 0 &&
-      eligible.every(item => ownerOf(item) === "boss");
+      eligible.every(
+        item =>
+          ownerOf(item) === "boss"
+      );
 
     if (bossOnly) {
       for (const rate of [15, 25]) {
         result[rate] += Math.max(
           0,
-          saved[rate] - allocated[rate]
+          saved[rate] -
+          allocated[rate]
         );
       }
     }
-
   } else {
-    let available = cents(order.packagingFee || 0);
+    /* SUPPORT OLDER SAVED ORDERS */
+
+    let remaining = toCents(
+      order.packagingFee || 0
+    );
 
     for (const rate of [15, 25]) {
       const count = Math.min(
-        bossAllocated[rate],
-        Math.floor(available / (rate * 100))
+        boss[rate],
+        Math.floor(
+          remaining / (rate * 100)
+        )
       );
 
       result[rate] = count;
-      available -= count * rate * 100;
+
+      remaining -=
+        count * rate * 100;
     }
   }
 
@@ -340,85 +658,170 @@ function bossBoxTotals(order) {
     count15: result[15],
     count25: result[25],
 
-    total: rounded(
-      result[15] * 15 + result[25] * 25
-    )
+    total:
+      result[15] * 15 +
+      result[25] * 25
   };
 }
 
-/* SALES FROM SAVED ORDERS */
+/* ======================================
+   OWNER SALES CALCULATIONS
+====================================== */
 
-function calculateOwner(owner) {
+function calculate(owner) {
   const grouped = new Map();
 
-  let ordersCount = 0;
+  let orderCount = 0;
   let boxes15 = 0;
   let boxes25 = 0;
 
+  /*
+   * Same Firestore orders collection
+   * used by Admin Recent Orders.
+   */
+
   for (const order of state.orders) {
-    if (!withinDates(order, owner)) continue;
+    if (!inRange(order, owner)) {
+      continue;
+    }
 
     const lines = [
-      ...(order.items || []),
-      ...(order.addons || [])
+      ...(
+        Array.isArray(order.items)
+          ? order.items
+          : []
+      ),
+
+      ...(
+        Array.isArray(order.addons)
+          ? order.addons
+          : []
+      )
     ];
 
-    const grossAll = lines.reduce(
+    const subtotal = lines.reduce(
       (sum, item) =>
-        sum + num(item.qty) * num(item.unitPrice),
+        sum +
+        num(item.qty) *
+        num(item.unitPrice),
       0
     );
 
-    const legacyDiscount =
+    const legacyDiscount = num(
       order.discountMode === "perItem"
-        ? num(order.legacyDiscountAmount)
-        : num(order.discountAmount);
+        ? order.legacyDiscountAmount
+        : order.discountAmount
+    );
 
     let matched = false;
 
     for (const item of lines) {
-      if (ownerOf(item) !== owner) continue;
+      if (ownerOf(item) !== owner) {
+        continue;
+      }
 
-      const qty = positiveQty(item.qty);
-      const price = Number(item.unitPrice);
+      const qty = Number(
+        item.qty
+      );
 
-      if (!qty || !Number.isFinite(price) || price < 0) {
+      const unitPrice = Number(
+        item.unitPrice
+      );
+
+      if (
+        !Number.isInteger(qty) ||
+        qty <= 0 ||
+        !Number.isFinite(unitPrice) ||
+        unitPrice < 0
+      ) {
         continue;
       }
 
       matched = true;
 
-      const category = categoryOf(item) || "Other";
-      const gross = qty * price;
+      const category =
+        categoryOf(item) || "Other";
 
-      const shanghai =
-        owner === "gaa" &&
-        norm(item.name) === "shanghai silog" &&
-        norm(category) === "all day breakfast";
+      const gross =
+        qty * unitPrice;
 
-      const selectedDiscount =
+      const perItemDiscount =
         order.discountMode === "perItem"
-          ? gross * num(item.discountRate) / 100
+          ? gross *
+            num(item.discountRate) / 100
           : 0;
 
-      const oldDiscount =
-        grossAll > 0
-          ? legacyDiscount * gross / grossAll
+      const legacyShare =
+        subtotal > 0
+          ? legacyDiscount *
+            gross / subtotal
           : 0;
 
-      const net = shanghai
-        ? qty * 30
-        : Math.max(
-            0,
-            rounded(gross - selectedDiscount - oldDiscount)
-          );
+      let sales = Math.max(
+        0,
+        rounded(
+          gross -
+          perItemDiscount -
+          legacyShare
+        )
+      );
 
-      const title =
-        `${item.name}${item.size ? ` (${item.size})` : ""}`;
+      let title =
+        `${item.name}${
+          item.size
+            ? ` (${item.size})`
+            : ""
+        }`;
 
-      const key = keyOf(category, title);
+      /*
+       * SHANGHAI SILOG:
+       * P30 PER SERVING
+       */
 
-      const row = grouped.get(key) || {
+      if (
+        owner === "gaa" &&
+        isShanghaiSilog(item)
+      ) {
+        sales = qty * 30;
+      }
+
+      /*
+       * PARTY BOX / PARTY TRAY SET A
+       * WITH LUMPIANG SHANGHAI:
+       *
+       * P450 PER SET
+       *
+       * 1 set = P450
+       * 2 sets = P900
+       * 3 sets = P1350
+       */
+
+      if (
+        owner === "gaa" &&
+        isSetA(item) &&
+        hasShanghaiInSetA(item)
+      ) {
+        sales = qty * 450;
+
+        title =
+          "Set A — Lumpiang Shanghai share";
+      }
+
+      /*
+       * STANDALONE LUMPIANG SHANGHAI
+       * PARTY TRAYS:
+       *
+       * Uses the saved unitPrice,
+       * quantity, size and applicable
+       * discount from the order.
+       */
+
+      const id = keyOf(
+        category,
+        title
+      );
+
+      const row = grouped.get(id) || {
         category,
         name: title,
         qty: 0,
@@ -426,16 +829,19 @@ function calculateOwner(owner) {
       };
 
       row.qty += qty;
-      row.sales = rounded(row.sales + net);
 
-      grouped.set(key, row);
+      row.sales = rounded(
+        row.sales + sales
+      );
+
+      grouped.set(id, row);
     }
 
     if (matched) {
-      ordersCount++;
+      orderCount++;
 
       if (owner === "boss") {
-        const boxes = bossBoxTotals(order);
+        const boxes = bossBoxes(order);
 
         boxes15 += boxes.count15;
         boxes25 += boxes.count25;
@@ -443,42 +849,75 @@ function calculateOwner(owner) {
     }
   }
 
-  const rows = [...grouped.values()].sort(
+  const rows = [
+    ...grouped.values()
+  ].sort(
     (a, b) =>
       b.sales - a.sales ||
       a.name.localeCompare(b.name)
   );
 
   const productSales = rounded(
-    rows.reduce((sum, row) => sum + row.sales, 0)
+    rows.reduce(
+      (sum, row) =>
+        sum + row.sales,
+      0
+    )
   );
 
-  const boxSales = owner === "boss"
-    ? boxes15 * 15 + boxes25 * 25
-    : 0;
+  /* NO TAKEOUT BOXES FOR KUYA GAA */
+
+  const boxSales =
+    owner === "boss"
+      ? boxes15 * 15 +
+        boxes25 * 25
+      : 0;
 
   return {
     rows,
+
     productSales,
     boxSales,
-    total: rounded(productSales + boxSales),
-    qty: rows.reduce((sum, row) => sum + row.qty, 0),
-    orders: ordersCount,
-    box15: owner === "boss" ? boxes15 : 0,
-    box25: owner === "boss" ? boxes25 : 0
+
+    total: rounded(
+      productSales + boxSales
+    ),
+
+    qty: rows.reduce(
+      (sum, row) =>
+        sum + row.qty,
+      0
+    ),
+
+    orders: orderCount,
+
+    box15:
+      owner === "boss"
+        ? boxes15
+        : 0,
+
+    box25:
+      owner === "boss"
+        ? boxes25
+        : 0
   };
 }
 
-/* RENDER REPORT */
+/* ======================================
+   RENDER OWNER REPORT
+====================================== */
 
 function renderOwner(owner) {
-  const body = $(`owner-${owner}-body`);
+  const body = $(
+    `owner-${owner}-body`
+  );
+
   if (!body) return;
 
-  const report = calculateOwner(owner);
+  const report = calculate(owner);
 
   $(`owner-${owner}-sales`).textContent =
-    money(report.total);
+    pesos(report.total);
 
   $(`owner-${owner}-qty`).textContent =
     String(report.qty);
@@ -488,15 +927,21 @@ function renderOwner(owner) {
 
   body.replaceChildren();
 
-  const pages = Math.max(
+  const pageCount = Math.max(
     1,
-    Math.ceil(report.rows.length / 5)
+    Math.ceil(
+      report.rows.length / 5
+    )
   );
 
-  const page = state.pages[owner] = Math.max(
-    1,
-    Math.min(pages, state.pages[owner])
-  );
+  const page = state.page[owner] =
+    Math.max(
+      1,
+      Math.min(
+        pageCount,
+        state.page[owner]
+      )
+    );
 
   const visible = report.rows.slice(
     (page - 1) * 5,
@@ -511,7 +956,7 @@ function renderOwner(owner) {
         item.category,
         item.name,
         item.qty,
-        money(item.sales)
+        pesos(item.sales)
       ]
     ) {
       const td = document.createElement("td");
@@ -528,143 +973,196 @@ function renderOwner(owner) {
     const td = document.createElement("td");
 
     td.colSpan = 4;
-    td.textContent = "No sales for selected dates.";
+    td.textContent =
+      "No matching sales for selected dates.";
 
     tr.append(td);
     body.append(tr);
   }
 
   $(`owner-${owner}-page`).textContent =
-    `Page ${page} of ${pages} (${report.rows.length} items)`;
+    `Page ${page} of ${pageCount} ` +
+    `(${report.rows.length} items)`;
 
-  $(`owner-${owner}-prev`).disabled = page <= 1;
-  $(`owner-${owner}-next`).disabled = page >= pages;
+  $(`owner-${owner}-prev`).disabled =
+    page <= 1;
 
-  const id = `owner-${owner}-extra-summary`;
+  $(`owner-${owner}-next`).disabled =
+    page >= pageCount;
 
-  let summary = $(id);
+  /* SALES SUMMARY */
+
+  let summary = $(
+    `owner-${owner}-extra-summary`
+  );
 
   if (!summary) {
     summary = document.createElement("p");
-    summary.id = id;
-    summary.className = "owner-note";
+
+    summary.id =
+      `owner-${owner}-extra-summary`;
+
+    summary.className =
+      "owner-note";
 
     body.closest(".owner-card")
       ?.querySelector(".owner-stats")
-      ?.insertAdjacentElement("afterend", summary);
-  }
-
-  summary.textContent = owner === "boss"
-    ? (
-        `Products: ${money(report.productSales)} · ` +
-        `Takeout boxes: ${report.box15}×₱15 + ` +
-        `${report.box25}×₱25 = ${money(report.boxSales)} · ` +
-        `Total: ${money(report.total)}`
-      )
-    : (
-        `Sales: ${money(report.productSales)} · ` +
-        "Shanghai Silog = ₱30/serving · No boxes"
+      ?.insertAdjacentElement(
+        "afterend",
+        summary
       );
-}
-
-/* OWNER ASSIGNMENTS */
-
-function cleanAssignments(data) {
-  const result = {};
-
-  for (const owner of owners) {
-    const source = data?.[owner] || defaults[owner];
-
-    result[owner] = {
-      categories: unique(source.categories || []),
-      items: unique(source.items || [])
-    };
   }
 
-  result.gaa.items = unique([
-    ...result.gaa.items,
-    keyOf("All Day Breakfast", "Shanghai Silog")
-  ]);
+  if (summary) {
+    if (owner === "gaa") {
+      summary.textContent =
+        `Products: ${pesos(report.productSales)} · ` +
+        `Set A with Shanghai: ₱450/set · ` +
+        `Shanghai Party Trays: saved price · ` +
+        `Shanghai Silog: ₱30/serving · ` +
+        `Boxes excluded.`;
 
-  return result;
+    } else {
+      summary.textContent =
+        `Products: ${pesos(report.productSales)} · ` +
+        `Boxes: ${report.box15}×₱15 + ` +
+        `${report.box25}×₱25 = ` +
+        `${pesos(report.boxSales)} · ` +
+        `Total: ${pesos(report.total)}`;
+    }
+  }
 }
 
-function fillSelect(id, choices, placeholder) {
+/* ======================================
+   OWNER ASSIGNMENTS
+====================================== */
+
+function fillSelect(
+  id,
+  choices,
+  placeholder
+) {
   const select = $(id);
+
   if (!select) return;
 
   const previous = select.value;
 
-  select.replaceChildren(new Option(placeholder, ""));
+  select.replaceChildren(
+    new Option(placeholder, "")
+  );
 
-  for (const choice of choices) {
-    select.add(new Option(choice.label, choice.value));
+  for (const option of choices) {
+    select.add(
+      new Option(
+        option.label,
+        option.value
+      )
+    );
   }
 
   if (
     [...select.options].some(
-      option => option.value === previous
+      option =>
+        option.value === previous
     )
   ) {
     select.value = previous;
   }
 }
 
-function renderAssignments(owner) {
-  const categoryNames = unique([
-    ...state.categories.map(item => item.name),
-    ...state.menu.map(item => item.category)
+function renderChoices(owner) {
+  const categories = uniq([
+    ...state.categories.map(
+      category => category.name
+    ),
+
+    ...state.menu.map(
+      product => product.category
+    )
   ]).sort();
 
   fillSelect(
     `owner-${owner}-category`,
-    categoryNames.map(value => ({
-      label: value,
-      value
+
+    categories.map(name => ({
+      label: name,
+      value: name
     })),
+
     "Choose category"
   );
 
   fillSelect(
     `owner-${owner}-product`,
+
     state.menu
-      .filter(item => item.name && item.category)
+      .filter(
+        product =>
+          product.category &&
+          product.name
+      )
       .sort(
         (a, b) =>
-          `${a.category} ${a.name}`.localeCompare(
-            `${b.category} ${b.name}`
-          )
+          `${a.category} ${a.name}`
+            .localeCompare(
+              `${b.category} ${b.name}`
+            )
       )
-      .map(item => ({
-        label: `${item.category} · ${item.name}`,
-        value: keyOf(item.category, item.name)
+      .map(product => ({
+        label:
+          `${product.category} · ${product.name}`,
+
+        value: keyOf(
+          product.category,
+          product.name
+        )
       })),
+
     "Choose item"
   );
 
-  const root = $(`owner-${owner}-rules`);
+  const root = $(
+    `owner-${owner}-rules`
+  );
+
   if (!root) return;
 
   root.replaceChildren();
 
   for (const type of ["categories", "items"]) {
-    for (const value of state.assignments[owner][type]) {
-      const chip = document.createElement("span");
+    for (
+      const value of
+      state.rules[owner][type]
+    ) {
+      const chip =
+        document.createElement("span");
+
       chip.className = "owner-rule";
 
       chip.append(
         document.createTextNode(
-          `${type === "items" ? "Item" : "Category"}: ` +
-          `${value.replace("|", " · ")} `
+          `${
+            type === "items"
+              ? "Item"
+              : "Category"
+          }: ${value.replace("|", " · ")} `
         )
       );
 
-      const remove = document.createElement("button");
+      const remove =
+        document.createElement("button");
+
       remove.type = "button";
       remove.textContent = "×";
 
       remove.onclick = () =>
-        changeAssignment(owner, type, value, false);
+        changeRule(
+          owner,
+          type,
+          value,
+          false
+        );
 
       chip.append(remove);
       root.append(chip);
@@ -673,997 +1171,206 @@ function renderAssignments(owner) {
 }
 
 function renderAll() {
-  for (const owner of owners) {
+  for (const owner of OWNERS) {
     renderOwner(owner);
-    renderAssignments(owner);
+    renderChoices(owner);
   }
 }
 
-async function changeAssignment(owner, type, value, add) {
+async function changeRule(
+  owner,
+  type,
+  value,
+  add
+) {
   if (!value) return;
 
   try {
     await authReady;
 
-    await runTransaction(db, async tx => {
-      const snapshot = await tx.get(settingsRef);
+    await runTransaction(
+      db,
+      async transaction => {
+        const snapshot =
+          await transaction.get(
+            settingsRef
+          );
 
-      const next = cleanAssignments(
-        snapshot.exists()
-          ? snapshot.data().owners
-          : defaults
-      );
+        const next = cleanRules(
+          snapshot.exists()
+            ? snapshot.data().owners
+            : DEFAULTS
+        );
 
-      next[owner][type] = add
-        ? unique([...next[owner][type], value])
-        : next[owner][type].filter(item => item !== value);
+        next[owner][type] = add
+          ? uniq([
+              ...next[owner][type],
+              value
+            ])
+          : next[owner][type].filter(
+              item => item !== value
+            );
 
-      tx.set(settingsRef, {
-        owners: next,
-        updatedAt: serverTimestamp()
-      });
-    });
+        transaction.set(
+          settingsRef,
+          {
+            owners: next,
+            updatedAt: serverTimestamp()
+          }
+        );
+      }
+    );
 
-    notify("Owner assignments saved.");
+    showStatus(
+      "Owner assignments saved. Reports will refresh."
+    );
+
   } catch (error) {
-    notify(`Save failed: ${error.message}`, true);
+    showStatus(
+      `Assignment failed: ${error.message}`,
+      true
+    );
   }
 }
 
-/* 58MM OWNER REPORT */
+/* ======================================
+   PRINT KUYA GAA / KUYA BOSS
+====================================== */
 
 function printOwner(owner) {
-  const { from, to } = state.dates[owner];
+  const {
+    from,
+    to
+  } = state.dates[owner];
 
   if (from && to && from > to) {
-    notify("From date cannot be after To date.", true);
-    return;
-  }
-
-  const report = calculateOwner(owner);
-
-  printOwnerReport({
-    ownerName: owner === "gaa" ? "KUYA GAA" : "KUYA BOSS",
-    from: from || "All",
-    to: to || "All",
-    rows: report.rows,
-    itemsSold: report.qty,
-    orders: report.orders,
-    productSales: report.productSales,
-    boxSales: report.boxSales,
-    note: owner === "gaa"
-      ? "Shanghai Silog = P30 each. Boxes excluded."
-      : `${report.box15} x P15 + ${report.box25} x P25 boxes`
-  });
-}
-
-/* DELETE ORDER — CONFIRMATION MODAL */
-
-const recent = $("recent-orders-body");
-
-function installDeleteButtons() {
-  if (!recent) return;
-
-  for (
-    const edit of recent.querySelectorAll("[data-edit-order]")
-  ) {
-    const group = edit.parentElement;
-
-    if (!group || group.querySelector("[data-owner-delete]")) {
-      continue;
-    }
-
-    const button = document.createElement("button");
-
-    button.type = "button";
-    button.textContent = "Delete";
-    button.className =
-      "btn btn-sm btn-outline order-delete-btn";
-
-    button.dataset.ownerDelete = edit.dataset.editOrder;
-
-    group.append(button);
-  }
-}
-
-function showDeleteConfirmation(order) {
-  const root = $("modal-root");
-
-  root.innerHTML = `
-    <div class="modal-backdrop" id="owner-delete-backdrop">
-      <section class="modal-sheet"
-        role="alertdialog"
-        aria-modal="true"
-        style="max-width:430px"
-      >
-        <h3>Delete Order #${escapeHtml(order.orderNumber)}?</h3>
-
-        <p>
-          Total: ${money(order.total)}
-        </p>
-
-        <p>
-          This will permanently delete this order and
-          its linked GCash payment. Sales reports will
-          also be updated.
-        </p>
-
-        <p class="form-error" id="owner-delete-error"></p>
-
-        <div class="modal-actions">
-          <button type="button"
-            id="owner-delete-cancel"
-            class="btn btn-outline"
-          >Cancel</button>
-
-          <button type="button"
-            id="owner-delete-confirm"
-            class="btn btn-primary"
-          >Yes, Delete Order</button>
-        </div>
-      </section>
-    </div>
-  `;
-
-  const close = () => root.replaceChildren();
-
-  root.querySelector("#owner-delete-cancel").onclick = close;
-
-  const confirm = root.querySelector("#owner-delete-confirm");
-
-  confirm.onclick = async () => {
-    confirm.disabled = true;
-    confirm.textContent = "Deleting…";
-
-    try {
-      await authReady;
-
-      const orderRef = doc(db, "orders", order.id);
-
-      const snap = await getDoc(orderRef);
-
-      if (!snap.exists()) {
-        throw Error("Order already deleted.");
-      }
-
-      const linked = await getDocs(
-        query(
-          collection(db, "gcashPayments"),
-          where("orderId", "==", order.id)
-        )
-      );
-
-      const batch = writeBatch(db);
-
-      batch.delete(orderRef);
-
-      for (const payment of linked.docs) {
-        batch.delete(payment.ref);
-      }
-
-      if (
-        !linked.docs.some(payment => payment.id === order.id)
-      ) {
-        batch.delete(doc(db, "gcashPayments", order.id));
-      }
-
-      await batch.commit();
-
-      close();
-
-      notify(
-        `Order #${order.orderNumber} successfully deleted.`
-      );
-
-    } catch (error) {
-      root.querySelector("#owner-delete-error")
-        .textContent = error.message;
-
-      confirm.disabled = false;
-      confirm.textContent = "Yes, Delete Order";
-    }
-  };
-}
-
-recent?.addEventListener("click", event => {
-  const button = event.target.closest("[data-owner-delete]");
-
-  if (!button) return;
-
-  const order = state.orders.find(
-    item => item.id === button.dataset.ownerDelete
-  );
-
-  if (!order) {
-    notify("Order not found.", true);
-    return;
-  }
-
-  showDeleteConfirmation(order);
-});
-
-if (recent) {
-  new MutationObserver(
-    installDeleteButtons
-  ).observe(recent, {
-    childList: true,
-    subtree: true
-  });
-
-  installDeleteButtons();
-}
-
-/* ==========================================
-   GCASH — COMBINED PAYMENT FOR TWO ORDERS
-   ========================================== */
-
-function paymentFor(orderId) {
-  return state.payments.find(
-    payment =>
-      payment.orderId === orderId ||
-      payment.id === orderId
-  );
-}
-
-function paymentDay(payment) {
-  if (payment.dayKey) return payment.dayKey;
-
-  const date = timestampDate(payment.createdAt);
-
-  return date ? dayKey(date) : "";
-}
-
-function ordersOnDay(day) {
-  return state.orders
-    .filter(order => orderDay(order) === day)
-    .sort(
-      (a, b) =>
-        num(a.orderNumber) - num(b.orderNumber)
-    );
-}
-
-function remainingGcash(order) {
-  return Math.max(
-    0,
-    rounded(
-      num(order.total) -
-      num(paymentFor(order.id)?.amount)
-    )
-  );
-}
-
-function parseCents(value) {
-  const text = String(value).trim();
-
-  if (!/^\d+(?:\.\d{1,2})?$/.test(text)) {
-    return NaN;
-  }
-
-  return cents(Number(text));
-}
-
-function openGcashModal(existingEntry = null) {
-  const root = $("modal-root");
-
-  const day = existingEntry
-    ? paymentDay(existingEntry)
-    : $("finance-date")?.value || dayKey();
-
-  const orders = ordersOnDay(day);
-
-  if (!orders.length) {
-    notify("No saved orders for this date.", true);
-    return;
-  }
-
-  const firstId =
-    existingEntry?.orderId || orders[0].id;
-
-  const options = orders.map(order => `
-    <option value="${escapeHtml(order.id)}"
-      ${order.id === firstId ? "selected" : ""}
-    >
-      #${escapeHtml(order.orderNumber)} ·
-      ${escapeHtml(order.customerName || "Walk-in")} ·
-      ${money(order.total)}
-    </option>
-  `).join("");
-
-  root.innerHTML = `
-    <div class="modal-backdrop" id="combined-gcash-backdrop">
-      <section class="modal-sheet finance-modal"
-        style="max-width:590px;max-height:90dvh;overflow-y:auto"
-      >
-        <h3>
-          ${
-            existingEntry
-              ? "Edit GCash Amount"
-              : "Add GCash Payment"
-          }
-        </h3>
-
-        <p class="modal-subtitle">
-          ${
-            existingEntry
-              ? "Correct the total GCash amount for this order."
-              : "For one GCash transfer covering two receipts, select both saved orders."
-          }
-        </p>
-
-        <form id="combined-gcash-form" class="modal-form">
-
-          <label class="field">
-            Main saved order
-            <select id="combined-gcash-first"
-              required
-              ${existingEntry ? "disabled" : ""}
-            >
-              ${options}
-            </select>
-          </label>
-
-          ${
-            existingEntry
-              ? ""
-              : `
-                <label class="field">
-                  Additional saved order (optional)
-                  <select id="combined-gcash-second">
-                    <option value="">
-                      None — one order only
-                    </option>
-
-                    ${orders.map(order => `
-                      <option value="${escapeHtml(order.id)}">
-                        #${escapeHtml(order.orderNumber)} ·
-                        ${money(order.total)}
-                      </option>
-                    `).join("")}
-                  </select>
-                </label>
-              `
-          }
-
-          <label class="field">
-            Description
-            <input id="combined-gcash-description"
-              type="text"
-              maxlength="160"
-              required
-              value="${escapeHtml(
-                existingEntry?.description || ""
-              )}"
-              placeholder="GCash includes Orders #18 and #23"
-            >
-          </label>
-
-          <label class="field">
-            ${
-              existingEntry
-                ? "Corrected GCash amount"
-                : "Total NEW GCash received"
-            }
-
-            <input id="combined-gcash-amount"
-              type="number"
-              min="0.01"
-              step="0.01"
-              inputmode="decimal"
-              required
-              value="${existingEntry?.amount ?? ""}"
-              placeholder="1612.00"
-            >
-          </label>
-
-          ${
-            existingEntry
-              ? ""
-              : `
-                <label class="field">
-                  Portion for main order (optional)
-                  <input
-                    id="combined-gcash-first-share"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    inputmode="decimal"
-                    placeholder="Auto-allocate"
-                  >
-                </label>
-              `
-          }
-
-          <div id="combined-gcash-preview"
-            role="status"
-            style="background:#fff1f7;padding:12px;border-radius:10px;white-space:pre-line;font-size:.85rem;line-height:1.6"
-          ></div>
-
-          <p class="form-error"
-            id="combined-gcash-error"
-            role="alert"
-          ></p>
-
-          <div class="modal-actions">
-
-            <button type="button"
-              class="btn btn-outline"
-              id="combined-gcash-cancel"
-            >
-              Cancel
-            </button>
-
-            <button type="submit"
-              class="btn btn-primary"
-              id="combined-gcash-save"
-            >
-              Save GCash Payment
-            </button>
-
-          </div>
-        </form>
-      </section>
-    </div>
-  `;
-
-  const form = root.querySelector("#combined-gcash-form");
-
-  const firstField = form.querySelector(
-    "#combined-gcash-first"
-  );
-
-  const secondField = form.querySelector(
-    "#combined-gcash-second"
-  );
-
-  const totalField = form.querySelector(
-    "#combined-gcash-amount"
-  );
-
-  const firstShareField = form.querySelector(
-    "#combined-gcash-first-share"
-  );
-
-  const descriptionField = form.querySelector(
-    "#combined-gcash-description"
-  );
-
-  const preview = form.querySelector(
-    "#combined-gcash-preview"
-  );
-
-  const errorBox = form.querySelector(
-    "#combined-gcash-error"
-  );
-
-  const saveButton = form.querySelector(
-    "#combined-gcash-save"
-  );
-
-  const close = () => root.replaceChildren();
-
-  form.querySelector("#combined-gcash-cancel").onclick =
-    close;
-
-  const findOrder = id =>
-    orders.find(order => order.id === id);
-
-  function allocation() {
-    const first = findOrder(firstField.value);
-
-    const second = secondField
-      ? findOrder(secondField.value)
-      : null;
-
-    const total = parseCents(totalField.value);
-
-    const firstAmount = existingEntry
-      ? total
-      : (
-          firstShareField.value.trim()
-            ? parseCents(firstShareField.value)
-            : Math.min(
-                Number.isFinite(total) ? total : 0,
-                cents(remainingGcash(first))
-              )
-        );
-
-    const secondAmount = existingEntry
-      ? 0
-      : total - firstAmount;
-
-    return {
-      first,
-      second,
-      total,
-      firstAmount,
-      secondAmount
-    };
-  }
-
-  function refreshPreview() {
-    const data = allocation();
-
-    if (!data.first) return;
-
-    const previous = num(
-      paymentFor(data.first.id)?.amount
+    showStatus(
+      "From date must not be after To date.",
+      true
     );
 
-    if (existingEntry) {
-      preview.textContent =
-        `Order #${data.first.orderNumber}\n` +
-        `Order total: ${money(data.first.total)}\n` +
-        `Existing GCash: ${money(previous)}\n` +
-        `Corrected GCash: ${
-          money(Number.isFinite(data.total)
-            ? data.total / 100 : 0)
-        }`;
-
-      return;
-    }
-
-    preview.textContent =
-      `Order #${data.first.orderNumber}\n` +
-      `Available balance: ${money(remainingGcash(data.first))}\n` +
-      `New GCash portion: ${money(
-        Number.isFinite(data.firstAmount)
-          ? data.firstAmount / 100 : 0
-      )}`;
-
-    if (data.second) {
-      preview.textContent +=
-        `\n\nOrder #${data.second.orderNumber}\n` +
-        `Available balance: ${money(remainingGcash(data.second))}\n` +
-        `New GCash portion: ${money(
-          Number.isFinite(data.secondAmount)
-            ? data.secondAmount / 100 : 0
-        )}`;
-    }
-
-    preview.textContent +=
-      `\n\nTOTAL NEW GCASH: ${money(
-        Number.isFinite(data.total)
-          ? data.total / 100 : 0
-      )}`;
-
-    if (
-      Number.isFinite(data.total) &&
-      data.total > 0 &&
-      !data.second &&
-      data.total > cents(remainingGcash(data.first))
-    ) {
-      preview.textContent +=
-        "\nSelect an additional saved order for the remaining amount.";
-    }
+    return;
   }
 
-  firstField.onchange = () => {
-    if (firstShareField) firstShareField.value = "";
-    refreshPreview();
-  };
+  const report = calculate(owner);
 
-  if (secondField) {
-    secondField.onchange = () => {
-      if (secondField.value === firstField.value) {
-        secondField.value = "";
-      }
+  try {
+    printOwnerReport({
+      ownerName:
+        owner === "gaa"
+          ? "KUYA GAA"
+          : "KUYA BOSS",
 
-      if (firstShareField) firstShareField.value = "";
+      from: from || "All",
+      to: to || "All",
 
-      refreshPreview();
-    };
-  }
+      rows: report.rows,
 
-  totalField.oninput = refreshPreview;
+      itemsSold: report.qty,
+      orders: report.orders,
 
-  if (firstShareField) {
-    firstShareField.oninput = refreshPreview;
-  }
+      productSales: report.productSales,
+      boxSales: report.boxSales,
 
-  refreshPreview();
-
-  form.onsubmit = async event => {
-    event.preventDefault();
-
-    errorBox.textContent = "";
-
-    const data = allocation();
-
-    const description =
-      descriptionField.value.trim();
-
-    if (
-      !description ||
-      !data.first ||
-      !Number.isFinite(data.total) ||
-      data.total <= 0
-    ) {
-      errorBox.textContent =
-        "Enter a valid description and GCash amount.";
-
-      return;
-    }
-
-    if (
-      data.second &&
-      data.second.id === data.first.id
-    ) {
-      errorBox.textContent =
-        "Choose a different additional order.";
-
-      return;
-    }
-
-    if (
-      !Number.isFinite(data.firstAmount) ||
-      data.firstAmount <= 0 ||
-      (
-        data.second &&
-        (
-          !Number.isFinite(data.secondAmount) ||
-          data.secondAmount <= 0
-        )
-      ) ||
-      (
-        !data.second &&
-        data.secondAmount !== 0
-      )
-    ) {
-      errorBox.textContent = data.second
-        ? "Allocate a positive amount to both orders."
-        : "Amount exceeds this order. Select an additional saved order.";
-
-      return;
-    }
-
-    saveButton.disabled = true;
-    saveButton.textContent = "Saving…";
-
-    const selected = [{
-      order: data.first,
-      share: data.firstAmount
-    }];
-
-    if (data.second) {
-      selected.push({
-        order: data.second,
-        share: data.secondAmount
-      });
-    }
-
-    try {
-      await authReady;
-
-      const groupId =
-        crypto.randomUUID?.() ||
-        `gcash-${Date.now()}`;
-
-      await runTransaction(db, async transaction => {
-        const references = selected.map(({ order }) => ({
-          orderRef: doc(db, "orders", order.id),
-
-          paymentRef: doc(
-            db,
-            "gcashPayments",
-            order.id
-          )
-        }));
-
-        // Read all documents before writing.
-
-        const snapshots = await Promise.all(
-          references.flatMap(ref => [
-            transaction.get(ref.orderRef),
-            transaction.get(ref.paymentRef)
-          ])
-        );
-
-        const pendingWrites = [];
-
-        for (let index = 0; index < selected.length; index++) {
-          const selectedItem = selected[index];
-          const refs = references[index];
-
-          const orderSnap = snapshots[index * 2];
-          const paymentSnap = snapshots[index * 2 + 1];
-
-          if (!orderSnap.exists()) {
-            throw Error(
-              "One of the selected orders no longer exists."
-            );
-          }
-
-          const order = orderSnap.data();
-
-          const savedDate =
-            order.dayKey ||
-            (
-              order.createdAt?.toDate
-                ? dayKey(order.createdAt.toDate())
-                : ""
-            );
-
-          if (savedDate !== day) {
-            throw Error(
-              `Order #${order.orderNumber} belongs to another date.`
-            );
-          }
-
-          if (
-            existingEntry &&
-            !paymentSnap.exists()
-          ) {
-            throw Error(
-              "The GCash entry no longer exists."
-            );
-          }
-
-          const previous = paymentSnap.exists()
-            ? cents(paymentSnap.data().amount)
-            : 0;
-
-          const next = existingEntry
-            ? selectedItem.share
-            : previous + selectedItem.share;
-
-          const maximum = cents(order.total);
-
-          if (next <= 0 || next > maximum) {
-            const remaining = Math.max(
-              0,
-              maximum - previous
-            );
-
-            throw Error(
-              `Order #${order.orderNumber} can accept ` +
-              `only ${money(remaining / 100)} more GCash. ` +
-              `Check the allocation.`
-            );
-          }
-
-          const oldHistory =
-            paymentSnap.exists() &&
-            Array.isArray(
-              paymentSnap.data().paymentHistory
+      note:
+        owner === "gaa"
+          ? (
+              "Set A w/ Shanghai: P450; " +
+              "Shanghai trays: saved price; " +
+              "Silog: P30. No boxes."
             )
-              ? paymentSnap.data().paymentHistory
-              : [];
+          : (
+              `Boxes: ${report.box15} x P15, ` +
+              `${report.box25} x P25.`
+            )
+    });
 
-          const historyEntry = {
-            action: existingEntry
-              ? "edit-total"
-              : "add",
-
-            amount: selectedItem.share / 100,
-
-            previousAmount: previous / 100,
-            newAmount: next / 100,
-
-            groupId,
-            combinedTransfer: data.total / 100,
-
-            description,
-            at: new Date().toISOString()
-          };
-
-          const payment = {
-            orderId: refs.orderRef.id,
-
-            orderNumber: Number(
-              order.orderNumber
-            ),
-
-            customerName:
-              order.customerName || "",
-
-            dayKey: savedDate,
-
-            amount: rounded(next / 100),
-
-            description: selected.length > 1
-              ? (
-                  `${description} [Orders ${
-                    selected.map(
-                      item => "#" + item.order.orderNumber
-                    ).join(" + ")
-                  }]`
-                ).slice(0, 160)
-              : description,
-
-            paymentHistory: [
-              ...oldHistory,
-              historyEntry
-            ].slice(-60),
-
-            createdAt: paymentSnap.exists()
-              ? paymentSnap.data().createdAt ||
-                serverTimestamp()
-              : serverTimestamp(),
-
-            updatedAt: serverTimestamp()
-          };
-
-          pendingWrites.push({
-            ...refs,
-            payment,
-            amount: next / 100
-          });
-        }
-
-        // Update both orders atomically.
-
-        for (const write of pendingWrites) {
-          transaction.set(
-            write.paymentRef,
-            write.payment
-          );
-
-          transaction.update(
-            write.orderRef,
-            {
-              paymentMethod: "GCash",
-              gcashAmount: write.amount
-            }
-          );
-        }
-      });
-
-      close();
-
-      notify(
-        `${money(data.total / 100)} GCash saved for ` +
-        selected.map(
-          item => `Order #${item.order.orderNumber}`
-        ).join(" and ") +
-        "."
-      );
-
-    } catch (error) {
-      errorBox.textContent =
-        `Save failed: ${error.message}`;
-
-      saveButton.disabled = false;
-      saveButton.textContent = "Save GCash Payment";
-    }
-  };
+  } catch (error) {
+    showStatus(
+      `Print failed: ${error.message}`,
+      true
+    );
+  }
 }
 
-/* REPLACE ORIGINAL GCASH MODAL */
+/* ======================================
+   SIDEBAR NAVIGATION
+====================================== */
 
-document.addEventListener(
-  "click",
-  event => {
-    const add = event.target.closest(
-      "#add-gcash-payment"
-    );
+function setupNavigation() {
+  const nav = document.querySelector(
+    ".admin-nav"
+  );
 
-    if (add) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
+  if (!nav) return;
 
-      openGcashModal();
-      return;
-    }
-
-    const edit = event.target.closest(
-      ".finance-separated-section button"
-    );
-
-    if (
-      !edit ||
-      edit.textContent.trim() !== "Edit"
-    ) {
-      return;
-    }
-
-    const section = edit.closest(
-      ".finance-separated-section"
-    );
-
-    if (
-      !section?.querySelector("h3")
-        ?.textContent.startsWith("GCash Payments")
-    ) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopImmediatePropagation();
-
-    const row = edit.closest("tr");
-
-    const rowIndex = [
-      ...section.querySelectorAll("tbody tr")
-    ].indexOf(row);
-
-    const pageText =
-      section.querySelector(
-        ".table-pagination span"
-      )?.textContent || "";
-
-    const page = Number(
-      /Page\s+(\d+)/.exec(pageText)?.[1] || 1
-    );
-
-    const day =
-      $("finance-date")?.value || dayKey();
-
-    const records = state.payments
-      .filter(payment => paymentDay(payment) === day)
-      .sort(
-        (a, b) =>
-          num(b.createdAt?.seconds) -
-          num(a.createdAt?.seconds)
-      );
-
-    const entry = records[
-      (page - 1) * 5 + rowIndex
-    ];
-
-    if (!entry) {
-      notify(
-        "GCash table is refreshing. Try Edit again.",
-        true
-      );
-
-      return;
-    }
-
-    openGcashModal(entry);
-  },
-  true
-);
-
-/* SIDEBAR AND DATE FILTERS */
-
-function setupUI() {
-  const nav = document.querySelector(".admin-nav");
-
-  const finance = nav?.querySelector(
+  const finance = nav.querySelector(
     '[data-tab="finances"]'
   );
 
-  const gaa = nav?.querySelector(
+  const gaa = nav.querySelector(
     '[data-tab="owner-gaa"]'
   );
 
-  const boss = nav?.querySelector(
+  const boss = nav.querySelector(
     '[data-tab="owner-boss"]'
   );
+
+  /* OWNER REPORTS BELOW EXPENSES & CASH */
 
   if (finance && gaa && boss) {
     finance.after(gaa);
     gaa.after(boss);
   }
 
-  for (const owner of owners) {
-    const section = $(`section-owner-${owner}`);
+  for (const owner of OWNERS) {
+    const section = $(
+      `section-owner-${owner}`
+    );
+
     if (!section) continue;
 
-    const range = $(`owner-${owner}-range`);
-    range?.closest("label")?.remove();
+    /* SHOW FROM AND TO DIRECTLY */
 
-    const custom = $(`owner-${owner}-custom`);
+    $(`owner-${owner}-range`)
+      ?.closest("label")
+      ?.remove();
+
+    const custom = $(
+      `owner-${owner}-custom`
+    );
 
     if (custom) {
       custom.hidden = false;
-      custom.style.display = "flex";
-      custom.style.flexWrap = "wrap";
-      custom.style.gap = "10px";
+
+      custom.style.cssText =
+        "display:flex;" +
+        "gap:10px;" +
+        "flex-wrap:wrap;" +
+        "align-items:center";
     }
 
     for (const part of ["from", "to"]) {
-      const field = $(`owner-${owner}-${part}`);
+      const input = $(
+        `owner-${owner}-${part}`
+      );
 
-      field.value = state.dates[owner][part];
+      if (!input) continue;
 
-      field.onchange = () => {
-        state.dates[owner][part] = field.value;
-        state.pages[owner] = 1;
+      input.value =
+        state.dates[owner][part];
+
+      input.onchange = () => {
+        state.dates[owner][part] =
+          input.value;
+
+        state.page[owner] = 1;
 
         renderOwner(owner);
       };
     }
+
+    /* PRINT BUTTON */
 
     const filters = section.querySelector(
       ".owner-filters"
@@ -1671,198 +1378,1229 @@ function setupUI() {
 
     if (
       filters &&
-      !filters.querySelector(".owner-print-button")
+      !filters.querySelector(
+        ".owner-print-button"
+      )
     ) {
-      const button = document.createElement("button");
+      const button =
+        document.createElement("button");
 
       button.type = "button";
+
       button.className =
         "btn btn-primary owner-print-button";
 
-      button.textContent = "Print 58mm Sales Report";
+      button.textContent =
+        "Print 58mm Sales Report";
 
-      button.onclick = () => printOwner(owner);
+      button.onclick = () =>
+        printOwner(owner);
 
       filters.append(button);
     }
 
-    $(`owner-${owner}-prev`).onclick = () => {
-      state.pages[owner]--;
-      renderOwner(owner);
-    };
+    /* TABLE PAGINATION */
 
-    $(`owner-${owner}-next`).onclick = () => {
-      state.pages[owner]++;
-      renderOwner(owner);
-    };
+    const prev = $(
+      `owner-${owner}-prev`
+    );
 
-    $(`owner-${owner}-add-category`).onclick =
-      () => changeAssignment(
-        owner,
-        "categories",
-        $(`owner-${owner}-category`).value,
-        true
-      );
+    const next = $(
+      `owner-${owner}-next`
+    );
 
-    $(`owner-${owner}-add-product`).onclick =
-      () => changeAssignment(
-        owner,
-        "items",
-        $(`owner-${owner}-product`).value,
-        true
-      );
+    if (prev) {
+      prev.onclick = () => {
+        state.page[owner]--;
+        renderOwner(owner);
+      };
+    }
 
-    nav?.querySelector(
-      `[data-tab="owner-${owner}"]`
-    )?.addEventListener("click", () => {
-      for (
-        const id of [
-          "dashboard",
-          "menu",
-          "finances",
-          "settings",
-          "owner-gaa",
-          "owner-boss"
-        ]
-      ) {
-        $(`section-${id}`)?.classList.toggle(
-          "hidden",
-          id !== `owner-${owner}`
+    if (next) {
+      next.onclick = () => {
+        state.page[owner]++;
+        renderOwner(owner);
+      };
+    }
+
+    /* ADD CATEGORY */
+
+    const addCategory = $(
+      `owner-${owner}-add-category`
+    );
+
+    if (addCategory) {
+      addCategory.onclick = () =>
+        changeRule(
+          owner,
+          "categories",
+          $(`owner-${owner}-category`).value,
+          true
         );
-      }
+    }
 
-      document.querySelector(".admin-main")
-        ?.scrollTo(0, 0);
-    });
+    /* ADD PRODUCT */
+
+    const addProduct = $(
+      `owner-${owner}-add-product`
+    );
+
+    if (addProduct) {
+      addProduct.onclick = () =>
+        changeRule(
+          owner,
+          "items",
+          $(`owner-${owner}-product`).value,
+          true
+        );
+    }
+
+    /* OWNER SIDEBAR BUTTON */
+
+    nav.querySelector(
+      `[data-tab="owner-${owner}"]`
+    )?.addEventListener(
+      "click",
+      () => {
+        for (
+          const id of [
+            "dashboard",
+            "menu",
+            "finances",
+            "settings",
+            "owner-gaa",
+            "owner-boss",
+            "unavailable-today"
+          ]
+        ) {
+          $(`section-${id}`)
+            ?.classList.toggle(
+              "hidden",
+              id !== `owner-${owner}`
+            );
+        }
+
+        nav.querySelectorAll(
+          "button[data-tab]"
+        ).forEach(button => {
+          button.classList.toggle(
+            "active",
+            button.dataset.tab ===
+              `owner-${owner}`
+          );
+        });
+
+        document.querySelector(
+          ".admin-main"
+        )?.scrollTo(0, 0);
+      }
+    );
   }
 
-  nav?.querySelectorAll(
+  /* REGULAR ADMIN TABS */
+
+  nav.querySelectorAll(
     'button[data-tab]:not([data-tab^="owner-"])'
   ).forEach(button => {
-    button.addEventListener("click", () => {
-      for (const owner of owners) {
-        $(`section-owner-${owner}`)
-          ?.classList.add("hidden");
+    button.addEventListener(
+      "click",
+      () => {
+        OWNERS.forEach(owner =>
+          $(`section-owner-${owner}`)
+            ?.classList.add("hidden")
+        );
       }
-    });
+    );
   });
 }
 
-setupUI();
+/* ======================================
+   DELETE ORDER WITH CONFIRMATION
+====================================== */
+
+const recent = $(
+  "recent-orders-body"
+);
+
+function ensureDeleteButtons() {
+  if (!recent) return;
+
+  recent.querySelectorAll(
+    "[data-edit-order]"
+  ).forEach(edit => {
+    const parent = edit.parentElement;
+
+    if (
+      !parent ||
+      parent.querySelector(
+        "[data-owner-delete]"
+      )
+    ) {
+      return;
+    }
+
+    const button =
+      document.createElement("button");
+
+    button.type = "button";
+
+    button.className =
+      "btn btn-sm btn-outline order-delete-btn";
+
+    button.textContent = "Delete";
+
+    button.dataset.ownerDelete =
+      edit.dataset.editOrder;
+
+    parent.append(button);
+  });
+}
+
+function confirmDelete(order) {
+  const root = $("modal-root");
+
+  if (!root) return;
+
+  root.innerHTML = `
+    <div
+      class="modal-backdrop"
+      id="owner-delete-modal"
+    >
+      <section
+        class="modal-sheet"
+        role="alertdialog"
+        aria-modal="true"
+        style="max-width:440px"
+      >
+
+        <h3>
+          Delete Order #${escapeHtml(order.orderNumber)}?
+        </h3>
+
+        <p>
+          Total: ${pesos(order.total)}.
+          This permanently removes the order
+          and its linked GCash payments.
+          Sales, Kuya Gaa, and Kuya Boss
+          reports will update.
+        </p>
+
+        <p
+          id="owner-delete-error"
+          class="form-error"
+          role="alert"
+        ></p>
+
+        <div class="modal-actions">
+
+          <button
+            id="owner-delete-cancel"
+            type="button"
+            class="btn btn-outline"
+          >
+            Cancel
+          </button>
+
+          <button
+            id="owner-delete-confirm"
+            type="button"
+            class="btn btn-primary"
+          >
+            Yes, Delete Order
+          </button>
+
+        </div>
+
+      </section>
+    </div>
+  `;
+
+  const close = () =>
+    root.replaceChildren();
+
+  root.querySelector(
+    "#owner-delete-cancel"
+  ).onclick = close;
+
+  const button = root.querySelector(
+    "#owner-delete-confirm"
+  );
+
+  button.onclick = async () => {
+    button.disabled = true;
+    button.textContent = "Deleting…";
+
+    try {
+      await authReady;
+
+      const linked = await getDocs(
+        query(
+          collection(
+            db,
+            "gcashPayments"
+          ),
+
+          where(
+            "orderId",
+            "==",
+            order.id
+          )
+        )
+      );
+
+      const batch = writeBatch(db);
+
+      batch.delete(
+        doc(
+          db,
+          "orders",
+          order.id
+        )
+      );
+
+      const payments = new Map(
+        linked.docs.map(payment => [
+          payment.id,
+          payment.ref
+        ])
+      );
+
+      payments.set(
+        order.id,
+        doc(
+          db,
+          "gcashPayments",
+          order.id
+        )
+      );
+
+      for (const payment of payments.values()) {
+        batch.delete(payment);
+      }
+
+      await batch.commit();
+
+      close();
+
+      showStatus(
+        `Order #${order.orderNumber} deleted. ` +
+        "Reports will update."
+      );
+
+    } catch (error) {
+      root.querySelector(
+        "#owner-delete-error"
+      ).textContent = error.message;
+
+      button.disabled = false;
+
+      button.textContent =
+        "Yes, Delete Order";
+    }
+  };
+}
+
+recent?.addEventListener(
+  "click",
+  event => {
+    const button = event.target.closest(
+      "[data-owner-delete]"
+    );
+
+    if (!button) return;
+
+    const order = state.orders.find(
+      item =>
+        item.id ===
+        button.dataset.ownerDelete
+    );
+
+    if (order) {
+      confirmDelete(order);
+    } else {
+      showStatus(
+        "Order no longer exists.",
+        true
+      );
+    }
+  }
+);
+
+if (recent) {
+  new MutationObserver(
+    ensureDeleteButtons
+  ).observe(
+    recent,
+    {
+      childList: true,
+      subtree: true
+    }
+  );
+
+  ensureDeleteButtons();
+}
+
+/* ======================================
+   COMBINED / SPLIT GCASH PAYMENTS
+====================================== */
+
+function paymentFor(id) {
+  return state.payments.find(
+    payment =>
+      payment.orderId === id ||
+      payment.id === id
+  );
+}
+
+function ordersOnDay(day) {
+  return state.orders
+    .filter(
+      order =>
+        orderDate(order) === day
+    )
+    .sort(
+      (a, b) =>
+        num(a.orderNumber) -
+        num(b.orderNumber)
+    );
+}
+
+function parseCents(value) {
+  const text = String(value).trim();
+
+  return /^\d+(?:\.\d{1,2})?$/.test(text)
+    ? toCents(Number(text))
+    : NaN;
+}
+
+/* OPEN GCASH PAYMENT MODAL */
+
+function openGcashModal(entry = null) {
+  const root = $("modal-root");
+
+  const day = entry
+    ? paymentDate(entry)
+    : $("finance-date")?.value || dayKey();
+
+  const orders = ordersOnDay(day);
+
+  if (!orders.length) {
+    showStatus(
+      "No saved orders on this date.",
+      true
+    );
+
+    return;
+  }
+
+  const startId =
+    entry?.orderId ||
+    orders[0].id;
+
+  const options = orders.map(order => `
+    <option
+      value="${escapeHtml(order.id)}"
+      ${order.id === startId ? "selected" : ""}
+    >
+      #${escapeHtml(order.orderNumber)} ·
+      ${escapeHtml(order.customerName || "Walk-in")} ·
+      ${pesos(order.total)}
+    </option>
+  `).join("");
+
+  root.innerHTML = `
+    <div
+      class="modal-backdrop"
+      id="owner-gcash-modal"
+    >
+      <section
+        class="modal-sheet finance-modal"
+        style="max-width:590px;max-height:90dvh;overflow:auto"
+      >
+
+        <h3>
+          ${entry ? "Edit GCash Amount" : "Add GCash Payment"}
+        </h3>
+
+        <p class="modal-subtitle">
+          ${
+            entry
+              ? "Correct the cumulative GCash amount for this order."
+              : "One GCash transfer may cover two saved orders. Allocate the amount to each receipt."
+          }
+        </p>
+
+        <form
+          id="owner-gcash-form"
+          class="modal-form"
+        >
+
+          <label class="field">
+            Main order
+
+            <select
+              id="owner-gcash-main"
+              required
+              ${entry ? "disabled" : ""}
+            >
+              ${options}
+            </select>
+          </label>
+
+          ${
+            entry
+              ? ""
+              : `
+                <label class="field">
+                  Additional order (optional)
+
+                  <select id="owner-gcash-extra">
+                    <option value="">
+                      None — one order only
+                    </option>
+
+                    ${options}
+                  </select>
+                </label>
+              `
+          }
+
+          <label class="field">
+            Description
+
+            <input
+              id="owner-gcash-description"
+              type="text"
+              maxlength="160"
+              required
+              value="${escapeHtml(entry?.description || "")}"
+              placeholder="GCash for Orders #18 and #23"
+            >
+          </label>
+
+          <label class="field">
+            ${
+              entry
+                ? "Corrected cumulative GCash amount"
+                : "Total NEW GCash received"
+            }
+
+            <input
+              id="owner-gcash-total"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputmode="decimal"
+              required
+              value="${
+                entry ? escapeHtml(entry.amount) : ""
+              }"
+            >
+          </label>
+
+          ${
+            entry
+              ? ""
+              : `
+                <label class="field">
+                  Amount for main order (optional)
+
+                  <input
+                    id="owner-gcash-main-share"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputmode="decimal"
+                    placeholder="Automatic allocation"
+                  >
+                </label>
+              `
+          }
+
+          <p
+            id="owner-gcash-preview"
+            style="background:#fff2f7;padding:10px;border-radius:9px;white-space:pre-line"
+          ></p>
+
+          <p
+            id="owner-gcash-error"
+            class="form-error"
+            role="alert"
+          ></p>
+
+          <div class="modal-actions">
+
+            <button
+              id="owner-gcash-cancel"
+              class="btn btn-outline"
+              type="button"
+            >
+              Cancel
+            </button>
+
+            <button
+              id="owner-gcash-save"
+              class="btn btn-primary"
+              type="submit"
+            >
+              Save GCash Payment
+            </button>
+
+          </div>
+
+        </form>
+
+      </section>
+    </div>
+  `;
+
+  const form = root.querySelector(
+    "#owner-gcash-form"
+  );
+
+  const main = form.querySelector(
+    "#owner-gcash-main"
+  );
+
+  const extra = form.querySelector(
+    "#owner-gcash-extra"
+  );
+
+  const total = form.querySelector(
+    "#owner-gcash-total"
+  );
+
+  const share = form.querySelector(
+    "#owner-gcash-main-share"
+  );
+
+  const description = form.querySelector(
+    "#owner-gcash-description"
+  );
+
+  const errorBox = form.querySelector(
+    "#owner-gcash-error"
+  );
+
+  const preview = form.querySelector(
+    "#owner-gcash-preview"
+  );
+
+  const save = form.querySelector(
+    "#owner-gcash-save"
+  );
+
+  const findOrder = id =>
+    orders.find(
+      order => order.id === id
+    );
+
+  const close = () =>
+    root.replaceChildren();
+
+  form.querySelector(
+    "#owner-gcash-cancel"
+  ).onclick = close;
+
+  /* PAYMENT ALLOCATION */
+
+  function allocation() {
+    const first = findOrder(
+      main.value
+    );
+
+    const second = extra?.value
+      ? findOrder(extra.value)
+      : null;
+
+    const entered = parseCents(
+      total.value
+    );
+
+    const existing = entry
+      ? 0
+      : toCents(
+          paymentFor(first.id)?.amount || 0
+        );
+
+    const available = Math.max(
+      0,
+      toCents(first.total) - existing
+    );
+
+    const firstAmount = entry
+      ? entered
+      : (
+          share?.value.trim()
+            ? parseCents(share.value)
+            : Math.min(
+                Number.isFinite(entered)
+                  ? entered
+                  : 0,
+                available
+              )
+        );
+
+    return {
+      first,
+      second,
+      entered,
+      firstAmount,
+      secondAmount: entered - firstAmount
+    };
+  }
+
+  /* PAYMENT PREVIEW */
+
+  function refreshPreview() {
+    const a = allocation();
+
+    if (!a.first) return;
+
+    const formatCents = value =>
+      pesos(
+        Number.isFinite(value)
+          ? value / 100
+          : 0
+      );
+
+    preview.textContent =
+      `Order #${a.first.orderNumber}: ` +
+      `${formatCents(a.firstAmount)}` +
+
+      (
+        a.second
+          ? (
+              `\nOrder #${a.second.orderNumber}: ` +
+              `${formatCents(a.secondAmount)}`
+            )
+          : ""
+      ) +
+
+      `\nTOTAL: ${formatCents(a.entered)}` +
+      `\nEach payment must fit the saved order balance.`;
+  }
+
+  for (
+    const field of [
+      main,
+      extra,
+      total,
+      share
+    ].filter(Boolean)
+  ) {
+    field.addEventListener(
+      "input",
+      refreshPreview
+    );
+  }
+
+  refreshPreview();
+
+  /* SAVE GCASH */
+
+  form.onsubmit = async event => {
+    event.preventDefault();
+
+    const a = allocation();
+
+    const details =
+      description.value.trim();
+
+    errorBox.textContent = "";
+
+    if (
+      !details ||
+      !a.first ||
+      !Number.isFinite(a.entered) ||
+      a.entered <= 0 ||
+      !Number.isFinite(a.firstAmount) ||
+      a.firstAmount <= 0 ||
+      (
+        a.second
+          ? (
+              !Number.isFinite(a.secondAmount) ||
+              a.secondAmount <= 0 ||
+              a.first.id === a.second.id
+            )
+          : a.secondAmount !== 0
+      )
+    ) {
+      errorBox.textContent =
+        "Check allocations and select a different additional order when needed.";
+
+      return;
+    }
+
+    save.disabled = true;
+
+    const allocations = [
+      {
+        order: a.first,
+        amountCents: a.firstAmount
+      }
+    ];
+
+    if (a.second) {
+      allocations.push({
+        order: a.second,
+        amountCents: a.secondAmount
+      });
+    }
+
+    try {
+      await authReady;
+
+      const groupId =
+        globalThis.crypto?.randomUUID?.() ||
+        `gcash-${Date.now()}`;
+
+      await runTransaction(
+        db,
+        async transaction => {
+          const refs = allocations.map(
+            item => ({
+              order: doc(
+                db,
+                "orders",
+                item.order.id
+              ),
+
+              payment: doc(
+                db,
+                "gcashPayments",
+                item.order.id
+              )
+            })
+          );
+
+          /* ALL READS BEFORE WRITES */
+
+          const snapshots = await Promise.all(
+            refs.flatMap(item => [
+              transaction.get(
+                item.order
+              ),
+
+              transaction.get(
+                item.payment
+              )
+            ])
+          );
+
+          const pending = [];
+
+          for (
+            let index = 0;
+            index < allocations.length;
+            index++
+          ) {
+            const orderSnapshot =
+              snapshots[index * 2];
+
+            const paymentSnapshot =
+              snapshots[index * 2 + 1];
+
+            if (!orderSnapshot.exists()) {
+              throw Error(
+                "Selected order was deleted."
+              );
+            }
+
+            const order =
+              orderSnapshot.data();
+
+            const orderId =
+              allocations[index].order.id;
+
+            const previous =
+              paymentSnapshot.exists()
+                ? toCents(
+                    paymentSnapshot.data().amount || 0
+                  )
+                : 0;
+
+            const next = entry
+              ? allocations[index].amountCents
+              : previous +
+                allocations[index].amountCents;
+
+            if (
+              next <= 0 ||
+              next > toCents(order.total)
+            ) {
+              throw Error(
+                `Order #${order.orderNumber}: ` +
+                `GCash exceeds saved order total ` +
+                `${pesos(order.total)}.`
+              );
+            }
+
+            const history =
+              paymentSnapshot.exists() &&
+              Array.isArray(
+                paymentSnapshot.data().paymentHistory
+              )
+                ? paymentSnapshot.data().paymentHistory
+                : [];
+
+            pending.push({
+              refs: refs[index],
+
+              payment: {
+                orderId,
+
+                orderNumber: Number(
+                  order.orderNumber
+                ),
+
+                customerName:
+                  order.customerName || "",
+
+                dayKey: orderDate(order),
+
+                amount: rounded(
+                  next / 100
+                ),
+
+                description: details,
+
+                paymentHistory: [
+                  ...history,
+                  {
+                    action: entry
+                      ? "edit-total"
+                      : "add",
+
+                    amount:
+                      allocations[index].amountCents / 100,
+
+                    previousAmount:
+                      previous / 100,
+
+                    newAmount:
+                      next / 100,
+
+                    combinedTransfer:
+                      a.entered / 100,
+
+                    groupId,
+                    description: details,
+
+                    at:
+                      new Date().toISOString()
+                  }
+                ].slice(-60),
+
+                createdAt:
+                  paymentSnapshot.exists()
+                    ? (
+                        paymentSnapshot.data().createdAt ||
+                        serverTimestamp()
+                      )
+                    : serverTimestamp(),
+
+                updatedAt:
+                  serverTimestamp()
+              },
+
+              amount: next / 100
+            });
+          }
+
+          /* APPLY TRANSACTION */
+
+          for (const item of pending) {
+            transaction.set(
+              item.refs.payment,
+              item.payment
+            );
+
+            transaction.update(
+              item.refs.order,
+              {
+                paymentMethod: "GCash",
+                gcashAmount: item.amount
+              }
+            );
+          }
+        }
+      );
+
+      close();
+
+      showStatus(
+        "GCash saved. Finance totals will refresh without adding to Sales twice."
+      );
+
+    } catch (error) {
+      errorBox.textContent =
+        `Save failed: ${error.message}`;
+
+      save.disabled = false;
+    }
+  };
+}
+
+/* INTERCEPT EXISTING GCASH BUTTONS */
+
+document.addEventListener(
+  "click",
+  event => {
+    if (
+      event.target.closest(
+        "#add-gcash-payment"
+      )
+    ) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      openGcashModal();
+      return;
+    }
+
+    const button = event.target.closest(
+      ".finance-separated-section button"
+    );
+
+    if (
+      !button ||
+      button.textContent.trim() !== "Edit"
+    ) {
+      return;
+    }
+
+    const section = button.closest(
+      ".finance-separated-section"
+    );
+
+    if (
+      !section?.querySelector("h3")
+        ?.textContent.startsWith(
+          "GCash Payments"
+        )
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const row = button.closest("tr");
+
+    const rowIndex = [
+      ...section.querySelectorAll(
+        "tbody tr"
+      )
+    ].indexOf(row);
+
+    const page = Number(
+      /Page\s+(\d+)/.exec(
+        section.querySelector(
+          ".table-pagination span"
+        )?.textContent || ""
+      )?.[1] || 1
+    );
+
+    const day =
+      $("finance-date")?.value ||
+      dayKey();
+
+    const records = state.payments
+      .filter(
+        payment =>
+          paymentDate(payment) === day
+      )
+      .sort(
+        (a, b) =>
+          num(b.createdAt?.seconds) -
+          num(a.createdAt?.seconds)
+      );
+
+    const entry = records[
+      (page - 1) * 5 +
+      rowIndex
+    ];
+
+    if (entry) {
+      openGcashModal(entry);
+    } else {
+      showStatus(
+        "GCash entry changed. Refresh and try Edit again.",
+        true
+      );
+    }
+  },
+  true
+);
+
+/* ======================================
+   INITIALIZE
+====================================== */
+
+setupNavigation();
 renderAll();
 
-/* REALTIME FIRESTORE */
+/* FIRESTORE LIVE LISTENERS */
 
 authReady.then(() => {
+  /* SAVED ORDERS */
+
   onSnapshot(
-    query(
-      collection(db, "orders"),
-      orderBy("createdAt", "desc")
+    collection(
+      db,
+      "orders"
     ),
 
     snapshot => {
-      state.orders = snapshot.docs.map(item => ({
-        id: item.id,
-        ...item.data()
-      }));
+      state.orders = snapshot.docs.map(
+        item => ({
+          id: item.id,
+          ...item.data()
+        })
+      );
 
       renderAll();
     },
 
-    error => notify(
-      `Orders error: ${error.message}`,
+    error => showStatus(
+      `Orders: ${error.message}`,
       true
     )
   );
 
+  /* MENU PRODUCTS */
+
   onSnapshot(
-    collection(db, "menu"),
+    collection(
+      db,
+      "menu"
+    ),
 
     snapshot => {
-      state.menu = snapshot.docs.map(item => ({
-        id: item.id,
-        ...item.data()
-      }));
+      state.menu = snapshot.docs.map(
+        item => ({
+          id: item.id,
+          ...item.data()
+        })
+      );
 
       renderAll();
-    }
-  );
-
-  onSnapshot(
-    collection(db, "categories"),
-
-    snapshot => {
-      state.categories = snapshot.docs.map(item => ({
-        id: item.id,
-        ...item.data()
-      }));
-
-      renderAll();
-    }
-  );
-
-  onSnapshot(
-    collection(db, "gcashPayments"),
-
-    snapshot => {
-      state.payments = snapshot.docs.map(item => ({
-        id: item.id,
-        ...item.data()
-      }));
     },
 
-    error => notify(
-      `GCash error: ${error.message}`,
+    error => showStatus(
+      `Menu: ${error.message}`,
       true
     )
   );
+
+  /* CATEGORIES */
+
+  onSnapshot(
+    collection(
+      db,
+      "categories"
+    ),
+
+    snapshot => {
+      state.categories = snapshot.docs.map(
+        item => ({
+          id: item.id,
+          ...item.data()
+        })
+      );
+
+      renderAll();
+    },
+
+    error => showStatus(
+      `Categories: ${error.message}`,
+      true
+    )
+  );
+
+  /* GCASH PAYMENTS */
+
+  onSnapshot(
+    collection(
+      db,
+      "gcashPayments"
+    ),
+
+    snapshot => {
+      state.payments = snapshot.docs.map(
+        item => ({
+          id: item.id,
+          ...item.data()
+        })
+      );
+    },
+
+    error => showStatus(
+      `GCash: ${error.message}`,
+      true
+    )
+  );
+
+  /* OWNER ASSIGNMENTS */
 
   onSnapshot(
     settingsRef,
 
     snapshot => {
-      state.assignments = cleanAssignments(
+      state.rules = cleanRules(
         snapshot.exists()
           ? snapshot.data().owners
-          : defaults
+          : DEFAULTS
       );
 
       renderAll();
     },
 
-    error => notify(
-      `Owner settings error: ${error.message}`,
+    error => showStatus(
+      `Owner settings: ${error.message}`,
       true
     )
   );
+
 }).catch(error => {
-  notify(`Sign-in error: ${error.message}`, true);
+  showStatus(
+    `Sign-in: ${error.message}`,
+    true
+  );
 });
 
-/* DAY CHANGE */
+/* PHILIPPINE MIDNIGHT REFRESH */
 
 let previousDay = dayKey();
 
 setInterval(() => {
-  const currentDay = dayKey();
+  const next = dayKey();
 
-  if (currentDay === previousDay) return;
+  if (next === previousDay) {
+    return;
+  }
 
-  for (const owner of owners) {
+  for (const owner of OWNERS) {
     for (const field of ["from", "to"]) {
-      if (state.dates[owner][field] === previousDay) {
-        state.dates[owner][field] = currentDay;
+      if (
+        state.dates[owner][field] ===
+        previousDay
+      ) {
+        state.dates[owner][field] = next;
 
-        const input = $(`owner-${owner}-${field}`);
+        const input = $(
+          `owner-${owner}-${field}`
+        );
 
         if (input) {
-          input.value = currentDay;
+          input.value = next;
         }
       }
     }
   }
 
-  previousDay = currentDay;
+  previousDay = next;
 
   renderAll();
 }, 60000);
