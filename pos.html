@@ -1,6 +1,7 @@
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
 
@@ -16,84 +17,11 @@
   <link rel="stylesheet" href="css/print.css">
 
   <style>
-    /* ======================================
-       NEW HEADER ICON DESIGN
-    ====================================== */
-
-    .topbar .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      flex: 0 0 auto;
-      margin-left: auto;
-    }
-
-    .topbar .header-actions .icon-btn {
-      display: inline-flex !important;
-      align-items: center;
-      justify-content: center;
-      gap: 9px;
-
-      width: auto !important;
-      min-width: 42px !important;
-      height: 42px !important;
-      padding: 0 13px !important;
-
-      box-sizing: border-box;
-      white-space: nowrap;
-
-      background: rgba(255,255,255,.075) !important;
-      color: #f8f0eb !important;
-
-      border: 1px solid rgba(255,255,255,.16) !important;
-      border-radius: 12px !important;
-
-      text-decoration: none !important;
-      font: inherit;
-      font-size: 13px !important;
-      font-weight: 700 !important;
-      cursor: pointer;
-    }
-
-    .topbar .header-actions .icon-svg {
-      display: block !important;
-      width: 20px !important;
-      height: 20px !important;
-      flex: 0 0 20px;
-      color: inherit;
-    }
-
-    .topbar .header-actions .switch-page {
-      background: rgba(231,138,171,.14) !important;
-      border-color: rgba(243,166,197,.3) !important;
-      color: #ffe0ea !important;
-    }
-
-    .topbar .header-actions .icon-btn:hover {
-      background: rgba(255,255,255,.16) !important;
-      border-color: rgba(255,255,255,.3) !important;
-      transform: none !important;
-    }
-
-    .topbar .header-actions .switch-page:hover {
-      background: rgba(231,138,171,.25) !important;
-    }
-
-    .topbar .header-actions .sign-out:hover {
-      background: rgba(232,111,111,.18) !important;
-    }
-
-    .topbar .header-actions .icon-btn:focus-visible {
-      outline: 2px solid #f4b5cb !important;
-      outline-offset: 3px;
-    }
-
-    /* ======================================
-       CURRENT ORDER COMPACT DESIGN
-    ====================================== */
+    /* =====================================
+       POS LAYOUT
+    ===================================== */
 
     @media screen {
-
       .pos-layout,
       .menu-pane,
       .cart-pane {
@@ -104,6 +32,8 @@
         display: flex;
         flex-direction: column;
       }
+
+      /* CURRENT ORDER HEADER */
 
       .cart-header {
         flex-shrink: 0;
@@ -118,48 +48,50 @@
       }
 
       .cart-header h2 {
-        font-size: 1.02rem !important;
         margin: 0;
+        font-size: 1.02rem !important;
       }
 
       .cart-header .order-no {
-        font-size: .66rem !important;
         margin-top: 2px;
+        font-size: .66rem !important;
       }
 
-      /* DEFAULT ORDER TYPE */
+      /* ORDER TYPE */
 
       .service-main-control {
         display: flex;
         align-items: center;
         justify-content: space-between;
+        flex-shrink: 0;
+
         gap: 8px;
         padding: 5px 12px;
 
         background: #fff8f4;
         border-bottom: 1px solid #ece4df;
-        flex-shrink: 0;
       }
 
       .service-main-control strong {
-        font-size: .75rem;
         color: #50392d;
+        font-size: .75rem;
       }
 
       .service-main-control select {
-        min-height: 31px;
         min-width: 125px;
+        min-height: 31px;
         padding: 4px 8px;
 
         background: white;
+        color: #4b352d;
+
         border: 1px solid #dfcec2;
         border-radius: 8px;
 
         font-size: .75rem;
-        color: #4b352d;
       }
 
-      /* CUSTOMER OPTIONS */
+      /* CUSTOMER AND ADD-ONS */
 
       .order-details {
         flex-shrink: 0;
@@ -171,6 +103,7 @@
         display: flex;
         align-items: center;
         gap: 6px;
+
         padding: 7px 12px !important;
 
         background: #faf7f4;
@@ -178,6 +111,7 @@
 
         font-size: .76rem;
         font-weight: 750;
+
         list-style: none;
         cursor: pointer;
       }
@@ -197,8 +131,9 @@
 
       .order-details > summary span {
         margin-left: auto;
-        max-width: 47%;
+
         min-width: 0;
+        max-width: 47%;
 
         overflow: hidden;
         text-overflow: ellipsis;
@@ -207,6 +142,7 @@
         color: #8c7669;
         font-size: .68rem;
         font-weight: 500;
+        text-align: right;
       }
 
       .order-options {
@@ -228,6 +164,7 @@
         width: 100%;
         min-width: 0;
         min-height: 33px !important;
+
         padding: 6px 8px !important;
       }
 
@@ -248,10 +185,13 @@
         font-weight: 750;
       }
 
-      /* CURRENT ORDER LIST */
+      /* =====================================
+         CURRENT ORDER — FIVE-ITEM VIEW
+      ===================================== */
 
       .cart-items {
         flex: 1 1 auto !important;
+
         min-height: 0 !important;
         max-height: none !important;
 
@@ -286,10 +226,11 @@
         margin: 0 !important;
         padding: 5px 1px !important;
 
-        border-bottom: 1px solid #ebe8e5 !important;
+        border-bottom:
+          1px solid #ebe8e5 !important;
       }
 
-      /* PRODUCT NAME */
+      /* PRODUCT INFORMATION */
 
       .cart-line > .info {
         grid-column: 1 !important;
@@ -297,13 +238,17 @@
 
         display: flex !important;
         flex-direction: column !important;
+
         align-items: flex-start !important;
         justify-content: center !important;
 
         gap: 3px !important;
+
         min-width: 0 !important;
         overflow: hidden;
       }
+
+      /* PRODUCT NAME */
 
       .cart-line > .info .name {
         display: -webkit-box !important;
@@ -317,47 +262,100 @@
         margin: 0 !important;
 
         color: #302825;
+
         font-size: .75rem !important;
         font-weight: 800 !important;
         line-height: 1.17 !important;
       }
 
-      /* DINE IN / TAKE OUT + DETAILS */
+      /* =====================================
+         ALWAYS VISIBLE CATEGORY
+      ===================================== */
 
       .cart-line .cl-caption {
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
-        gap: 3px;
+        flex-wrap: wrap;
 
+        gap: 3px;
         max-width: 100%;
 
         color: #7c726d;
+
         font-size: .63rem;
         line-height: 1.2;
       }
 
-      .cart-line .cl-caption .cl-takeout {
+      /* CATEGORY BADGE */
+
+      .cart-line .cl-category {
+        display: inline-flex;
+        align-items: center;
+
+        max-width: 100%;
+
+        padding: 2px 5px;
+
+        background: #f2e7dc;
+        color: #714a35;
+
+        border-radius: 5px;
+
+        font-size: .62rem;
+        font-weight: 800;
+        line-height: 1.2;
+
+        overflow-wrap: anywhere;
+      }
+
+      .cart-line .cl-separator {
+        color: #b0a19a;
+      }
+
+      /* TAKE OUT LABEL */
+
+      .cart-line .cl-takeout {
         color: #a43260;
         font-weight: 750;
       }
 
+      /* DETAILS BUTTON */
+
       .cart-line .cl-details-toggle {
         display: inline;
 
-        background: transparent !important;
-        border: 0 !important;
         padding: 0 !important;
         margin: 0 !important;
 
+        background: transparent !important;
         color: #9e3972 !important;
-        font-size: .63rem !important;
 
+        border: 0 !important;
+
+        font-size: .63rem !important;
         text-decoration: none;
+
+        min-height: 0 !important;
         cursor: pointer;
       }
 
-      /* QUANTITY BUTTONS */
+      .cart-line .cl-details-toggle:focus-visible {
+        outline: 2px solid #ba437a;
+      }
+
+      /*
+       * Keep original unit element hidden.
+       * Other POS scripts can still read
+       * the category from this element.
+       */
+
+      .cart-line > .info > .unit {
+        display: none !important;
+      }
+
+      /* =====================================
+         QUANTITY MINUS / PLUS
+      ===================================== */
 
       .cart-line > .qty-control {
         grid-column: 2 !important;
@@ -367,9 +365,10 @@
         align-items: center !important;
 
         justify-self: center !important;
-        gap: 3px !important;
 
+        gap: 3px !important;
         margin: 0 !important;
+
         white-space: nowrap;
       }
 
@@ -393,15 +392,18 @@
 
       .cart-line > .qty-control span {
         display: inline-block !important;
-        min-width: 15px !important;
 
-        text-align: center !important;
+        min-width: 15px !important;
 
         font-size: .74rem !important;
         font-weight: 800 !important;
+
+        text-align: center !important;
       }
 
-      /* ITEM PRICE */
+      /* =====================================
+         ITEM PRICE
+      ===================================== */
 
       .cart-line > .line-total {
         grid-column: 3 !important;
@@ -412,14 +414,17 @@
 
         min-width: 0 !important;
 
-        text-align: right !important;
-        white-space: nowrap;
-
+        color: #302825;
         font-size: .72rem !important;
         font-weight: 850 !important;
+
+        text-align: right !important;
+        white-space: nowrap;
       }
 
-      /* REMOVE ICON */
+      /* =====================================
+         REMOVE BUTTON
+      ===================================== */
 
       .cart-line > .remove-btn {
         grid-column: 4 !important;
@@ -432,12 +437,14 @@
 
         width: 27px !important;
         min-width: 27px !important;
+
         height: 31px !important;
 
         padding: 3px !important;
 
         background: transparent !important;
         color: #df3449 !important;
+
         border: 0 !important;
         border-radius: 6px !important;
 
@@ -446,8 +453,10 @@
 
       .cart-line > .remove-btn svg {
         display: block;
+
         width: 16px;
         height: 16px;
+
         pointer-events: none;
       }
 
@@ -455,18 +464,22 @@
         background: #fff0f2 !important;
       }
 
-      /* DETAILS SECTION */
+      /* =====================================
+         ADVANCED ITEM DETAILS
+      ===================================== */
 
       .cart-line > .cl-advanced {
         display: none;
 
         grid-column: 1 / -1;
+
         min-width: 0;
 
         padding: 9px 8px 10px;
         margin: 5px 0 3px;
 
         background: #fff9fb;
+
         border: 1px solid #f1dfe7;
         border-radius: 10px;
 
@@ -478,28 +491,39 @@
         gap: 7px !important;
       }
 
-      .cart-line .cl-advanced > .unit,
-      .cart-line .cl-advanced > .size {
+      .cart-line .cl-advanced > .size,
+      .cart-line .cl-advanced > .unit {
         display: block;
 
-        color: #8e756a;
         font-size: .7rem;
+        color: #8e756a;
       }
 
+      /* DINE IN / TAKE OUT */
+
       .cart-line .cl-advanced .serve-select,
+
+      /* BOX OPTIONS */
+
       .cart-line .cl-advanced .meal-box-select,
+
+      /* NOTES */
+
       .cart-line .cl-advanced .custom-note {
         display: block;
+
         box-sizing: border-box;
 
         width: 100% !important;
         max-width: none !important;
+
         min-height: 34px !important;
 
         padding: 6px 8px !important;
         margin: 0 !important;
 
         background: white;
+
         border: 1px solid #e5d3d9;
         border-radius: 7px;
 
@@ -518,7 +542,11 @@
         font-size: .68rem;
       }
 
-      .cart-line .cl-advanced .line-discount-control {
+      /* DISCOUNTS */
+
+      .cart-line
+      .cl-advanced
+      .line-discount-control {
         display: flex !important;
         align-items: center;
         flex-wrap: wrap;
@@ -527,13 +555,18 @@
         font-size: .72rem;
       }
 
-      .cart-line .cl-advanced .item-discount-check {
+      .cart-line
+      .cl-advanced
+      .item-discount-check {
         display: inline-flex !important;
         align-items: center;
+
         gap: 4px;
       }
 
-      .cart-line .cl-advanced .item-discount-rate {
+      .cart-line
+      .cl-advanced
+      .item-discount-rate {
         width: auto !important;
         min-height: 29px !important;
       }
@@ -542,7 +575,9 @@
         cursor: pointer;
       }
 
-      /* TOTAL + CHECKOUT */
+      /* =====================================
+         TOTAL AND CHECKOUT
+      ===================================== */
 
       .cart-footer {
         flex: 0 0 auto !important;
@@ -573,6 +608,7 @@
 
       .cart-footer .wait-actions {
         display: flex;
+
         gap: 6px;
         margin-top: 6px !important;
       }
@@ -581,15 +617,18 @@
         flex: 1;
 
         min-height: 32px !important;
-        padding: 5px !important;
 
+        padding: 5px !important;
         font-size: .72rem !important;
       }
+
+      /* PARTY BOX */
 
       .party-checkbox-group {
         display: grid;
         grid-template-columns:
           repeat(2, minmax(0, 1fr));
+
         gap: 7px;
         padding: 12px;
       }
@@ -604,6 +643,8 @@
         width: 100%;
       }
 
+      /* MOBILE CONTROLS */
+
       .order-close,
       .order-mobile-bar,
       .order-backdrop {
@@ -616,6 +657,7 @@
 
         background: #f3ede8;
         color: #513c30;
+
         border: 0;
         border-radius: 9px;
 
@@ -624,11 +666,13 @@
       }
     }
 
-    /* HONOR PAD 10 LANDSCAPE */
+    /* =====================================
+       HONOR PAD 10 LANDSCAPE
+    ===================================== */
 
     @media screen and (min-width: 700px)
-           and (orientation: landscape),
-           screen and (min-width: 901px) {
+    and (orientation: landscape),
+    screen and (min-width: 901px) {
 
       .pos-layout {
         display: grid !important;
@@ -638,7 +682,7 @@
           clamp(340px, 37%, 430px) !important;
 
         height: calc(
-          100dvh - var(--pos-header-height, 72px)
+          100dvh - var(--pos-header-height, 68px)
         ) !important;
 
         min-height: 0 !important;
@@ -648,6 +692,7 @@
       .menu-pane {
         min-height: 0 !important;
         overflow-y: auto !important;
+
         padding-bottom: 16px !important;
       }
 
@@ -665,6 +710,7 @@
         min-height: 0 !important;
 
         overflow: hidden !important;
+
         margin: 0 !important;
 
         transform: none !important;
@@ -686,16 +732,22 @@
       }
     }
 
-    /* MOBILE / PORTRAIT */
+    /* =====================================
+       MOBILE AND PORTRAIT TABLET
+    ===================================== */
 
     @media screen and (max-width: 699px),
-           screen and (max-width: 900px)
-           and (orientation: portrait) {
+    screen and (max-width: 900px)
+    and (orientation: portrait) {
 
       .pos-layout {
         display: block !important;
+
         height: auto !important;
-        min-height: calc(100dvh - 62px);
+
+        min-height:
+          calc(100dvh - 62px);
+
         overflow: visible !important;
       }
 
@@ -706,17 +758,22 @@
 
       .order-backdrop:not([hidden]) {
         display: block !important;
+
         position: fixed;
         inset: 0;
+
         background: #0008;
         z-index: 80;
       }
+
+      /* MOBILE CURRENT ORDER DRAWER */
 
       .cart-pane {
         display: flex !important;
         flex-direction: column !important;
 
         position: fixed !important;
+
         inset: 0 0 0 auto !important;
 
         width: min(100%, 430px) !important;
@@ -727,18 +784,26 @@
 
         overflow: hidden !important;
 
-        background: white;
-        border-radius: 16px 0 0 16px !important;
+        border-radius:
+          16px 0 0 16px !important;
 
+        background: white;
         z-index: 90;
 
-        transform: translateX(105%) !important;
+        transform:
+          translateX(105%) !important;
+
         visibility: hidden !important;
         pointer-events: none !important;
+
+        transition:
+          transform .2s ease,
+          visibility .2s ease;
       }
 
       .cart-pane.is-open {
         transform: translateX(0) !important;
+
         visibility: visible !important;
         pointer-events: auto !important;
       }
@@ -748,16 +813,23 @@
         place-items: center;
       }
 
+      /* VIEW CURRENT ORDER */
+
       .order-mobile-bar {
         display: flex !important;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
 
         position: fixed;
+
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 10px;
+
         left: 12px;
         right: 12px;
-        bottom: max(12px, env(safe-area-inset-bottom));
+
+        bottom:
+          max(12px, env(safe-area-inset-bottom));
 
         z-index: 70;
 
@@ -786,6 +858,7 @@
 
       .mobile-order-price {
         white-space: nowrap;
+
         font-size: 1rem;
         font-weight: 800;
       }
@@ -795,29 +868,7 @@
       }
     }
 
-    @media screen and (max-width: 700px) {
-
-      .topbar .header-actions {
-        gap: 6px;
-      }
-
-      .topbar .header-actions .icon-btn {
-        width: 38px !important;
-        min-width: 38px !important;
-        height: 38px !important;
-        padding: 0 !important;
-        border-radius: 10px !important;
-      }
-
-      .topbar .header-actions .action-name {
-        display: none;
-      }
-
-      .topbar .header-actions .icon-svg {
-        width: 19px !important;
-        height: 19px !important;
-      }
-    }
+    /* SMALL PHONE */
 
     @media screen and (max-width: 380px) {
 
@@ -827,6 +878,7 @@
           73px
           55px
           25px !important;
+
         column-gap: 3px !important;
       }
 
@@ -845,22 +897,124 @@
       }
     }
 
-    @media print {
+    /* =====================================
+       HEADER ICONS
+    ===================================== */
 
+    .topbar .header-actions {
+      display: flex;
+      align-items: center;
+
+      gap: 9px;
+
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
+
+    .topbar .header-actions .icon-btn {
+      display: inline-flex !important;
+
+      align-items: center;
+      justify-content: center;
+
+      gap: 9px;
+
+      width: auto !important;
+      min-width: 42px !important;
+      height: 42px !important;
+
+      box-sizing: border-box;
+
+      padding: 0 13px !important;
+
+      background: rgba(255,255,255,.075) !important;
+      color: #f8f0eb !important;
+
+      border: 1px solid
+        rgba(255,255,255,.16) !important;
+
+      border-radius: 12px !important;
+
+      text-decoration: none !important;
+
+      white-space: nowrap;
+
+      font: inherit;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+
+      cursor: pointer;
+    }
+
+    .topbar .header-actions .icon-svg {
+      display: block !important;
+
+      width: 20px !important;
+      height: 20px !important;
+
+      flex: 0 0 20px;
+
+      color: inherit;
+    }
+
+    .topbar .header-actions .switch-page {
+      background: rgba(231,138,171,.14) !important;
+      border-color: rgba(243,166,197,.3) !important;
+      color: #ffe0ea !important;
+    }
+
+    .topbar .header-actions .icon-btn:hover {
+      background: rgba(255,255,255,.16) !important;
+      border-color: rgba(255,255,255,.3) !important;
+      transform: none !important;
+    }
+
+    .topbar .header-actions .sign-out:hover {
+      background: rgba(232,111,111,.18) !important;
+    }
+
+    @media screen and (max-width: 700px) {
+      .topbar .header-actions {
+        gap: 6px;
+      }
+
+      .topbar .header-actions .icon-btn {
+        width: 38px !important;
+        min-width: 38px !important;
+        height: 38px !important;
+
+        padding: 0 !important;
+
+        border-radius: 10px !important;
+      }
+
+      .topbar .header-actions .action-name {
+        display: none;
+      }
+    }
+
+    @media screen and (prefers-reduced-motion: reduce) {
+      .cart-pane {
+        transition: none !important;
+      }
+    }
+
+    @media print {
       .topbar .header-actions,
       .order-backdrop,
       .order-mobile-bar,
       .order-close {
         display: none !important;
       }
-
     }
   </style>
 </head>
 
 <body>
 
-  <!-- POS HEADER -->
+  <!-- =====================================
+       POS HEADER
+  ===================================== -->
 
   <header class="topbar">
 
@@ -884,12 +1038,12 @@
 
     <div class="header-actions">
 
-      <!-- NEW ADMIN DASHBOARD ICON -->
+      <!-- ADMIN BUTTON -->
 
       <a
         href="admin.html"
-        id="admin-link"
         class="icon-btn switch-page"
+        id="admin-link"
         title="Go to Admin dashboard"
         aria-label="Go to Admin dashboard"
       >
@@ -903,45 +1057,23 @@
           stroke-linejoin="round"
           aria-hidden="true"
         >
-          <rect
-            x="3"
-            y="3"
-            width="7"
-            height="9"
-            rx="1.4"
-          />
-          <rect
-            x="14"
-            y="3"
-            width="7"
-            height="5"
-            rx="1.4"
-          />
-          <rect
-            x="14"
-            y="12"
-            width="7"
-            height="9"
-            rx="1.4"
-          />
-          <rect
-            x="3"
-            y="16"
-            width="7"
-            height="5"
-            rx="1.4"
-          />
+          <rect x="3" y="3" width="7" height="9" rx="1.4"/>
+          <rect x="14" y="3" width="7" height="5" rx="1.4"/>
+          <rect x="14" y="12" width="7" height="9" rx="1.4"/>
+          <rect x="3" y="16" width="7" height="5" rx="1.4"/>
         </svg>
 
-        <span class="action-name">Admin</span>
+        <span class="action-name">
+          Admin
+        </span>
       </a>
 
-      <!-- NEW LOGOUT ICON -->
+      <!-- LOGOUT BUTTON -->
 
       <button
         type="button"
-        id="logout-btn"
         class="icon-btn sign-out"
+        id="logout-btn"
         title="Sign out"
         aria-label="Sign out"
       >
@@ -958,18 +1090,20 @@
           <path
             d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
           />
-          <path
-            d="M16 17l5-5-5-5M21 12H9"
-          />
+          <path d="M16 17l5-5-5-5M21 12H9"/>
         </svg>
 
-        <span class="action-name">Log out</span>
+        <span class="action-name">
+          Log out
+        </span>
       </button>
 
     </div>
   </header>
 
-  <!-- MAIN POS -->
+  <!-- =====================================
+       MAIN POS
+  ===================================== -->
 
   <main class="pos-layout">
 
@@ -983,7 +1117,9 @@
       <div class="menu-heading">
 
         <div>
-          <p class="eyebrow">CASHIER · MENU</p>
+          <p class="eyebrow">
+            CASHIER · MENU
+          </p>
 
           <h1>Choose a favorite</h1>
 
@@ -994,7 +1130,9 @@
 
         <label class="search-box">
 
-          <span aria-hidden="true">⌕</span>
+          <span aria-hidden="true">
+            ⌕
+          </span>
 
           <input
             id="menu-search"
@@ -1008,13 +1146,19 @@
       </div>
 
       <div class="menu-result-bar">
-        <span id="item-count">Loading menu...</span>
+        <span id="item-count">
+          Loading menu...
+        </span>
       </div>
+
+      <!-- CATEGORY TABS -->
 
       <div
         class="category-tabs"
         id="category-tabs"
       ></div>
+
+      <!-- FIRESTORE PRODUCTS -->
 
       <div
         class="item-grid"
@@ -1023,7 +1167,9 @@
 
     </section>
 
-    <!-- CURRENT ORDER -->
+    <!-- =====================================
+         CURRENT ORDER
+    ===================================== -->
 
     <aside
       class="cart-pane"
@@ -1041,7 +1187,9 @@
             <span
               class="cart-count"
               id="cart-count"
-            >0</span>
+            >
+              0
+            </span>
           </h2>
 
           <button
@@ -1071,13 +1219,18 @@
           id="order-type"
           aria-label="Order Type"
         >
-          <option value="Dine In">Dine In</option>
-          <option value="Take Out">Take Out</option>
+          <option value="Dine In">
+            Dine In
+          </option>
+
+          <option value="Take Out">
+            Take Out
+          </option>
         </select>
 
       </div>
 
-      <!-- CUSTOMER & ADD-ONS -->
+      <!-- CUSTOMER AND ADD-ONS -->
 
       <details
         class="order-details"
@@ -1095,7 +1248,6 @@
         <div class="order-options">
 
           <label for="customer-name">
-
             Customer / Order Name
 
             <input
@@ -1104,11 +1256,11 @@
               placeholder="Customer name (optional)"
               autocomplete="off"
             >
-
           </label>
 
-          <label for="existing-order">
+          <!-- EXISTING ORDER -->
 
+          <label for="existing-order">
             Add to Existing Order (today only)
 
             <select id="existing-order">
@@ -1116,8 +1268,9 @@
                 New order (new number)
               </option>
             </select>
-
           </label>
+
+          <!-- EXTRA TAKEOUT BOXES -->
 
           <div class="box-charge-title">
             Extra takeout boxes (optional):
@@ -1157,14 +1310,13 @@
 
           </div>
 
-          <!-- ADD-ONS -->
+          <!-- EXTRA ADD-ONS -->
 
           <div class="box-charge-title">
             Extra add-on charge (optional)
           </div>
 
           <label for="addon-name">
-
             Add-on name
 
             <input
@@ -1173,13 +1325,11 @@
               placeholder="e.g. Extra gravy"
               maxlength="70"
             >
-
           </label>
 
           <div class="box-qty-row">
 
             <label for="addon-qty">
-
               Quantity
 
               <input
@@ -1191,11 +1341,9 @@
                 value="1"
                 inputmode="numeric"
               >
-
             </label>
 
             <label for="addon-price">
-
               Unit price (₱)
 
               <input
@@ -1206,36 +1354,38 @@
                 placeholder="0.00"
                 inputmode="decimal"
               >
-
             </label>
 
           </div>
 
           <small>
-            For mixed Dine In / Take Out orders,
-            use each item's Details.
-            Extra boxes are added on top
-            of automatic boxes.
+            Para sa mixed Dine In at Take Out,
+            gamitin ang Details ng bawat item.
+
+            Ang extra boxes ay idinadagdag
+            sa automatic box charges.
           </small>
 
         </div>
       </details>
 
-      <!-- CURRENT ITEMS -->
+      <!-- =====================================
+           LIVE CURRENT ORDER ITEMS
+      ===================================== -->
 
       <div
         id="cart-items"
         class="cart-items"
         aria-live="polite"
       >
-
         <div class="cart-empty">
           Tap a product to start an order.
         </div>
-
       </div>
 
-      <!-- CHECKOUT -->
+      <!-- =====================================
+           TOTAL AND CHECKOUT
+      ===================================== -->
 
       <div class="cart-footer">
 
@@ -1243,6 +1393,7 @@
 
           <span class="label">
             Total
+
             <small id="box-fee-label"></small>
           </span>
 
@@ -1264,17 +1415,16 @@
           Place order &amp; print
         </button>
 
-        <!--
-          Existing js/pos.js manages
-          Waiting List buttons.
-        -->
+        <!-- Waiting List handled by js/pos.js -->
 
       </div>
 
     </aside>
   </main>
 
-  <!-- MOBILE CURRENT ORDER -->
+  <!-- =====================================
+       MOBILE CURRENT ORDER
+  ===================================== -->
 
   <div
     class="order-backdrop"
@@ -1289,14 +1439,15 @@
     aria-controls="current-order-panel"
     aria-expanded="false"
   >
-
     <span>
       <strong>
         View Current Order
         (<span id="mobile-cart-count">0</span>)
       </strong>
 
-      <small>Review items and checkout</small>
+      <small>
+        Review items and checkout
+      </small>
     </span>
 
     <span
@@ -1305,10 +1456,11 @@
     >
       ₱0
     </span>
-
   </button>
 
-  <!-- MODALS / PRINTING -->
+  <!-- =====================================
+       MODALS AND PRINTING
+  ===================================== -->
 
   <div id="modal-root"></div>
 
@@ -1325,7 +1477,9 @@
 
   <div id="print-area"></div>
 
-  <!-- EXISTING POS FUNCTIONS -->
+  <!-- =====================================
+       EXISTING POS MODULES
+  ===================================== -->
 
   <script
     type="module"
@@ -1337,7 +1491,10 @@
     src="js/today-unavailable.js"
   ></script>
 
-  <!-- COMPACT CURRENT ORDER CONTROLLER -->
+  <!-- =====================================
+       CATEGORY + COMPACT CART CONTROLLER
+       INCLUDED IN THIS HTML
+  ===================================== -->
 
   <script>
     (() => {
@@ -1357,8 +1514,9 @@
       const count = $("cart-count");
       const total = $("cart-total");
 
-      const detailsSummary =
-        $("order-details-summary");
+      const detailsSummary = $(
+        "order-details-summary"
+      );
 
       const drawerMode = matchMedia(
         "(max-width:699px), " +
@@ -1369,7 +1527,9 @@
 
       let lastCount = 0;
 
-      /* COMPACT ITEM DISPLAY */
+      /* ===================================
+         COMPACT EVERY CURRENT ORDER ITEM
+      =================================== */
 
       function compactCart() {
         const occurrences = new Map();
@@ -1379,6 +1539,11 @@
         );
 
         for (const row of rows) {
+          if (
+            row.dataset.compactDone === "1"
+          ) {
+            continue;
+          }
 
           const info = row.querySelector(
             ":scope > .info"
@@ -1390,22 +1555,56 @@
             ":scope > .name"
           );
 
-          const serviceSelect = info.querySelector(
+          const serveSelect = info.querySelector(
             ".serve-select"
           );
 
-          const service = serviceSelect?.value ||
+          const service =
+            serveSelect?.value ||
             $("order-type").value;
 
-          const size =
-            info.querySelector(".size")?.textContent || "";
+          const size = info.querySelector(
+            ".size"
+          )?.textContent || "";
 
-          const unit =
-            info.querySelector(".unit")?.textContent || "";
+          /*
+           * EXISTING pos.js CREATES:
+           *
+           * <div class="unit">
+           *   ₱189.00 each · Rice Meals
+           * </div>
+           *
+           * Extract category directly
+           * from this existing data.
+           */
+
+          const unit = info.querySelector(
+            ".unit"
+          );
+
+          const unitText =
+            unit?.textContent || "";
+
+          const separatorIndex =
+            unitText.indexOf("·");
+
+          const category =
+            separatorIndex >= 0
+              ? unitText
+                  .slice(separatorIndex + 1)
+                  .trim()
+              : (
+                  info.querySelector(
+                    ".product-category"
+                  )?.textContent.trim() ||
+                  "Uncategorized"
+                );
+
+          /* REMEMBER EXPANDED ITEMS */
 
           const fingerprint =
             `${name?.textContent || ""}|` +
-            `${size}|${unit}|${service}`;
+            `${size}|${unitText}|${service}`;
 
           const occurrence =
             (occurrences.get(fingerprint) || 0) + 1;
@@ -1418,47 +1617,83 @@
           const key =
             `${fingerprint}|${occurrence}`;
 
-          if (row.dataset.compactDone === "1") {
-            continue;
-          }
-
           row.dataset.compactDone = "1";
 
-          /* DINE IN / TAKE OUT CAPTION */
+          /* =================================
+             CATEGORY + SERVICE + DETAILS
+          ================================= */
 
           const caption =
             document.createElement("div");
 
-          caption.className = "cl-caption";
+          caption.className =
+            "cl-caption";
+
+          /* VISIBLE CATEGORY BADGE */
+
+          const categoryBadge =
+            document.createElement("span");
+
+          categoryBadge.className =
+            "cl-category";
+
+          categoryBadge.textContent =
+            category;
+
+          categoryBadge.title =
+            `Category: ${category}`;
+
+          /* SEPARATOR */
+
+          const separator =
+            document.createElement("span");
+
+          separator.className =
+            "cl-separator";
+
+          separator.textContent = "·";
+
+          /* SERVICE LABEL */
 
           const serviceBadge =
             document.createElement("span");
 
-          serviceBadge.textContent = service;
+          serviceBadge.textContent =
+            service;
 
           serviceBadge.classList.toggle(
             "cl-takeout",
             service === "Take Out"
           );
 
-          /* DETAILS BUTTON */
+          const dot =
+            document.createElement("span");
 
-          const dot = document.createElement("span");
           dot.textContent = "·";
+
+          /* DETAILS BUTTON */
 
           const detailButton =
             document.createElement("button");
 
           detailButton.type = "button";
-          detailButton.className = "cl-details-toggle";
-          detailButton.textContent = "Details ▾";
+
+          detailButton.className =
+            "cl-details-toggle";
+
+          detailButton.textContent =
+            "Details ▾";
 
           detailButton.setAttribute(
             "aria-label",
-            `Details for ${name?.textContent || "item"}`
+            `Details for ${
+              name?.textContent || "item"
+            }`
           );
 
           caption.append(
+            categoryBadge,
+            separator,
             serviceBadge,
             dot,
             detailButton
@@ -1466,17 +1701,48 @@
 
           info.append(caption);
 
-          /* ADVANCED CONTROLS */
+          /* =================================
+             ADVANCED CONTROLS
+          ================================= */
 
           const advanced =
             document.createElement("div");
 
-          advanced.className = "cl-advanced";
+          advanced.className =
+            "cl-advanced";
 
-          for (const child of [...info.children]) {
+          /*
+           * Move original controls,
+           * not copies.
+           *
+           * The actual pos.js event listeners
+           * remain attached to:
+           *
+           * - Dine In / Take Out
+           * - Box selector
+           * - Discount
+           * - Notes
+           * - Split serving
+           *
+           * IMPORTANT:
+           * Keep .unit inside .info for
+           * availability-checking scripts.
+           */
+
+          const originalChildren = [
+            ...info.children
+          ];
+
+          for (const child of originalChildren) {
+            const isUnit =
+              child.classList.contains(
+                "unit"
+              );
+
             if (
               child !== name &&
-              child !== caption
+              child !== caption &&
+              !isUnit
             ) {
               advanced.append(child);
             }
@@ -1484,7 +1750,9 @@
 
           row.append(advanced);
 
-          /* SHOW / HIDE DETAILS */
+          /* =================================
+             OPEN / CLOSE DETAILS
+          ================================= */
 
           const applyOpen = open => {
             row.classList.toggle(
@@ -1492,9 +1760,10 @@
               open
             );
 
-            detailButton.textContent = open
-              ? "Hide Details ▴"
-              : "Details ▾";
+            detailButton.textContent =
+              open
+                ? "Hide Details ▴"
+                : "Details ▾";
 
             detailButton.setAttribute(
               "aria-expanded",
@@ -1510,22 +1779,33 @@
 
           detailButton.addEventListener(
             "click",
-            () => applyOpen(
-              !row.classList.contains("cl-expanded")
-            )
+            () => {
+              const open =
+                !row.classList.contains(
+                  "cl-expanded"
+                );
+
+              applyOpen(open);
+            }
           );
 
           applyOpen(
             expandedKeys.has(key)
           );
 
-          /* UPDATE SERVICE BADGE */
+          /* =================================
+             UPDATE SERVICE LABEL
+          ================================= */
 
-          serviceSelect?.addEventListener(
+          serveSelect?.addEventListener(
             "change",
             () => {
-              const value = serviceSelect.value;
-              serviceBadge.textContent = value;
+              const value =
+                serveSelect.value;
+
+              serviceBadge.textContent =
+                value;
+
               serviceBadge.classList.toggle(
                 "cl-takeout",
                 value === "Take Out"
@@ -1533,13 +1813,21 @@
             }
           );
 
-          /* KEEP ORIGINAL REMOVE HANDLER */
+          /* =================================
+             REMOVE ICON
+          ================================= */
 
           const remove = row.querySelector(
             ":scope > .remove-btn"
           );
 
           if (remove) {
+            /*
+             * Replace only the icon.
+             * Keep the original POS
+             * click handler.
+             */
+
             remove.innerHTML = `
               <svg
                 viewBox="0 0 24 24"
@@ -1556,49 +1844,75 @@
               </svg>
             `;
 
-            remove.title = "Remove item";
+            remove.title =
+              "Remove item";
 
             remove.setAttribute(
               "aria-label",
-              `Remove ${name?.textContent || "item"}`
+              `Remove ${
+                name?.textContent || "item"
+              }`
             );
           }
         }
       }
 
-      /* WATCH POS CART RENDER */
+      /* ===================================
+         WATCH CART CHANGES
+      =================================== */
+
+      /*
+       * js/pos.js recreates Current Order
+       * rows after quantity changes,
+       * Remove, service, or discounts.
+       *
+       * Apply compact design again.
+       */
 
       new MutationObserver(
         compactCart
       ).observe(
         cart,
-        { childList: true }
+        {
+          childList: true
+        }
       );
 
       compactCart();
 
-      /* CUSTOMER OPTIONS COLLAPSED */
+      /* COLLAPSE CUSTOMER OPTIONS */
 
       customer.open = false;
 
-      /* HEADER HEIGHT */
+      /* ===================================
+         HEADER HEIGHT
+      =================================== */
 
       function updateHeaderHeight() {
         const header =
-          document.querySelector(".topbar");
+          document.querySelector(
+            ".topbar"
+          );
 
         if (header) {
-          document.documentElement.style.setProperty(
-            "--pos-header-height",
-            `${header.offsetHeight}px`
-          );
+          document.documentElement
+            .style.setProperty(
+              "--pos-header-height",
+              `${header.offsetHeight}px`
+            );
         }
       }
 
-      /* CLOSE DRAWER */
+      /* ===================================
+         CLOSE MOBILE CURRENT ORDER
+      =================================== */
 
-      function closeOrder(focusToggle = false) {
-        panel.classList.remove("is-open");
+      function closeOrder(
+        focusToggle = false
+      ) {
+        panel.classList.remove(
+          "is-open"
+        );
 
         document.body.classList.remove(
           "order-drawer-open"
@@ -1616,23 +1930,33 @@
             "aria-hidden",
             "true"
           );
+
         } else {
           panel.removeAttribute(
             "aria-hidden"
           );
         }
 
-        if (focusToggle && drawerMode.matches) {
+        if (
+          focusToggle &&
+          drawerMode.matches
+        ) {
           toggle.focus();
         }
       }
 
-      /* OPEN DRAWER */
+      /* ===================================
+         OPEN MOBILE CURRENT ORDER
+      =================================== */
 
       function openOrder() {
-        if (!drawerMode.matches) return;
+        if (!drawerMode.matches) {
+          return;
+        }
 
-        panel.classList.add("is-open");
+        panel.classList.add(
+          "is-open"
+        );
 
         document.body.classList.add(
           "order-drawer-open"
@@ -1640,7 +1964,9 @@
 
         backdrop.hidden = false;
 
-        panel.removeAttribute("aria-hidden");
+        panel.removeAttribute(
+          "aria-hidden"
+        );
 
         toggle.setAttribute(
           "aria-expanded",
@@ -1650,13 +1976,20 @@
         close.focus();
       }
 
+      /* ===================================
+         SYNC SCREEN SIZE
+      =================================== */
+
       function syncScreen() {
         updateHeaderHeight();
 
         if (!drawerMode.matches) {
           closeOrder();
+
         } else if (
-          !panel.classList.contains("is-open")
+          !panel.classList.contains(
+            "is-open"
+          )
         ) {
           panel.setAttribute(
             "aria-hidden",
@@ -1665,27 +1998,40 @@
         }
       }
 
+      /* ===================================
+         CUSTOMER SUMMARY
+      =================================== */
+
       function syncCustomer() {
+        const existing =
+          $("existing-order");
+
         detailsSummary.textContent =
-          $("existing-order")
-            .selectedOptions[0]
-            ?.textContent || "New order";
+          existing.selectedOptions[0]
+            ?.textContent ||
+          "New order";
       }
+
+      /* ===================================
+         MOBILE CART COUNT
+      =================================== */
 
       function syncMobile() {
         const qty = Math.max(
           0,
+
           Number.parseInt(
             count.textContent,
             10
           ) || 0
         );
 
-        $("mobile-cart-count").textContent =
-          String(qty);
+        $("mobile-cart-count")
+          .textContent = String(qty);
 
-        $("mobile-cart-total").textContent =
-          total.textContent || "₱0";
+        $("mobile-cart-total")
+          .textContent =
+            total.textContent || "₱0";
 
         if (
           drawerMode.matches &&
@@ -1698,7 +2044,9 @@
         lastCount = qty;
       }
 
-      /* EVENTS */
+      /* ===================================
+         EVENTS
+      =================================== */
 
       toggle.addEventListener(
         "click",
@@ -1715,18 +2063,25 @@
         () => closeOrder(true)
       );
 
+      /* ESC KEY */
+
       document.addEventListener(
         "keydown",
         event => {
           if (
             event.key === "Escape" &&
-            panel.classList.contains("is-open") &&
-            !$("modal-root").hasChildNodes()
+            panel.classList.contains(
+              "is-open"
+            ) &&
+            !$("modal-root")
+              .hasChildNodes()
           ) {
             closeOrder(true);
           }
         }
       );
+
+      /* SCREEN CHANGES */
 
       drawerMode.addEventListener(
         "change",
@@ -1744,12 +2099,16 @@
       window.addEventListener(
         "orientationchange",
         () => {
-          requestAnimationFrame(() => {
-            customer.open = false;
-            syncScreen();
-          });
+          requestAnimationFrame(
+            () => {
+              customer.open = false;
+              syncScreen();
+            }
+          );
         }
       );
+
+      /* EXISTING ORDER SELECT */
 
       $("existing-order").addEventListener(
         "change",
@@ -1760,6 +2119,8 @@
         "toggle",
         syncCustomer
       );
+
+      /* CART QUANTITY CHANGES */
 
       new MutationObserver(
         syncMobile
@@ -1772,6 +2133,8 @@
         }
       );
 
+      /* TOTAL PRICE CHANGES */
+
       new MutationObserver(
         syncMobile
       ).observe(
@@ -1782,6 +2145,8 @@
           subtree: true
         }
       );
+
+      /* INITIALIZE */
 
       syncCustomer();
       syncScreen();
