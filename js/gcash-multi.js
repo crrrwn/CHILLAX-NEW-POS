@@ -1,19 +1,18 @@
 
 /**
- * CHILLAX Cafe POS
- * COMPLETE MULTIPLE-ORDER GCASH MODULE
+ * CHILLAX CAFE — MULTIPLE GCASH PAYMENTS
  *
  * File: js/gcash-multi.js
  *
- * Load AFTER admin.js and admin-owners.js.
- *
- * - Multiple saved orders per GCash transfer
- * - Editable amount per order
+ * - Select multiple saved orders
+ * - Editable GCash amount per order
  * - Hide orders with existing GCash records
- * - Prevent duplicate GCash records
- * - Atomic Firestore transaction
- * - Existing GCash amounts remain editable
- * - Does NOT add payment amounts to Sales
+ * - Confirm allocations in a styled modal
+ * - Save all allocations atomically
+ * - Styled success/error notifications
+ * - Edit existing GCash payments
+ *
+ * Load after admin.js and admin-owners.js.
  */
 
 import {
@@ -22,13 +21,7 @@ import {
 } from "./firebase-config.js";
 
 import {
-  requireRole
-} from "./auth.js";
-
-import {
   dayKey,
-  pesos,
-  rounded,
   timestampDate
 } from "./business.js";
 
@@ -40,346 +33,467 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-/* ADMIN AUTH */
+const $ = id =>
+  document.getElementById(id);
 
-const session = requireRole(["admin"]);
-
-if (!session || session.role !== "admin") {
-  throw Error("Admin required.");
-}
-
-/* HELPERS */
-
-const $ = id => document.getElementById(id);
-
-const state = {
+const data = {
   orders: [],
   payments: [],
-  ordersReady: false,
-  paymentsReady: false
+  ordersLoaded: false,
+  paymentsLoaded: false
 };
 
-const money = pesos;
+const money = cents =>
+  "₱" + (
+    Math.max(0, cents) / 100
+  ).toLocaleString(
+    "en-PH",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
+  );
 
-const toCents = value =>
+const centsOf = value =>
   Math.round(
     (Number(value) + Number.EPSILON) * 100
   );
 
-const positiveAmount = raw => {
-  const value = String(raw ?? "").trim();
+function parseAmount(value) {
+  const text = String(
+    value ?? ""
+  ).trim();
 
-  return /^\d+(?:\.\d{1,2})?$/.test(value)
-    ? toCents(Number(value))
+  return /^\d+(?:\.\d{1,2})?$/.test(text)
+    ? centsOf(Number(text))
     : NaN;
-};
+}
 
-const formatCents = value =>
-  money((Number(value) || 0) / 100);
-
-/* ORDER DATE */
-
-const orderDay = order => {
+function phDay(item) {
   if (
     /^\d{4}-\d{2}-\d{2}$/.test(
-      order.dayKey || ""
+      item.dayKey || ""
     )
   ) {
-    return order.dayKey;
+    return item.dayKey;
   }
 
-  const created = timestampDate(
-    order.createdAt
+  const date = timestampDate(
+    item.createdAt
   );
 
-  return created &&
-    Number.isFinite(created.getTime())
-      ? dayKey(created)
-      : "";
-};
+  return (
+    date &&
+    Number.isFinite(date.getTime())
+  )
+    ? dayKey(date)
+    : "";
+}
 
-/* CHECK WHICH ORDERS ALREADY HAVE GCASH */
-
-const paidOrderIds = () =>
-  new Set(
-    state.payments.flatMap(
-      payment => [
-        payment.orderId,
-        payment.id
-      ].filter(Boolean)
-    )
+function ready() {
+  return (
+    data.ordersLoaded &&
+    data.paymentsLoaded
   );
-
-/* NOTIFICATION */
-
-function notify(message, error = false) {
-  const target =
-    $("owner-status") ||
-    $("connection-banner");
-
-  if (target) {
-    target.textContent = message;
-
-    target.classList?.remove(
-      "hidden"
-    );
-
-    target.style.color = error
-      ? "#b42318"
-      : "#23643f";
-
-  } else if (error) {
-    alert(message);
-  }
 }
 
-/* MODAL STATE */
+/* HTML HELPERS */
 
-const mountedModal = {
-  updateList: null
-};
-
-function closeModal() {
-  mountedModal.updateList = null;
-
-  $("modal-root")?.replaceChildren();
-}
-
-/* CREATE ELEMENT */
-
-function make(
+function made(
   tag,
-  className,
+  cls,
   text
 ) {
-  const node =
+  const element =
     document.createElement(tag);
 
-  if (className) {
-    node.className = className;
+  if (cls) {
+    element.className = cls;
   }
 
-  if (text != null) {
-    node.textContent = String(text);
+  if (text !== undefined) {
+    element.textContent =
+      String(text);
   }
 
-  return node;
+  return element;
 }
 
-/* CREATE MODAL */
-
-function modalBase(title, hint) {
-  const root = $("modal-root");
-
-  if (!root) {
-    throw Error(
-      "Missing #modal-root in admin.html"
-    );
-  }
-
-  const shade = make(
-    "div",
-    "modal-backdrop multi-gcash-shade"
-  );
-
-  const sheet = make(
-    "section",
-    "modal-sheet finance-modal multi-gcash-sheet"
-  );
-
-  sheet.setAttribute(
-    "role",
-    "dialog"
-  );
-
-  sheet.setAttribute(
-    "aria-modal",
-    "true"
-  );
-
-  sheet.setAttribute(
-    "aria-label",
-    title
-  );
-
-  sheet.append(
-    make("h3", "", title),
-    make("p", "modal-subtitle", hint)
-  );
-
-  shade.append(sheet);
-
-  shade.addEventListener(
-    "click",
-    event => {
-      if (event.target === shade) {
-        closeModal();
-      }
-    }
-  );
-
-  root.replaceChildren(shade);
-
-  return sheet;
-}
-
-/* FORM FIELD */
-
-function addField(
-  labelText,
-  control
-) {
-  const label = make(
+function field(label, input) {
+  const item = made(
     "label",
     "field"
   );
 
-  label.append(
-    make(
+  item.append(
+    made(
       "span",
       "field-label",
-      labelText
+      label
     ),
-    control
+    input
   );
 
-  return label;
+  return item;
 }
 
-/* DESIGN */
+/* MODAL DESIGN */
 
-function installStyles() {
-  const style = make("style");
+const css = made("style");
 
-  style.textContent = `
-    @media screen {
+css.textContent = `
+  @media screen {
 
-      .multi-gcash-sheet {
-        width: min(650px, 96vw) !important;
-        max-height: 90dvh;
-        overflow-y: auto;
-      }
+    .gm-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 2200;
 
-      .multi-gcash-choices {
-        display: grid;
-        gap: 9px;
-        margin: 10px 0;
-        max-height: 43dvh;
-        overflow-y: auto;
-        padding: 3px;
-      }
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
-      .multi-gcash-order {
-        display: grid;
-        grid-template-columns:
-          24px minmax(0, 1fr) minmax(95px, 125px);
+      padding: 14px;
 
-        align-items: center;
-        gap: 10px;
-        padding: 10px;
-
-        border: 1px solid #eadcd3;
-        border-radius: 11px;
-        background: #fff;
-      }
-
-      .multi-gcash-order input[type=checkbox] {
-        width: 19px;
-        height: 19px;
-        accent-color: #c3477e;
-      }
-
-      .multi-gcash-order .order-label {
-        min-width: 0;
-        overflow-wrap: anywhere;
-        font-size: .82rem;
-      }
-
-      .multi-gcash-order .order-label small {
-        display: block;
-        color: #806c60;
-        font-size: .72rem;
-        margin-top: 3px;
-      }
-
-      .multi-gcash-order input[type=number] {
-        width: 100%;
-        min-width: 0;
-        min-height: 39px;
-        padding: 7px;
-
-        border: 1px solid #dfc9bd;
-        border-radius: 8px;
-        box-sizing: border-box;
-      }
-
-      .multi-gcash-total {
-        padding: 12px;
-        background: #fff3f8;
-        border-radius: 10px;
-        font-size: .85rem;
-        line-height: 1.5;
-        margin: 11px 0;
-      }
-
-      .multi-gcash-actions {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-        flex-wrap: wrap;
-        margin-top: 12px;
-      }
-
-      .multi-gcash-actions button {
-        min-height: 40px;
-      }
-
-      .multi-gcash-error {
-        color: #b42318;
-        font-size: .82rem;
-        min-height: 16px;
-      }
+      background: rgba(31,23,25,.62);
     }
 
-    @media screen and (max-width: 450px) {
-      .multi-gcash-order {
-        grid-template-columns:
-          22px 1fr;
-      }
+    .gm-dialog {
+      width: min(640px,96vw);
+      max-height: 90dvh;
+      overflow: auto;
 
-      .multi-gcash-order input[type=number] {
-        grid-column: 2;
-      }
+      padding: 22px;
+
+      border-radius: 18px;
+      background: white;
+      color: #372b30;
+
+      box-shadow:
+        0 20px 70px #130e1459;
     }
 
-    @media print {
-      .multi-gcash-shade {
-        display: none !important;
-      }
+    .gm-dialog h2 {
+      margin: 0 0 8px;
+      font-size: 1.25rem;
     }
-  `;
 
-  document.head.append(style);
+    .gm-muted {
+      font-size: .83rem;
+      color: #79686e;
+      line-height: 1.55;
+      margin: 0 0 15px;
+    }
+
+    .gm-list {
+      display: grid;
+      gap: 7px;
+
+      max-height: 38dvh;
+      overflow: auto;
+
+      padding: 3px;
+      margin: 10px 0;
+    }
+
+    .gm-order {
+      display: grid;
+
+      align-items: center;
+
+      grid-template-columns:
+        24px minmax(0,1fr) 116px;
+
+      gap: 10px;
+      padding: 11px 10px;
+
+      border: 1px solid #eddae2;
+      border-radius: 12px;
+    }
+
+    .gm-order input[type=checkbox] {
+      width: 19px;
+      height: 19px;
+
+      accent-color: #bd4575;
+    }
+
+    .gm-order small {
+      display: block;
+      color: #87747a;
+      font-size: .73rem;
+      margin-top: 3px;
+    }
+
+    .gm-order input[type=number] {
+      box-sizing: border-box;
+
+      min-width: 0;
+      width: 100%;
+      min-height: 38px;
+
+      padding: 7px;
+
+      border: 1px solid #d9becb;
+      border-radius: 9px;
+    }
+
+    .gm-total {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      padding: 13px;
+
+      background: #fff1f6;
+      border-radius: 11px;
+
+      margin: 12px 0;
+    }
+
+    .gm-total strong {
+      font-size: 1.18rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .gm-error {
+      font-size: .84rem;
+      color: #b42318;
+      min-height: 20px;
+    }
+
+    .gm-actions {
+      display: flex;
+      justify-content: flex-end;
+
+      gap: 10px;
+      flex-wrap: wrap;
+
+      margin-top: 16px;
+    }
+
+    .gm-actions button {
+      min-height: 41px;
+      padding: 8px 17px;
+    }
+
+    .gm-badge {
+      display: inline-grid;
+      place-items: center;
+
+      width: 48px;
+      height: 48px;
+
+      border-radius: 50%;
+      background: #fce4ef;
+      color: #a93669;
+
+      font-size: 24px;
+      font-weight: bold;
+
+      margin-bottom: 10px;
+    }
+
+    .gm-confirm-list {
+      border: 1px solid #f0dfe6;
+      border-radius: 12px;
+
+      padding: 10px 14px;
+
+      max-height: 30dvh;
+      overflow: auto;
+    }
+
+    .gm-confirm-item {
+      display: flex;
+      justify-content: space-between;
+
+      gap: 12px;
+      padding: 7px 0;
+
+      font-size: .85rem;
+
+      border-bottom:
+        1px solid #f4ebef;
+    }
+
+    .gm-confirm-item:last-child {
+      border-bottom: 0;
+    }
+  }
+
+  @media screen and (max-width:440px) {
+
+    .gm-dialog {
+      padding: 16px;
+    }
+
+    .gm-order {
+      grid-template-columns:
+        22px minmax(0,1fr);
+    }
+
+    .gm-order input[type=number] {
+      grid-column: 2;
+    }
+
+    .gm-actions button {
+      flex: 1;
+    }
+  }
+
+  @media print {
+    .gm-layer {
+      display: none !important;
+    }
+  }
+`;
+
+document.head.append(css);
+
+/* MODAL HELPERS */
+
+function root() {
+  const element = $("modal-root");
+
+  if (!element) {
+    throw Error(
+      "Missing #modal-root in admin.html."
+    );
+  }
+
+  return element;
 }
 
-/* CHECK FIRESTORE IS LOADED */
+function modal(title, description) {
+  const layer = made(
+    "div",
+    "gm-layer"
+  );
 
-function ready() {
-  return (
-    state.ordersReady &&
-    state.paymentsReady
+  const dialog = made(
+    "section",
+    "gm-dialog"
+  );
+
+  dialog.setAttribute(
+    "role",
+    "dialog"
+  );
+
+  dialog.setAttribute(
+    "aria-modal",
+    "true"
+  );
+
+  dialog.setAttribute(
+    "aria-label",
+    title
+  );
+
+  dialog.append(
+    made("h2", "", title),
+    made(
+      "p",
+      "gm-muted",
+      description
+    )
+  );
+
+  layer.append(dialog);
+
+  root().replaceChildren(layer);
+
+  return dialog;
+}
+
+function close() {
+  root().replaceChildren();
+}
+
+function action(
+  text,
+  primary,
+  callback
+) {
+  const button = made(
+    "button",
+    primary
+      ? "btn btn-primary"
+      : "btn btn-outline",
+    text
+  );
+
+  button.type = "button";
+
+  button.addEventListener(
+    "click",
+    callback
+  );
+
+  return button;
+}
+
+/* STYLED SUCCESS / ERROR MESSAGE */
+
+function banner(
+  title,
+  description,
+  successful = true
+) {
+  const box = modal(
+    title,
+    description
+  );
+
+  box.prepend(
+    made(
+      "span",
+      "gm-badge",
+      successful ? "✓" : "!"
+    )
+  );
+
+  const actions = made(
+    "div",
+    "gm-actions"
+  );
+
+  actions.append(
+    action(
+      "OK",
+      true,
+      close
+    )
+  );
+
+  box.append(actions);
+
+  actions.firstChild.focus();
+}
+
+/* CHECK ALREADY RECORDED ORDERS */
+
+function paidSet() {
+  return new Set(
+    data.payments.flatMap(
+      payment => [
+        payment.id,
+        payment.orderId
+      ].filter(Boolean)
+    )
   );
 }
 
-/* AVAILABLE ORDERS ONLY */
+function available(day) {
+  const paid = paidSet();
 
-function availableOrders(day) {
-  const paid = paidOrderIds();
-
-  return state.orders
+  return data.orders
     .filter(
       order =>
-        orderDay(order) === day &&
+        phDay(order) === day &&
         !paid.has(order.id)
     )
     .sort(
@@ -389,130 +503,118 @@ function availableOrders(day) {
     );
 }
 
+function selectedDay() {
+  return (
+    $("finance-date")?.value ||
+    dayKey()
+  );
+}
+
 /* =====================================
-   ADD GCASH — MULTIPLE ORDERS
+   ADD MULTIPLE GCASH PAYMENTS
 ===================================== */
 
-function openAddGcash() {
+function openAdd() {
   if (!ready()) {
-    notify(
-      "Orders and GCash records are still loading. Retry shortly.",
-      true
+    banner(
+      "GCash still loading",
+      "Orders and payment records have not finished loading.",
+      false
     );
 
     return;
   }
 
-  const day =
-    $("finance-date")?.value ||
-    dayKey();
+  const day = selectedDay();
 
-  const choices = availableOrders(day);
+  const orders = available(day);
 
-  if (!choices.length) {
-    notify(
-      "Walang available na order: lahat ng orders sa date na ito ay may GCash record na, o walang saved orders.",
-      true
+  if (!orders.length) {
+    banner(
+      "No available orders",
+      "There are no unpaid orders on the selected date. Paid orders are hidden; use Edit to correct a recorded GCash amount.",
+      false
     );
 
     return;
   }
 
-  const sheet = modalBase(
-    "Add GCash Payment — Multiple Orders",
-
-    "Pumili ng maraming order. Ang may existing GCash record ay HINDI na kasama sa listahan. Ilagay ang aktuwal na GCash amount para sa bawat napili."
+  const dialog = modal(
+    "Add GCash Payment",
+    "Select as many saved orders as needed. Each order receives its own GCash allocation. Orders that already have a GCash record are hidden."
   );
 
-  const form = make(
+  const form = made(
     "form",
     "modal-form"
   );
 
   /* DESCRIPTION */
 
-  const description = make("input");
+  const description =
+    made("input");
 
   description.type = "text";
-  description.maxLength = 160;
   description.required = true;
+  description.maxLength = 160;
 
   description.placeholder =
-    "Hal. One transfer for Orders #18, #23, #24";
+    "e.g. GCash transfer reference #123";
 
   form.append(
-    addField(
-      "GCash description / reference",
+    field(
+      "Description / GCash reference",
       description
     )
   );
 
-  /* ORDER SELECTION */
-
-  const listTitle = make(
-    "strong",
-    "",
-    "Select saved orders (multiple)"
+  form.append(
+    made(
+      "strong",
+      "",
+      "Select orders and amounts"
+    )
   );
 
-  form.append(listTitle);
-
-  const list = make(
+  const list = made(
     "div",
-    "multi-gcash-choices"
+    "gm-list"
   );
 
-  form.append(list);
+  const selected = new Map();
 
-  /* TOTAL PREVIEW */
+  let saving = false;
 
-  const total = make(
+  const totalPreview = made(
     "div",
-    "multi-gcash-total",
-    "Selected orders: 0 · Total GCash: ₱0.00"
+    "gm-total"
   );
 
-  total.setAttribute(
-    "aria-live",
-    "polite"
-  );
-
-  form.append(total);
-
-  /* ERROR */
-
-  const error = make(
+  const errorBox = made(
     "p",
-    "multi-gcash-error"
+    "gm-error"
   );
 
-  error.setAttribute(
+  errorBox.setAttribute(
     "role",
     "alert"
   );
 
-  form.append(error);
-
-  /* ACTIONS */
-
-  const actions = make(
+  const actions = made(
     "div",
-    "multi-gcash-actions"
+    "gm-actions"
   );
 
-  const cancel = make(
-    "button",
-    "btn btn-outline",
-    "Cancel"
+  const cancel = action(
+    "Cancel",
+    false,
+    close
   );
 
-  cancel.type = "button";
-  cancel.onclick = closeModal;
-
-  const save = make(
+  const save = made(
     "button",
     "btn btn-primary",
-    "Save Selected Payments"
+    "Review Selected Payments"
   );
 
   save.type = "submit";
@@ -522,566 +624,660 @@ function openAddGcash() {
     save
   );
 
-  form.append(actions);
-  sheet.append(form);
+  form.append(
+    list,
+    totalPreview,
+    errorBox,
+    actions
+  );
 
-  /*
-   * Map:
-   * order Firestore ID -> entered GCash amount
-   */
+  dialog.append(form);
 
-  const selected = new Map();
+  /* TOTAL PREVIEW */
 
-  let saving = false;
-
-  /* COMPUTE TOTAL */
-
-  function totals() {
-    let sum = 0;
-
-    const details = [];
+  function preview() {
+    let total = 0;
 
     for (
-      const [id, rawAmount] of selected
+      const value of selected.values()
     ) {
-      const order = state.orders.find(
-        item => item.id === id
+      const amount = parseAmount(
+        value
       );
-
-      const amount =
-        positiveAmount(rawAmount);
-
-      details.push({
-        order,
-        amount
-      });
 
       if (
         Number.isFinite(amount) &&
         amount > 0
       ) {
-        sum += amount;
+        total += amount;
       }
     }
 
-    total.textContent =
-      `Selected orders: ${selected.size} · ` +
-      `Total GCash: ${formatCents(sum)}`;
+    totalPreview.replaceChildren(
+      made(
+        "span",
+        "",
+        `${selected.size} selected order(s)`
+      ),
 
-    return details;
+      made(
+        "strong",
+        "",
+        money(total)
+      )
+    );
   }
 
-  /* RENDER AVAILABLE ORDERS */
+  /* DRAW ORDER CHECKBOXES */
 
-  function drawOrders() {
-    if (saving) return;
+  function draw() {
+    if (
+      saving ||
+      !root().contains(dialog)
+    ) {
+      return;
+    }
 
-    const available =
-      availableOrders(day);
+    const current = available(day);
 
-    const ids = new Set(
-      available.map(
-        order => order.id
+    const availableIds = new Set(
+      current.map(
+        item => item.id
       )
     );
 
-    const previouslySelected = [
-      ...selected.keys()
-    ];
+    let removed = false;
 
-    /*
-     * Remove any selected order that
-     * gained a GCash payment elsewhere.
-     */
-
-    for (const id of previouslySelected) {
-      if (!ids.has(id)) {
+    for (
+      const id of selected.keys()
+    ) {
+      if (!availableIds.has(id)) {
         selected.delete(id);
+        removed = true;
       }
     }
 
-    if (
-      previouslySelected.some(
-        id => !ids.has(id)
-      )
-    ) {
-      error.textContent =
-        "May order na nagkaroon na ng GCash payment sa ibang session. Inalis ito sa selection.";
+    if (removed) {
+      errorBox.textContent =
+        "An order received a GCash record elsewhere and was removed from your selection.";
     }
 
     list.replaceChildren();
 
-    if (!available.length) {
-      list.append(
-        make(
-          "p",
-          "",
-          "Wala nang orders na puwedeng piliin para sa araw na ito."
-        )
-      );
-
-      save.disabled = true;
-
-      totals();
-      return;
-    }
-
-    save.disabled = false;
-
-    for (const order of available) {
-      const row = make(
+    for (const order of current) {
+      const row = made(
         "div",
-        "multi-gcash-order"
+        "gm-order"
       );
 
-      /* CHECKBOX */
-
-      const check = make("input");
+      const check =
+        made("input");
 
       check.type = "checkbox";
 
-      check.checked =
-        selected.has(order.id);
+      check.checked = selected.has(
+        order.id
+      );
 
       check.setAttribute(
         "aria-label",
         `Select order #${order.orderNumber}`
       );
 
-      /* ORDER LABEL */
+      /* ORDER NAME */
 
-      const label = make(
+      const text = made(
         "div",
-        "order-label",
-        `Order #${order.orderNumber} · ` +
+        "",
+        `#${order.orderNumber} · ` +
         `${order.customerName || "Walk-in"}`
       );
 
-      label.append(
-        make(
+      text.append(
+        made(
           "small",
           "",
-          `Order total: ${money(order.total)}`
+          `Saved total: ${money(centsOf(order.total))}`
         )
       );
 
-      /* EDITABLE GCASH AMOUNT */
+      /* AMOUNT FIELD */
 
-      const allocation = make("input");
+      const amount =
+        made("input");
 
-      allocation.type = "number";
-      allocation.min = "0.01";
-      allocation.max = String(order.total);
-      allocation.step = "0.01";
-      allocation.inputMode = "decimal";
+      amount.type = "number";
+      amount.step = "0.01";
+      amount.min = "0.01";
+      amount.max = String(
+        order.total
+      );
 
-      allocation.placeholder = "GCash ₱";
+      amount.inputMode =
+        "decimal";
 
-      allocation.disabled =
+      amount.placeholder =
+        "GCash ₱";
+
+      amount.disabled =
         !check.checked;
 
-      allocation.value =
+      amount.value =
         selected.get(order.id) ?? "";
 
-      allocation.setAttribute(
+      amount.setAttribute(
         "aria-label",
-        `GCash for order #${order.orderNumber}`
+        `GCash amount for order #${order.orderNumber}`
       );
 
-      /* CHECK / UNCHECK */
+      /* SELECT / DESELECT */
 
-      check.addEventListener(
-        "change",
-        () => {
-          if (check.checked) {
-            /*
-             * Default to order total.
-             * Can be changed for split payment.
-             */
+      check.onchange = () => {
+        if (check.checked) {
+          const defaultAmount = Number(
+            order.total
+          ).toFixed(2);
 
-            selected.set(
-              order.id,
-              Number(order.total).toFixed(2)
-            );
+          selected.set(
+            order.id,
+            defaultAmount
+          );
 
-            allocation.value =
-              selected.get(order.id);
+          amount.value =
+            defaultAmount;
 
-            allocation.disabled = false;
+          amount.disabled = false;
 
-            allocation.focus();
+          amount.focus();
 
-          } else {
-            selected.delete(order.id);
+        } else {
+          selected.delete(
+            order.id
+          );
 
-            allocation.value = "";
+          amount.disabled = true;
 
-            allocation.disabled = true;
-          }
-
-          error.textContent = "";
-
-          totals();
+          amount.value = "";
         }
-      );
 
-      /* UPDATE AMOUNT */
+        errorBox.textContent = "";
 
-      allocation.addEventListener(
-        "input",
-        () => {
-          if (check.checked) {
-            selected.set(
-              order.id,
-              allocation.value
-            );
-          }
+        preview();
+      };
 
-          totals();
+      /* UPDATE PAYMENT AMOUNT */
+
+      amount.oninput = () => {
+        if (check.checked) {
+          selected.set(
+            order.id,
+            amount.value
+          );
         }
-      );
+
+        preview();
+      };
 
       row.append(
         check,
-        label,
-        allocation
+        text,
+        amount
       );
 
       list.append(row);
     }
 
-    totals();
+    if (!current.length) {
+      list.append(
+        made(
+          "p",
+          "gm-muted",
+          "All orders on this date already have GCash payments."
+        )
+      );
+    }
+
+    preview();
   }
 
-  /* LIVE REFRESH WHILE MODAL IS OPEN */
+  /* LIVE REFRESH */
 
-  mountedModal.updateList =
-    drawOrders;
+  const refresh = () => {
+    if (root().contains(dialog)) {
+      draw();
+    }
+  };
 
-  drawOrders();
+  openModalRefresh = refresh;
 
-  /* =================================
-     SAVE MULTIPLE GCASH RECORDS
-  ================================= */
+  draw();
 
-  form.addEventListener(
-    "submit",
-    async event => {
-      event.preventDefault();
+  /* REVIEW BEFORE SAVING */
 
-      if (saving) return;
+  form.onsubmit = async event => {
+    event.preventDefault();
 
-      error.textContent = "";
+    if (saving) return;
 
-      const desc =
-        description.value.trim();
+    const desc =
+      description.value.trim();
 
-      const entries = totals();
+    const entries = [
+      ...selected
+    ].map(
+      ([id, raw]) => ({
+        order: data.orders.find(
+          order => order.id === id
+        ),
 
+        amount:
+          parseAmount(raw)
+      })
+    );
+
+    if (
+      !desc ||
+      !entries.length
+    ) {
+      errorBox.textContent =
+        "Enter a description and select at least one order.";
+
+      return;
+    }
+
+    if (entries.length > 30) {
+      errorBox.textContent =
+        "Maximum 30 orders in one save.";
+
+      return;
+    }
+
+    for (const item of entries) {
       if (
-        !desc ||
-        !entries.length
+        !item.order ||
+        !Number.isInteger(item.amount) ||
+        item.amount <= 0 ||
+        item.amount >
+          centsOf(item.order.total)
       ) {
-        error.textContent =
-          "Enter a description and select at least one order.";
+        errorBox.textContent =
+          `Invalid amount for Order #${item.order?.orderNumber || "?"}. ` +
+          "It cannot exceed the saved total.";
 
         return;
-      }
-
-      /* VALIDATE EVERY ALLOCATION */
-
-      for (const { order, amount } of entries) {
-        if (
-          !order ||
-          !Number.isInteger(amount) ||
-          amount <= 0 ||
-          amount > toCents(order.total)
-        ) {
-          error.textContent =
-            `Invalid GCash amount for Order #${order?.orderNumber || "?"}. ` +
-            "Maximum is the saved order total.";
-
-          return;
-        }
-      }
-
-      if (entries.length > 40) {
-        error.textContent =
-          "Select up to 40 orders per GCash transaction.";
-
-        return;
-      }
-
-      /* CONFIRM BEFORE SAVING */
-
-      const summary = entries
-        .map(
-          ({ order, amount }) =>
-            `#${order.orderNumber}: ` +
-            formatCents(amount)
-        )
-        .join("\n");
-
-      const sum = entries.reduce(
-        (value, item) =>
-          value + item.amount,
-        0
-      );
-
-      if (
-        !confirm(
-          `Confirm ONE GCash transfer of ` +
-          `${formatCents(sum)} allocated to:\n\n` +
-          `${summary}\n\nSave all records?`
-        )
-      ) {
-        return;
-      }
-
-      saving = true;
-
-      save.disabled = true;
-      save.textContent =
-        "Saving payments…";
-
-      try {
-        await authReady;
-
-        const groupId =
-          crypto.randomUUID?.() ||
-          `gcash-${Date.now()}`;
-
-        await runTransaction(
-          db,
-          async transaction => {
-            /*
-             * ALL FIRESTORE READS FIRST.
-             */
-
-            const references = entries.map(
-              ({ order }) => ({
-                orderRef: doc(
-                  db,
-                  "orders",
-                  order.id
-                ),
-
-                paymentRef: doc(
-                  db,
-                  "gcashPayments",
-                  order.id
-                )
-              })
-            );
-
-            const snapshots =
-              await Promise.all(
-                references.flatMap(
-                  reference => [
-                    transaction.get(
-                      reference.orderRef
-                    ),
-
-                    transaction.get(
-                      reference.paymentRef
-                    )
-                  ]
-                )
-              );
-
-            const writes = [];
-
-            /* VALIDATE SAVED ORDERS */
-
-            for (
-              let i = 0;
-              i < entries.length;
-              i++
-            ) {
-              const orderSnap =
-                snapshots[i * 2];
-
-              const paymentSnap =
-                snapshots[i * 2 + 1];
-
-              if (!orderSnap.exists()) {
-                throw Error(
-                  `Order #${entries[i].order.orderNumber} was removed.`
-                );
-              }
-
-              /*
-               * PREVENT DUPLICATE GCASH
-               * EVEN FROM DIFFERENT DEVICES.
-               */
-
-              if (paymentSnap.exists()) {
-                throw Error(
-                  `Order #${entries[i].order.orderNumber} already has a GCash payment.`
-                );
-              }
-
-              const savedOrder =
-                orderSnap.data();
-
-              const allocation =
-                entries[i].amount;
-
-              if (
-                orderDay(savedOrder) !== day
-              ) {
-                throw Error(
-                  `Order #${savedOrder.orderNumber} has another date.`
-                );
-              }
-
-              if (
-                allocation <= 0 ||
-                allocation >
-                  toCents(savedOrder.total)
-              ) {
-                throw Error(
-                  `Order #${savedOrder.orderNumber} allocation exceeds order total.`
-                );
-              }
-
-              writes.push({
-                ...references[i],
-
-                amount: rounded(
-                  allocation / 100
-                ),
-
-                orderNumber: Number(
-                  savedOrder.orderNumber
-                ),
-
-                customerName:
-                  savedOrder.customerName || ""
-              });
-            }
-
-            const at =
-              new Date().toISOString();
-
-            /*
-             * SAVE ALL PAYMENTS TOGETHER.
-             */
-
-            for (const write of writes) {
-              transaction.set(
-                write.paymentRef,
-                {
-                  orderId:
-                    write.orderRef.id,
-
-                  orderNumber:
-                    write.orderNumber,
-
-                  customerName:
-                    write.customerName,
-
-                  dayKey: day,
-
-                  description: desc,
-
-                  amount:
-                    write.amount,
-
-                  groupId,
-
-                  combinedTransfer:
-                    rounded(sum / 100),
-
-                  paymentHistory: [{
-                    action: "add",
-
-                    amount:
-                      write.amount,
-
-                    groupId,
-                    at,
-
-                    description: desc
-                  }],
-
-                  createdAt:
-                    serverTimestamp(),
-
-                  updatedAt:
-                    serverTimestamp()
-                }
-              );
-
-              transaction.update(
-                write.orderRef,
-                {
-                  paymentMethod: "GCash",
-
-                  gcashAmount:
-                    write.amount
-                }
-              );
-            }
-          }
-        );
-
-        closeModal();
-
-        notify(
-          `${entries.length} GCash allocations saved: ` +
-          `${formatCents(sum)} total. ` +
-          "Hindi idinagdag ulit sa Sales."
-        );
-
-      } catch (errorMessage) {
-        error.textContent =
-          `Save failed: ${errorMessage.message}`;
-
-        saving = false;
-
-        save.disabled = false;
-
-        save.textContent =
-          "Save Selected Payments";
       }
     }
-  );
+
+    const sum = entries.reduce(
+      (total, item) =>
+        total + item.amount,
+      0
+    );
+
+    /* STYLED CONFIRMATION MODAL */
+
+    const confirmation = made(
+      "div",
+      "gm-layer"
+    );
+
+    confirmation.style.zIndex =
+      "2300";
+
+    const confirmBox = made(
+      "section",
+      "gm-dialog"
+    );
+
+    confirmBox.setAttribute(
+      "role",
+      "alertdialog"
+    );
+
+    confirmBox.setAttribute(
+      "aria-modal",
+      "true"
+    );
+
+    confirmBox.setAttribute(
+      "aria-label",
+      "Confirm GCash allocations"
+    );
+
+    confirmBox.append(
+      made(
+        "span",
+        "gm-badge",
+        "₱"
+      ),
+
+      made(
+        "h2",
+        "",
+        "Confirm GCash Payments"
+      ),
+
+      made(
+        "p",
+        "gm-muted",
+        "Review all allocations before saving. Each selected order will be recorded once."
+      )
+    );
+
+    const summary = made(
+      "div",
+      "gm-confirm-list"
+    );
+
+    for (const item of entries) {
+      const row = made(
+        "div",
+        "gm-confirm-item"
+      );
+
+      row.append(
+        made(
+          "span",
+          "",
+          `Order #${item.order.orderNumber}`
+        ),
+
+        made(
+          "strong",
+          "",
+          money(item.amount)
+        )
+      );
+
+      summary.append(row);
+    }
+
+    const totalRow = made(
+      "div",
+      "gm-total"
+    );
+
+    totalRow.append(
+      made(
+        "span",
+        "",
+        "TOTAL GCASH TO SAVE"
+      ),
+
+      made(
+        "strong",
+        "",
+        money(sum)
+      )
+    );
+
+    const confirmError = made(
+      "p",
+      "gm-error"
+    );
+
+    confirmError.setAttribute(
+      "role",
+      "alert"
+    );
+
+    const buttons = made(
+      "div",
+      "gm-actions"
+    );
+
+    const back = action(
+      "Back to Edit",
+      false,
+      () => confirmation.remove()
+    );
+
+    const confirm = action(
+      "Confirm & Save",
+      true,
+      async () => {
+        if (saving) return;
+
+        saving = true;
+
+        confirm.disabled = true;
+        back.disabled = true;
+
+        confirm.textContent =
+          "Saving…";
+
+        try {
+          await authReady;
+
+          const groupId =
+            crypto.randomUUID?.() ||
+            `gcash-${Date.now()}`;
+
+          await runTransaction(
+            db,
+            async tx => {
+              const refs = entries.map(
+                item => ({
+                  orderRef: doc(
+                    db,
+                    "orders",
+                    item.order.id
+                  ),
+
+                  paymentRef: doc(
+                    db,
+                    "gcashPayments",
+                    item.order.id
+                  )
+                })
+              );
+
+              /* READ ALL BEFORE WRITING */
+
+              const snaps =
+                await Promise.all(
+                  refs.flatMap(ref => [
+                    tx.get(ref.orderRef),
+                    tx.get(ref.paymentRef)
+                  ])
+                );
+
+              /* VALIDATE EACH ORDER */
+
+              for (
+                let index = 0;
+                index < entries.length;
+                index++
+              ) {
+                const savedOrder =
+                  snaps[index * 2];
+
+                const payment =
+                  snaps[index * 2 + 1];
+
+                if (!savedOrder.exists()) {
+                  throw Error(
+                    `Order #${entries[index].order.orderNumber} was deleted.`
+                  );
+                }
+
+                if (payment.exists()) {
+                  throw Error(
+                    `Order #${entries[index].order.orderNumber} already has a GCash payment.`
+                  );
+                }
+
+                if (
+                  phDay(savedOrder.data()) !== day
+                ) {
+                  throw Error(
+                    "An order's saved date changed."
+                  );
+                }
+
+                if (
+                  entries[index].amount >
+                    centsOf(
+                      savedOrder.data().total
+                    )
+                ) {
+                  throw Error(
+                    `Order #${entries[index].order.orderNumber} amount exceeds current order total.`
+                  );
+                }
+              }
+
+              /* SAVE ALL PAYMENTS */
+
+              for (
+                let index = 0;
+                index < entries.length;
+                index++
+              ) {
+                const entry =
+                  entries[index];
+
+                const current =
+                  snaps[index * 2].data();
+
+                const refsForRow =
+                  refs[index];
+
+                const allocated =
+                  entry.amount / 100;
+
+                tx.set(
+                  refsForRow.paymentRef,
+                  {
+                    orderId:
+                      entry.order.id,
+
+                    orderNumber:
+                      current.orderNumber,
+
+                    customerName:
+                      current.customerName || "",
+
+                    dayKey: day,
+
+                    description: desc,
+
+                    amount: allocated,
+
+                    groupId,
+
+                    combinedTransfer:
+                      sum / 100,
+
+                    paymentHistory: [{
+                      action: "add",
+                      amount: allocated,
+                      at: new Date().toISOString(),
+                      groupId,
+                      description: desc
+                    }],
+
+                    createdAt:
+                      serverTimestamp(),
+
+                    updatedAt:
+                      serverTimestamp()
+                  }
+                );
+
+                tx.update(
+                  refsForRow.orderRef,
+                  {
+                    paymentMethod: "GCash",
+                    gcashAmount: allocated
+                  }
+                );
+              }
+            }
+          );
+
+          openModalRefresh = null;
+
+          /* STYLED SUCCESS MESSAGE */
+
+          banner(
+            "GCash Payments Saved",
+            `${entries.length} order(s) recorded successfully. ` +
+            `Total GCash: ${money(sum)}. ` +
+            "These orders will no longer appear in Add Payment.",
+            true
+          );
+
+        } catch (error) {
+          saving = false;
+
+          confirm.disabled = false;
+          back.disabled = false;
+
+          confirm.textContent =
+            "Confirm & Save";
+
+          confirmError.textContent =
+            `Save failed: ${error.message}`;
+        }
+      }
+    );
+
+    buttons.append(
+      back,
+      confirm
+    );
+
+    confirmBox.append(
+      summary,
+      totalRow,
+      confirmError,
+      buttons
+    );
+
+    confirmation.append(
+      confirmBox
+    );
+
+    root().append(
+      confirmation
+    );
+
+    confirm.focus();
+  };
 }
 
 /* =====================================
    EDIT EXISTING GCASH PAYMENT
 ===================================== */
 
-function openEditGcash(payment) {
-  const order = state.orders.find(
+function openEdit(payment) {
+  const order = data.orders.find(
     item =>
       item.id === payment.orderId
   );
 
   if (!order) {
-    notify(
-      "Linked saved order not found; cannot edit payment.",
-      true
+    banner(
+      "Cannot edit GCash",
+      "The linked saved order was not found.",
+      false
     );
 
     return;
   }
 
-  const sheet = modalBase(
+  const dialog = modal(
     `Edit GCash — Order #${order.orderNumber}`,
-
-    "Existing GCash records are excluded from Add Payment. To correct an amount, use Edit here instead."
+    "Correct the existing amount. Paid orders are not selectable in Add Payment."
   );
 
-  const form = make(
+  const form = made(
     "form",
     "modal-form"
   );
 
-  /* DESCRIPTION */
-
-  const desc = make("input");
+  const desc = made("input");
 
   desc.type = "text";
   desc.required = true;
@@ -1090,60 +1286,39 @@ function openEditGcash(payment) {
   desc.value =
     payment.description || "GCash";
 
-  /* CORRECTED AMOUNT */
-
-  const amount = make("input");
+  const amount = made("input");
 
   amount.type = "number";
-  amount.required = true;
-
   amount.min = "0.01";
-  amount.max = String(order.total);
   amount.step = "0.01";
+
+  amount.max = String(
+    order.total
+  );
+
+  amount.required = true;
 
   amount.value = String(
     payment.amount ?? ""
   );
 
-  form.append(
-    addField("Description", desc),
-
-    addField(
-      "Corrected GCash received (₱)",
-      amount
-    )
-  );
-
-  /* PAYMENT SUMMARY */
-
-  const help = make(
+  const error = made(
     "p",
-    "multi-gcash-total",
-
-    `Order total: ${money(order.total)} · ` +
-    `Previous GCash: ${money(payment.amount)}`
+    "gm-error"
   );
 
-  const error = make(
-    "p",
-    "multi-gcash-error"
-  );
-
-  const actions = make(
+  const buttons = made(
     "div",
-    "multi-gcash-actions"
+    "gm-actions"
   );
 
-  const cancel = make(
-    "button",
-    "btn btn-outline",
-    "Cancel"
+  const cancel = action(
+    "Cancel",
+    false,
+    close
   );
 
-  cancel.type = "button";
-  cancel.onclick = closeModal;
-
-  const save = make(
+  const save = made(
     "button",
     "btn btn-primary",
     "Save Correction"
@@ -1151,179 +1326,182 @@ function openEditGcash(payment) {
 
   save.type = "submit";
 
-  actions.append(
+  form.append(
+    field("Description", desc),
+
+    field(
+      "Corrected GCash amount (₱)",
+      amount
+    ),
+
+    made(
+      "p",
+      "gm-muted",
+      `Saved order total: ${money(centsOf(order.total))}`
+    ),
+
+    error
+  );
+
+  buttons.append(
     cancel,
     save
   );
 
-  form.append(
-    help,
-    error,
-    actions
-  );
+  form.append(buttons);
 
-  sheet.append(form);
+  dialog.append(form);
 
-  /* SAVE CORRECTED AMOUNT */
+  /* SAVE CORRECTION */
 
-  form.addEventListener(
-    "submit",
-    async event => {
-      event.preventDefault();
+  form.onsubmit = async event => {
+    event.preventDefault();
 
-      const value =
-        positiveAmount(amount.value);
+    const next =
+      parseAmount(amount.value);
 
-      if (
-        !Number.isInteger(value) ||
-        value <= 0 ||
-        value > toCents(order.total) ||
-        !desc.value.trim()
-      ) {
-        error.textContent =
-          "Enter a valid amount up to the current order total and a description.";
+    if (
+      !Number.isInteger(next) ||
+      next <= 0 ||
+      next > centsOf(order.total) ||
+      !desc.value.trim()
+    ) {
+      error.textContent =
+        "Enter a valid amount up to the saved order total.";
 
-        return;
-      }
+      return;
+    }
 
-      save.disabled = true;
+    save.disabled = true;
 
-      try {
-        await authReady;
+    try {
+      await authReady;
 
-        const orderRef = doc(
-          db,
-          "orders",
-          order.id
-        );
+      const orderRef = doc(
+        db,
+        "orders",
+        order.id
+      );
 
-        const paymentRef = doc(
-          db,
-          "gcashPayments",
-          order.id
-        );
+      const paymentRef = doc(
+        db,
+        "gcashPayments",
+        order.id
+      );
 
-        await runTransaction(
-          db,
-          async transaction => {
-            const [
-              orderSnap,
-              paymentSnap
-            ] = await Promise.all([
-              transaction.get(orderRef),
-              transaction.get(paymentRef)
-            ]);
+      await runTransaction(
+        db,
+        async tx => {
+          const [
+            savedOrder,
+            savedPayment
+          ] = await Promise.all([
+            tx.get(orderRef),
+            tx.get(paymentRef)
+          ]);
 
-            if (
-              !orderSnap.exists() ||
-              !paymentSnap.exists()
-            ) {
-              throw Error(
-                "Order or payment was deleted."
-              );
-            }
-
-            if (
-              value >
-                toCents(orderSnap.data().total)
-            ) {
-              throw Error(
-                "Amount exceeds updated order total."
-              );
-            }
-
-            const old =
-              paymentSnap.data();
-
-            const at =
-              new Date().toISOString();
-
-            transaction.update(
-              paymentRef,
-              {
-                amount:
-                  rounded(value / 100),
-
-                description:
-                  desc.value.trim(),
-
-                dayKey:
-                  orderDay(orderSnap.data()),
-
-                paymentHistory: [
-                  ...(
-                    Array.isArray(
-                      old.paymentHistory
-                    )
-                      ? old.paymentHistory
-                      : []
-                  ),
-
-                  {
-                    action: "edit-total",
-
-                    previousAmount:
-                      Number(old.amount || 0),
-
-                    newAmount:
-                      rounded(value / 100),
-
-                    at,
-
-                    description:
-                      desc.value.trim()
-                  }
-                ].slice(-60),
-
-                updatedAt:
-                  serverTimestamp()
-              }
-            );
-
-            transaction.update(
-              orderRef,
-              {
-                paymentMethod: "GCash",
-
-                gcashAmount:
-                  rounded(value / 100)
-              }
+          if (
+            !savedOrder.exists() ||
+            !savedPayment.exists()
+          ) {
+            throw Error(
+              "The order or payment no longer exists."
             );
           }
-        );
 
-        closeModal();
+          if (
+            next >
+              centsOf(
+                savedOrder.data().total
+              )
+          ) {
+            throw Error(
+              "GCash exceeds updated saved order total."
+            );
+          }
 
-        notify(
-          `GCash for Order #${order.orderNumber} updated.`
-        );
+          const previous =
+            savedPayment.data();
 
-      } catch (errorMessage) {
-        error.textContent =
-          `Save failed: ${errorMessage.message}`;
+          tx.update(
+            paymentRef,
+            {
+              amount: next / 100,
 
-        save.disabled = false;
-      }
+              description:
+                desc.value.trim(),
+
+              updatedAt:
+                serverTimestamp(),
+
+              paymentHistory: [
+                ...(
+                  Array.isArray(
+                    previous.paymentHistory
+                  )
+                    ? previous.paymentHistory
+                    : []
+                ),
+
+                {
+                  action: "edit-total",
+
+                  previousAmount:
+                    Number(
+                      previous.amount || 0
+                    ),
+
+                  newAmount:
+                    next / 100,
+
+                  description:
+                    desc.value.trim(),
+
+                  at:
+                    new Date().toISOString()
+                }
+              ].slice(-60)
+            }
+          );
+
+          tx.update(
+            orderRef,
+            {
+              paymentMethod: "GCash",
+              gcashAmount: next / 100
+            }
+          );
+        }
+      );
+
+      banner(
+        "GCash Payment Updated",
+        `Order #${order.orderNumber} now has ${money(next)} recorded in GCash.`,
+        true
+      );
+
+    } catch (errorMessage) {
+      error.textContent =
+        `Save failed: ${errorMessage.message}`;
+
+      save.disabled = false;
     }
-  );
+  };
 }
+
+/* CURRENT MODAL REFRESH CALLBACK */
+
+let openModalRefresh = null;
 
 /* =====================================
    INTERCEPT EXISTING GCASH BUTTONS
 ===================================== */
 
-/*
- * WINDOW CAPTURE executes before the
- * old admin.js and admin-owners.js
- * click handlers.
- *
- * This prevents two modals from opening.
- */
-
 window.addEventListener(
   "click",
   event => {
-    const target = event.target;
+    const target =
+      event.target;
 
     if (!(target instanceof Element)) {
       return;
@@ -1340,11 +1518,12 @@ window.addEventListener(
 
       event.stopImmediatePropagation();
 
-      openAddGcash();
+      openAdd();
+
       return;
     }
 
-    /* GCASH TABLE EDIT BUTTON */
+    /* EDIT EXISTING GCASH */
 
     const button = target.closest(
       ".finance-separated-section button"
@@ -1363,8 +1542,9 @@ window.addEventListener(
 
     if (
       !section?.querySelector("h3")
-        ?.textContent.trim()
-        .startsWith("GCash Payments")
+        ?.textContent.startsWith(
+          "GCash Payments"
+        )
     ) {
       return;
     }
@@ -1372,125 +1552,105 @@ window.addEventListener(
     event.preventDefault();
     event.stopImmediatePropagation();
 
-    const row = button.closest("tr");
+    const row =
+      button.closest("tr");
 
-    const label =
+    const text =
       row?.cells?.[0]?.textContent || "";
 
-    const orderNo = Number(
-      /#\s*(\d+)/.exec(label)?.[1]
+    const orderNumber = Number(
+      /#\s*(\d+)/.exec(text)?.[1]
     );
 
-    const date =
-      $("finance-date")?.value ||
-      dayKey();
-
-    const matching = state.payments.filter(
-      payment => {
-        const created = timestampDate(
-          payment.createdAt
-        );
-
-        const paymentDay =
-          payment.dayKey ||
-          (
-            created
-              ? dayKey(created)
-              : ""
-          );
-
-        return (
-          Number(payment.orderNumber) ===
-            orderNo &&
-          paymentDay === date
-        );
-      }
-    );
-
-    if (matching.length !== 1) {
-      notify(
-        "GCash record could not be uniquely identified; reload the Finance table.",
-        true
+    const found =
+      data.payments.filter(
+        payment =>
+          Number(
+            payment.orderNumber
+          ) === orderNumber &&
+          phDay(payment) === selectedDay()
       );
 
-      return;
-    }
+    if (found.length === 1) {
+      openEdit(found[0]);
 
-    openEditGcash(matching[0]);
+    } else {
+      banner(
+        "GCash record not identified",
+        "Please reload the Finance section and try Edit again.",
+        false
+      );
+    }
   },
   true
 );
 
 /* =====================================
-   START FIRESTORE LISTENERS
+   LIVE FIRESTORE DATA
 ===================================== */
 
-installStyles();
-
 authReady.then(() => {
-  /* SAVED ORDERS */
+
+  /* ORDERS */
 
   onSnapshot(
-    collection(
-      db,
-      "orders"
-    ),
+    collection(db, "orders"),
 
     snapshot => {
-      state.orders = snapshot.docs.map(
-        item => ({
-          id: item.id,
-          ...item.data()
-        })
-      );
+      data.orders =
+        snapshot.docs.map(
+          item => ({
+            id: item.id,
+            ...item.data()
+          })
+        );
 
-      state.ordersReady = true;
+      data.ordersLoaded = true;
 
-      mountedModal.updateList?.();
+      openModalRefresh?.();
     },
 
-    error => notify(
-      `Orders: ${error.message}`,
-      true
-    )
+    error => {
+      banner(
+        "Orders unavailable",
+        error.message,
+        false
+      );
+    }
   );
 
-  /* GCASH RECORDS */
+  /* GCASH PAYMENTS */
 
   onSnapshot(
-    collection(
-      db,
-      "gcashPayments"
-    ),
+    collection(db, "gcashPayments"),
 
     snapshot => {
-      state.payments = snapshot.docs.map(
-        item => ({
-          id: item.id,
-          ...item.data()
-        })
-      );
+      data.payments =
+        snapshot.docs.map(
+          item => ({
+            id: item.id,
+            ...item.data()
+          })
+        );
 
-      state.paymentsReady = true;
+      data.paymentsLoaded = true;
 
-      /*
-       * Instantly hide orders that receive
-       * GCash payments while the Add
-       * Payment modal is open.
-       */
-
-      mountedModal.updateList?.();
+      openModalRefresh?.();
     },
 
-    error => notify(
-      `GCash: ${error.message}`,
-      true
-    )
+    error => {
+      banner(
+        "GCash unavailable",
+        error.message,
+        false
+      );
+    }
   );
 
 }).catch(error => {
-  notify(
-    `Sign-in: ${error.message}`,
-    true
+  banner(
+    "Connection error",
+    error.message,
+    false
   );
 });
