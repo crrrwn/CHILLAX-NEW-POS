@@ -1,14 +1,9 @@
 
 /**
  * CHILLAX CAFE POS
- * COMPLETE 58MM PRINTING
- *
- * ADMIN COPY
- * KITCHEN COPY
- * CUSTOMER COPY
- *
- * OWNER SALES REPORTS
- * FINANCE REPORTS
+ * 58MM THERMAL RECEIPTS
+ * ADMIN / KITCHEN / CUSTOMER
+ * ADD-ON RECEIPTS + FINANCE + OWNER REPORTS
  */
 
 import {
@@ -17,22 +12,29 @@ import {
   lineDiscountAmount
 } from "./business.js";
 
-const esc = value =>
-  String(value ?? "").replace(
-    /[&<>"']/g,
-    character => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    })[character]
-  );
+/* =====================================
+   SAFE TEXT / FORMAT HELPERS
+===================================== */
 
-const money = pesos;
+const html = value =>
+  String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
 
-const dated = date =>
-  date.toLocaleString("en-PH", {
+const dateLabel = value => {
+  const date = value instanceof Date
+    ? value
+    : timestampDate(value);
+
+  if (!date || !Number.isFinite(date.getTime())) {
+    return "-";
+  }
+
+  return date.toLocaleString("en-PH", {
     timeZone: "Asia/Manila",
     year: "numeric",
     month: "short",
@@ -40,443 +42,517 @@ const dated = date =>
     hour: "numeric",
     minute: "2-digit"
   });
+};
 
 const meta = (label, value) => `
   <div class="meta-row">
-    <span>${esc(label)}</span>
-    <strong>${esc(value)}</strong>
+    <span>${html(label)}</span>
+    <strong>${html(value)}</strong>
   </div>
 `;
 
-const totalRow = (
-  label,
-  value,
-  big = false
-) => `
-  <div class="totals-row${big ? " grand" : ""}">
-    <span>${esc(label)}</span>
-    <strong>${money(value)}</strong>
+const cost = (label, value, className = "") => `
+  <div class="totals-row ${html(className)}">
+    <span>${html(label)}</span>
+    <strong>${pesos(value)}</strong>
   </div>
 `;
 
-const divider = '<div class="rule"></div>';
+/* =====================================
+   SERVICE TYPE
+===================================== */
 
-/* IDENTIFY INDIVIDUAL SERVICE */
-function serviceOf(line, order) {
-  if (line.serveType === "Take Out") {
+function normalizeService(value, fallback = "Dine In") {
+  const text = String(value || fallback)
+    .trim()
+    .toLowerCase();
+
+  if (
+    text.includes("take out") ||
+    text.includes("takeout") ||
+    text.includes("take-out")
+  ) {
     return "Take Out";
   }
 
-  if (line.serveType === "Dine In") {
-    return "Dine In";
-  }
-
-  return order.orderType === "Take Out"
-    ? "Take Out"
-    : "Dine In";
+  return "Dine In";
 }
 
-/* GROUP ITEMS BY DINE IN / TAKE OUT */
-function itemsHtml(order) {
-  const all = Array.isArray(order.items)
-    ? order.items
-    : [];
+function serviceSummary(order) {
+  const services = new Set(
+    (order.items || []).map(item =>
+      normalizeService(
+        item.serveType,
+        order.orderType || "Dine In"
+      )
+    )
+  );
 
-  return ["Dine In", "Take Out"].map(service => {
-    const lines = all.filter(
-      line => serviceOf(line, order) === service
+  if (services.size > 1) {
+    return "Mixed Dine In / Take Out";
+  }
+
+  return services.size
+    ? [...services][0]
+    : normalizeService(order.orderType || "Dine In");
+}
+
+/* =====================================
+   CATEGORY GROUPING
+===================================== */
+
+function groupByCategory(items) {
+  const groups = new Map();
+
+  for (const item of items || []) {
+    const category = String(
+      item.category ||
+      (item.isAddon ? "Add Ons" : "Category not recorded")
+    ).trim();
+
+    if (!groups.has(category)) {
+      groups.set(category, []);
+    }
+
+    groups.get(category).push(item);
+  }
+
+  return groups;
+}
+
+/* =====================================
+   RECEIPT PRODUCT ROW
+===================================== */
+
+function renderProduct(item) {
+  const qty = Number(item.qty || 0);
+  const unitPrice = Number(item.unitPrice || 0);
+  const lineAmount = qty * unitPrice;
+  const boxPrice = Number(item.boxUnitPrice || 0);
+  const discountRate = Number(item.discountRate || 0);
+
+  const serviceDetails = [];
+
+  if (item.isAddon) {
+    serviceDetails.push("ADD-ON");
+  }
+
+  if (boxPrice > 0) {
+    serviceDetails.push(`₱${boxPrice} BOX`);
+  }
+
+  return `
+    <tr class="receipt-product-row">
+
+      <td class="item-name">
+
+        <span class="item-qty">
+          ${html(qty)}×
+        </span>
+
+        <span class="item-title">
+          ${html(item.name)}${item.size ? ` (${html(item.size)})` : ""}
+        </span>
+
+        ${serviceDetails.length ? `
+          <div class="item-service">
+            ${html(serviceDetails.join(" · "))}
+          </div>
+        ` : ""}
+
+        ${item.note ? `
+          <div class="item-note">
+            Note: ${html(item.note)}
+          </div>
+        ` : ""}
+
+        ${discountRate ? `
+          <div class="item-note">
+            Item discount ${html(discountRate)}%:
+            −${pesos(lineDiscountAmount(item))}
+          </div>
+        ` : ""}
+
+      </td>
+
+      <td class="item-price">
+        ${pesos(lineAmount)}
+      </td>
+
+    </tr>
+  `;
+}
+
+/* =====================================
+   DINE IN / TAKE OUT PACK GROUPING
+===================================== */
+
+function renderItems(items, fallbackService = "Dine In") {
+  const serviceGroups = new Map();
+
+  for (const item of items || []) {
+    const service = normalizeService(
+      item.serveType,
+      fallbackService
     );
 
-    if (!lines.length) {
-      return "";
+    if (!serviceGroups.has(service)) {
+      serviceGroups.set(service, []);
     }
 
-    const grouped = new Map();
+    serviceGroups.get(service).push(item);
+  }
 
-    for (const line of lines) {
-      const category = String(
-        line.category ||
-        (
-          line.isAddon
-            ? "Add Ons"
-            : "Other"
-        )
-      ).trim();
+  return [...serviceGroups.entries()].map(
+    ([service, serviceItems]) => {
 
-      if (!grouped.has(category)) {
-        grouped.set(category, []);
-      }
+      const serviceLabel = service === "Take Out"
+        ? "TAKE OUT - PACK"
+        : "DINE IN - PACK";
 
-      grouped.get(category).push(line);
-    }
+      const categoryGroups =
+        groupByCategory(serviceItems);
 
-    const heading = service === "Take Out"
-      ? "TAKE OUT - PACK"
-      : "DINE IN - SERVE";
+      const categoriesHTML =
+        [...categoryGroups.entries()].map(
+          ([category, lines]) => `
+            <tr class="receipt-category">
+              <td colspan="2">
+                ${html(category.toUpperCase())}
+              </td>
+            </tr>
 
-    return `
-      <tr class="receipt-service-heading">
-        <td colspan="2">
-          ${heading}
-        </td>
-      </tr>
+            ${lines.map(renderProduct).join("")}
+          `
+        ).join("");
 
-      ${[...grouped].map(([category, group]) => `
-        <tr class="receipt-category">
+      return `
+        <tr class="receipt-service-heading">
           <td colspan="2">
-            ${esc(category.toUpperCase())}
+            ${serviceLabel}
           </td>
         </tr>
 
-        ${group.map(line => {
-          const qty = Number(line.qty || 0);
-          const rate = Number(line.discountRate || 0);
-
-          const linePrice =
-            qty * Number(line.unitPrice || 0);
-
-          const box = Number(
-            line.boxUnitPrice || 0
-          );
-
-          let discount = 0;
-
-          try {
-            discount = lineDiscountAmount(line);
-          } catch {
-            discount = 0;
-          }
-
-          return `
-            <tr class="receipt-product-row">
-
-              <td class="item-name">
-
-                <span class="item-qty">
-                  ${esc(qty)}×
-                </span><span class="item-title">${esc(line.name)}${
-                  line.size
-                    ? ` (${esc(line.size)})`
-                    : ""
-                }</span>
-
-                <div class="item-service">
-                  ${service.toUpperCase()}
-
-                  ${
-                    box
-                      ? ` · ${money(box)} BOX/PC`
-                      : ""
-                  }
-
-                  ${
-                    line.isAddon
-                      ? " · ADD-ON"
-                      : ""
-                  }
-                </div>
-
-                ${
-                  line.note
-                    ? `
-                      <div class="item-note">
-                        ${esc(line.note)}
-                      </div>
-                    `
-                    : ""
-                }
-
-                ${
-                  rate && discount
-                    ? `
-                      <div class="item-note">
-                        DISCOUNT ${rate}%:
-                        -${money(discount)}
-                      </div>
-                    `
-                    : ""
-                }
-
-              </td>
-
-              <td class="item-price">
-                ${money(linePrice)}
-              </td>
-
-            </tr>
-          `;
-        }).join("")}
-      `).join("")}
-    `;
-  }).join("");
+        ${categoriesHTML}
+      `;
+    }
+  ).join("");
 }
 
-/* ADD-ONS / PACKAGING */
-function extrasHtml(order) {
+/* =====================================
+   ADD-ONS AND TAKEOUT BOXES
+===================================== */
+
+function renderExtras(order) {
   const addons = Array.isArray(order.addons)
     ? order.addons
     : [];
 
-  const addonHtml = addons.length
+  const addonsHTML = addons.length
     ? `
       <div class="receipt-extras-title">
-        EXTRA ADD-ONS
+        ADD ONS
       </div>
 
-      ${addons.map(addon =>
-        totalRow(
-          `${addon.qty}x ${addon.name}`,
-          Number(addon.qty || 0) *
-          Number(addon.unitPrice || 0)
-        )
-      ).join("")}
+      ${addons.map(addon => `
+        <div class="totals-row">
+          <span>
+            ${html(addon.qty)}×
+            ${html(addon.name)} (add-on)
+          </span>
+
+          <strong>
+            ${pesos(
+              Number(addon.qty || 0) *
+              Number(addon.unitPrice || 0)
+            )}
+          </strong>
+        </div>
+      `).join("")}
     `
     : "";
 
-  const count15 = Number(
-    order.boxes?.["15"] || 0
-  );
+  const boxes = order.boxes || {};
 
-  const count25 = Number(
-    order.boxes?.["25"] || 0
-  );
+  const count15 = Number(boxes["15"] || 0);
+  const count25 = Number(boxes["25"] || 0);
 
-  const hasBoxes =
-    order.boxes &&
-    typeof order.boxes === "object";
+  const hasCounts =
+    count15 > 0 || count25 > 0;
 
-  let packaging = "";
-
-  if (hasBoxes) {
-    if (count15) {
-      packaging += totalRow(
-        `P15 BOX x ${count15}`,
+  const packagingHTML = hasCounts
+    ? `
+      ${count15 ? cost(
+        `₱15 box × ${count15}`,
         count15 * 15
-      );
-    }
+      ) : ""}
 
-    if (count25) {
-      packaging += totalRow(
-        `P25 BOX x ${count25}`,
+      ${count25 ? cost(
+        `₱25 box × ${count25}`,
         count25 * 25
-      );
-    }
-
-    if (Number(order.legacyPackagingFee || 0)) {
-      packaging += totalRow(
-        "Other packaging",
-        Number(order.legacyPackagingFee)
-      );
-    }
-
-  } else if (Number(order.packagingFee || 0)) {
-    packaging = totalRow(
-      "Takeout boxes",
-      Number(order.packagingFee)
+      ) : ""}
+    `
+    : (
+      Number(order.packagingFee || 0)
+        ? cost("Packaging", order.packagingFee)
+        : ""
     );
-  }
+
+  const legacy = Number(
+    order.legacyPackagingFee || 0
+  );
+
+  const hasPackaging =
+    Boolean(packagingHTML || legacy);
 
   return `
-    ${addonHtml}
+    ${addonsHTML}
 
-    ${
-      packaging
-        ? `
-          <div class="receipt-extras-title">
-            TAKEOUT BOXES
-          </div>
-          ${packaging}
-        `
-        : ""
-    }
+    ${hasPackaging ? `
+      <div class="receipt-extras-title">
+        TAKEOUT BOXES
+      </div>
+    ` : ""}
+
+    ${packagingHTML}
+
+    ${legacy ? cost(
+      "Previous packaging",
+      legacy
+    ) : ""}
   `;
 }
 
-/* ONE RECEIPT COPY */
-function receiptHtml(order, copy) {
-  const date =
+/* =====================================
+   ORDER RECEIPT COPY
+===================================== */
+
+function orderSection(order, copy) {
+  const created =
     timestampDate(order.createdAt) ||
     timestampDate(order.printedAt) ||
     new Date();
 
-  const additional =
-    order.receiptMode === "ADD-ON";
+  const isAddonReceipt =
+    String(order.receiptMode || "")
+      .toUpperCase() === "ADD-ON";
 
-  const lines = Array.isArray(order.items)
-    ? order.items
-    : [];
+  const service = serviceSummary(order);
 
-  const services = new Set(
-    lines.map(line =>
-      serviceOf(line, order)
-    )
+  const fallbackService = normalizeService(
+    order.orderType || service
   );
 
-  const service =
-    services.size > 1
-      ? "MIXED"
-      : (
-          services.values().next().value ||
-          order.orderType ||
-          "Dine In"
-        );
+  const itemsHTML = renderItems(
+    order.items || [],
+    fallbackService
+  );
+
+  const discountAmount = Number(
+    order.discountAmount || 0
+  );
 
   return `
     <section
       class="receipt"
-      aria-label="${esc(copy)} copy"
+      aria-label="${html(copy)} receipt"
     >
 
-      <h1 class="center">
-        ${esc(copy)} COPY
-      </h1>
+      <div class="center">
 
-      ${
-        additional
-          ? `
-            <div class="copy-label">
-              ADDITIONAL ITEMS
-            </div>
-          `
-          : ""
-      }
+        <h1>
+          ${html(copy)} COPY
+        </h1>
 
-      ${divider}
+        ${isAddonReceipt ? `
+          <div class="copy-label">
+            ADDITIONAL ITEMS
+          </div>
+        ` : ""}
+
+      </div>
+
+      <div class="rule"></div>
 
       ${meta(
         "Order #",
-        "#" + (order.orderNumber ?? "-")
+        `#${order.orderNumber ?? "-"}`
       )}
 
-      ${meta("Date", dated(date))}
-      ${meta("Customer", order.customerName || "Walk-in")}
-      ${meta("Service", service)}
-      ${meta("Payment", order.paymentMethod || "Cash")}
+      ${meta(
+        "Date",
+        dateLabel(created)
+      )}
 
-      ${divider}
+      ${meta(
+        "Customer",
+        order.customerName || "Walk-in"
+      )}
+
+      ${meta(
+        "Service",
+        service
+      )}
+
+      ${meta(
+        "Payment",
+        order.paymentMethod || "Cash"
+      )}
+
+      <div class="rule"></div>
 
       <table class="receipt-items">
+
         <colgroup>
           <col style="width:67%">
           <col style="width:33%">
         </colgroup>
 
         <tbody>
-          ${itemsHtml(order)}
+
+          ${itemsHTML || `
+            <tr>
+              <td colspan="2">
+                No item details
+              </td>
+            </tr>
+          `}
+
         </tbody>
+
       </table>
 
-      ${extrasHtml(order)}
+      ${renderExtras(order)}
 
-      ${
-        Number(order.discountAmount || 0)
-          ? totalRow(
-              "ITEM DISCOUNTS",
-              -Number(order.discountAmount)
-            )
-          : ""
-      }
+      ${discountAmount > 0
+        ? cost(
+            "Selected item discounts",
+            -discountAmount
+          )
+        : ""}
 
-      ${divider}
+      <div class="rule"></div>
 
-      ${totalRow(
-        additional ? "NEW CHARGES" : "TOTAL",
-        Number(order.total || 0),
-        true
-      )}
+      ${isAddonReceipt
+        ? `
+          ${cost(
+            "NEW CHARGES",
+            order.total,
+            "addon-total-line addon-new-charges"
+          )}
 
-      ${
-        additional &&
-        order.updatedOrderTotal != null
-          ? totalRow(
-              "UPDATED ORDER TOTAL",
-              Number(order.updatedOrderTotal),
-              true
-            )
-          : ""
-      }
+          ${cost(
+            "UPDATED ORDER TOTAL",
+            order.updatedOrderTotal,
+            "addon-total-line addon-updated-total"
+          )}
+        `
+        : cost(
+            "TOTAL",
+            order.total,
+            "grand"
+          )}
 
       <div class="footer-note">
-        ${esc(copy)} COPY ·
-        ${
-          additional
-            ? "ADDITIONAL ITEMS"
-            : "ORDER COMPLETE"
-        }
+        ${html(copy)} COPY ·
+        ${isAddonReceipt
+          ? "ADDITIONAL ITEMS"
+          : "ORDER COMPLETE"}
       </div>
 
     </section>
   `;
 }
 
-/* ADMIN / KITCHEN / CUSTOMER */
+/* =====================================
+   PREPARE THREE COPIES
+===================================== */
+
 export function prepareReceipts(
   order,
   area = document.getElementById("print-area")
 ) {
   if (!area) {
-    throw Error("Missing #print-area");
+    throw new Error("Missing #print-area");
   }
 
   area.innerHTML = [
     "ADMIN",
     "KITCHEN",
     "CUSTOMER"
-  ].map(
-    copy => receiptHtml(order, copy)
-  ).join("");
+  ]
+    .map(copy => orderSection(order, copy))
+    .join("");
 }
+
+/* =====================================
+   PRINT ORDER
+===================================== */
 
 export async function printOrder(order) {
   prepareReceipts(order);
   window.print();
 }
 
-/* ADMIN FINANCE REPORT */
+/* =====================================
+   ADMIN FINANCE REPORT
+===================================== */
+
 export async function printFinanceReport(
-  day,
-  expenses = [],
-  cashEntries = [],
+  date,
+  expenses,
+  cashEntries,
   gcashPayments = []
 ) {
-  const area = document.getElementById(
-    "print-area"
-  );
+  const area =
+    document.getElementById("print-area");
 
   if (!area) {
-    throw Error("Missing #print-area");
+    throw new Error("Missing #print-area");
   }
 
-  const entries = (label, rows) => `
-    <div class="receipt-extras-title">
-      ${esc(label)}
-    </div>
+  const expenseRows =
+    Array.isArray(expenses) ? expenses : [];
 
-    ${
-      rows.length
-        ? rows.map(row =>
-            totalRow(
-              `${
-                row.orderNumber
-                  ? "#" + row.orderNumber + " "
-                  : ""
-              }${row.description || ""}`,
-              Number(row.amount || 0)
-            )
-          ).join("")
-        : "<div>No entries</div>"
-    }
+  const cashRows =
+    Array.isArray(cashEntries) ? cashEntries : [];
 
-    ${totalRow(
-      label + " TOTAL",
-      rows.reduce(
-        (sum, entry) =>
-          sum + Number(entry.amount || 0),
-        0
-      ),
-      true
-    )}
-  `;
+  const gcashRows =
+    Array.isArray(gcashPayments) ? gcashPayments : [];
+
+  const totalExpense = expenseRows.reduce(
+    (sum, entry) =>
+      sum + Number(entry.amount || 0),
+    0
+  );
+
+  const totalCash = cashRows.reduce(
+    (sum, entry) =>
+      sum + Number(entry.amount || 0),
+    0
+  );
+
+  const totalGCash = gcashRows.reduce(
+    (sum, entry) =>
+      sum + Number(entry.amount || 0),
+    0
+  );
+
+  const rows = (list, type) =>
+    list.map(entry => `
+      <div class="finance-print-row">
+
+        <span>
+          ${html(type)}:
+          ${html(entry.description || "-")}
+        </span>
+
+        <strong>
+          ${pesos(entry.amount)}
+        </strong>
+
+      </div>
+    `).join("");
 
   area.innerHTML = `
     <section class="receipt">
@@ -485,20 +561,67 @@ export async function printFinanceReport(
         ADMIN FINANCE REPORT
       </h1>
 
-      ${divider}
-      ${meta("Date", day)}
-      ${divider}
+      <div class="rule"></div>
 
-      ${entries("CASH ON HAND", cashEntries)}
-      ${divider}
+      ${meta("Date (PH)", date)}
 
-      ${entries("EXPENSES", expenses)}
-      ${divider}
+      <div class="rule"></div>
 
-      ${entries("GCASH PAYMENTS", gcashPayments)}
+      <div class="copy-label">
+        CASH ON HAND
+      </div>
+
+      ${rows(cashRows, "Cash") || "No entries"}
+
+      ${cost(
+        "Cash total",
+        totalCash,
+        "grand"
+      )}
+
+      <div class="rule"></div>
+
+      <div class="copy-label">
+        EXPENSES
+      </div>
+
+      ${rows(expenseRows, "Expense") || "No entries"}
+
+      ${cost(
+        "Expense total",
+        totalExpense,
+        "grand"
+      )}
+
+      <div class="rule"></div>
+
+      <div class="copy-label">
+        GCASH PAYMENTS
+      </div>
+
+      ${gcashRows.map(entry => `
+        <div class="finance-print-row">
+
+          <span>
+            Order #${html(entry.orderNumber ?? "-")}:
+            ${html(entry.description || "GCash")}
+          </span>
+
+          <strong>
+            ${pesos(entry.amount)}
+          </strong>
+
+        </div>
+      `).join("") || "No GCash payments"}
+
+      ${cost(
+        "GCash total",
+        totalGCash,
+        "grand"
+      )}
 
       <div class="footer-note">
-        ADMIN ONLY
+        ADMIN ONLY · ${html(date)}
       </div>
 
     </section>
@@ -507,104 +630,217 @@ export async function printFinanceReport(
   window.print();
 }
 
-/* KUYA GAA / KUYA BOSS SALES PRINTING */
-export function printOwnerReport({
-  ownerName,
-  from,
-  to,
+/* =====================================
+   OWNER SALES REPORT
+===================================== */
 
-  rows = [],
-
-  itemsSold = 0,
-  orders = 0,
-
-  productSales = 0,
-  boxSales = 0,
-
-  note = ""
-}) {
-  const area = document.getElementById(
-    "print-area"
-  );
-
-  if (!area) {
-    throw Error("Missing #print-area");
+function normalizeReportRows(value) {
+  if (Array.isArray(value)) {
+    return value;
   }
 
+  if (value && typeof value === "object") {
+    return Object.entries(value).map(
+      ([name, amount]) => ({
+        name,
+
+        amount: typeof amount === "object"
+          ? Number(
+              amount.amount ??
+              amount.total ??
+              0
+            )
+          : Number(amount || 0),
+
+        ...(typeof amount === "object"
+          ? amount
+          : {})
+      })
+    );
+  }
+
+  return [];
+}
+
+function reportRowHTML(row) {
+  const label =
+    row.name ||
+    row.label ||
+    row.item ||
+    row.product ||
+    row.description ||
+    "Sales";
+
+  const quantity =
+    row.qty ??
+    row.quantity ??
+    row.count;
+
+  const amount =
+    row.amount ??
+    row.total ??
+    row.sales ??
+    row.revenue ??
+    0;
+
+  return `
+    <div class="finance-print-row">
+
+      <span>
+        ${html(label)}
+        ${quantity == null
+          ? ""
+          : ` · ${html(quantity)}×`}
+      </span>
+
+      <strong>
+        ${pesos(amount)}
+      </strong>
+
+    </div>
+  `;
+}
+
+export async function printOwnerReport(report = {}) {
+  const area =
+    document.getElementById("print-area");
+
+  if (!area) {
+    throw new Error("Missing #print-area");
+  }
+
+  const sourceRows =
+    Array.isArray(report.rows) && report.rows.length
+      ? report.rows
+      : report.productSales != null
+        ? report.productSales
+        : report.itemsSold;
+
+  const rows = normalizeReportRows(sourceRows);
+
+  const boxRows = normalizeReportRows(
+    report.boxSales
+  );
+
+  const rowTotal = rows.reduce(
+    (sum, row) =>
+      sum + Number(
+        row.amount ??
+        row.total ??
+        row.sales ??
+        row.revenue ??
+        0
+      ),
+    0
+  );
+
+  let boxTotal = 0;
+
+  if (typeof report.boxSales === "number") {
+    boxTotal = report.boxSales;
+
+  } else if (
+    report.boxSales &&
+    typeof report.boxSales === "object" &&
+    !Array.isArray(report.boxSales)
+  ) {
+    if (
+      report.boxSales.amount != null ||
+      report.boxSales.total != null
+    ) {
+      boxTotal = Number(
+        report.boxSales.amount ??
+        report.boxSales.total
+      );
+
+    } else {
+      boxTotal =
+        Number(report.boxSales["15"] || 0) * 15 +
+        Number(report.boxSales["25"] || 0) * 25;
+    }
+
+  } else {
+    boxTotal = boxRows.reduce(
+      (sum, row) =>
+        sum + Number(
+          row.amount ??
+          row.total ??
+          row.sales ??
+          0
+        ),
+      0
+    );
+  }
+
+  const title =
+    report.ownerName || "OWNER SALES";
+
+  const from =
+    report.from || "-";
+
+  const to =
+    report.to || report.from || "-";
+
   const total =
-    Number(productSales) +
-    Number(boxSales);
+    report.total == null
+      ? rowTotal + boxTotal
+      : Number(report.total);
+
+  const orderCount =
+    Array.isArray(report.orders)
+      ? report.orders.length
+      : Number(report.orders || 0);
 
   area.innerHTML = `
     <section class="receipt">
 
       <h1 class="center">
-        ${esc(ownerName)} SALES
+        ${html(title)}
       </h1>
 
-      ${divider}
+      <div class="rule"></div>
 
       ${meta("From", from)}
       ${meta("To", to)}
-      ${meta("Orders", orders)}
 
-      ${divider}
+      ${orderCount
+        ? meta("Orders", orderCount)
+        : ""}
 
-      ${
-        rows.length
-          ? rows.map(row => `
-              <div class="receipt-extras-title">
-                ${esc(row.category)}
-              </div>
+      <div class="rule"></div>
 
-              ${totalRow(
-                `${row.qty}x ${row.name}`,
-                row.sales
-              )}
-            `).join("")
-          : `
-              <div>
-                No sales for these dates.
-              </div>
-            `
-      }
+      <div class="copy-label">
+        PRODUCT SALES
+      </div>
 
-      ${divider}
+      ${rows.map(reportRowHTML).join("") || "No sales rows"}
 
-      ${meta("Items sold", itemsSold)}
+      ${boxTotal ? `
+        <div class="rule"></div>
 
-      ${totalRow(
-        "PRODUCT SALES",
-        productSales
-      )}
+        <div class="copy-label">
+          TAKEOUT BOX SALES
+        </div>
 
-      ${
-        boxSales
-          ? totalRow(
-              "TAKEOUT BOXES",
-              boxSales
-            )
-          : ""
-      }
+        ${cost("Boxes", boxTotal)}
+      ` : ""}
 
-      ${totalRow(
-        "TOTAL",
+      <div class="rule"></div>
+
+      ${cost(
+        "TOTAL SALES",
         total,
-        true
+        "grand"
       )}
 
-      ${
-        note
-          ? `
-            <div class="footer-note">
-              ${esc(note)}
-            </div>
-          `
-          : ""
-      }
+      ${report.note ? `
+        <div class="footer-note">
+          ${html(report.note)}
+        </div>
+      ` : ""}
 
       <div class="footer-note">
-        ADMIN OWNER REPORT
+        ADMIN ONLY · ${html(title)}
       </div>
 
     </section>

@@ -1,15 +1,11 @@
 
 /*
- * CHILLAX POS
- * COMPLETE 58MM THERMAL PRINT CSS
+ * CHILLAX CAFE POS
+ * COMPLETE 58MM THERMAL PRINT STYLESHEET
  *
- * Includes:
- * - Admin receipts
- * - Kitchen receipts
- * - Customer receipts
- * - Finance reports
- * - Owner sales reports
- * - Compact updated add-on total
+ * Centered DINE IN - PACK / TAKE OUT - PACK
+ * Double horizontal border lines
+ * Equal NEW CHARGES / UPDATED ORDER TOTAL font sizes
  */
 
 @page {
@@ -17,15 +13,11 @@
   margin: 0;
 }
 
-/* HIDE PRINT AREA ON SCREEN */
-
 @media screen {
   #print-area {
     display: none !important;
   }
 }
-
-/* PRINT MODE */
 
 @media print {
 
@@ -33,12 +25,10 @@
   body {
     width: 58mm !important;
     min-width: 58mm !important;
-
     margin: 0 !important;
     padding: 0 !important;
-
-    background: white !important;
-    color: black !important;
+    background: #fff !important;
+    color: #000 !important;
   }
 
   body > :not(#print-area) {
@@ -47,24 +37,19 @@
 
   #print-area {
     display: block !important;
-
     position: static !important;
-
     width: 58mm !important;
-
+    min-width: 58mm !important;
     margin: 0 !important;
     padding: 0 !important;
-
-    background: white !important;
-    color: black !important;
+    background: #fff !important;
+    color: #000 !important;
   }
 
   .receipt,
   .receipt * {
     box-sizing: border-box !important;
-
-    color: black !important;
-
+    color: #000 !important;
     text-shadow: none !important;
     box-shadow: none !important;
   }
@@ -72,17 +57,14 @@
   .receipt {
     width: 48mm !important;
     max-width: 48mm !important;
-
     margin: 0 auto !important;
-
     padding: 2mm 0 3mm !important;
-
-    font: 8pt/1.28 Arial, sans-serif !important;
-
+    background: #fff !important;
+    font: 8pt/1.25 Arial, Helvetica, sans-serif !important;
     overflow: visible !important;
-    overflow-wrap: anywhere;
-
+    overflow-wrap: anywhere !important;
     break-inside: avoid-page;
+    page-break-inside: avoid;
   }
 
   .receipt:not(:last-child) {
@@ -90,287 +72,280 @@
     page-break-after: always;
   }
 
-  /* RECEIPT HEADING */
+  /* HEADER */
 
   .receipt h1 {
-    margin: 0 0 1.5mm;
-
-    font: bold 11pt/1.2 Arial, sans-serif !important;
+    margin: 0 0 1.2mm !important;
+    padding: 0 !important;
+    font: 800 10pt/1.15 Arial, Helvetica, sans-serif !important;
+    text-align: center !important;
   }
 
   .receipt .center,
   .receipt .copy-label,
   .receipt .footer-note {
-    text-align: center;
-  }
-
-  .receipt .logo-print {
-    display: block;
-
-    margin: 0 auto 1.5mm;
-
-    width: 15mm;
-    height: 15mm;
-
-    object-fit: cover;
-    filter: grayscale(1);
-
-    border-radius: 50%;
-  }
-
-  .receipt .sub {
-    font-size: 7pt !important;
-    margin: 0 0 .6mm;
-  }
-
-  .receipt .rule {
-    border-top: 1px dashed black;
-
-    margin: 2mm 0;
+    text-align: center !important;
   }
 
   .receipt .copy-label {
-    font-weight: bold;
-    font-size: 8pt;
-    margin: 1.5mm 0;
+    margin: 1mm 0 !important;
+    font-size: 7.5pt !important;
+    line-height: 1.15 !important;
+    font-weight: 800 !important;
+  }
+
+  .receipt .sub {
+    margin: 0 0 .6mm !important;
+    font-size: 7pt !important;
+  }
+
+  /* DIVIDERS */
+
+  .receipt .rule {
+    height: 0 !important;
+    border: 0 !important;
+    border-top: 1px dashed #000 !important;
+    margin: 1.6mm 0 !important;
+    padding: 0 !important;
   }
 
   /* ORDER DETAILS */
 
   .receipt .meta-row {
-    display: flex;
-
-    justify-content: space-between;
-    align-items: flex-start;
-
-    gap: 1.5mm;
-    margin: .7mm 0;
-
-    font-size: 7.5pt;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 1.5mm !important;
+    margin: .65mm 0 !important;
+    font-size: 7.3pt !important;
+    line-height: 1.2 !important;
   }
 
   .receipt .meta-row span {
-    flex: 0 0 31%;
+    flex: 0 0 31% !important;
+    min-width: 0 !important;
   }
 
   .receipt .meta-row strong {
-    flex: 1;
-
-    text-align: right;
-    font-weight: 600;
-
-    overflow-wrap: anywhere;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    text-align: right !important;
+    font-weight: 600 !important;
+    overflow-wrap: anywhere !important;
   }
 
   /* ITEM TABLE */
 
   .receipt table.receipt-items {
     width: 100% !important;
-
-    table-layout: fixed;
-
-    border-collapse: collapse;
-
-    font-size: 7.5pt !important;
-
     margin: 0 !important;
+    padding: 0 !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    font-size: 7.4pt !important;
   }
 
   .receipt table.receipt-items td {
-    padding: .65mm .3mm .65mm 0;
-
-    vertical-align: top;
-
+    padding: .6mm .3mm .6mm 0 !important;
     border: 0 !important;
-
-    white-space: normal;
-    overflow-wrap: anywhere;
+    vertical-align: top !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
   }
-
-  /* QUANTITY + ITEM NAME */
 
   .receipt .item-name {
     width: 67% !important;
-    text-align: left;
+    text-align: left !important;
   }
 
   .receipt .item-qty {
-    display: inline;
-
-    font-weight: 700;
-
-    white-space: nowrap;
-
-    margin-right: 1mm;
+    display: inline !important;
+    margin-right: 1mm !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
   }
 
   .receipt .item-title {
-    display: inline;
+    display: inline !important;
+    font-weight: 500 !important;
   }
-
-  /* ITEM PRICE */
 
   .receipt .item-price {
     width: 33% !important;
-
-    text-align: right;
-
+    text-align: right !important;
     white-space: nowrap !important;
-
     overflow-wrap: normal !important;
+    font-weight: 600 !important;
   }
 
-  /* DINE IN / TAKE OUT */
+  /*
+   * DINE IN - PACK / TAKE OUT - PACK
+   *
+   * CENTERED TEXT
+   * BORDER ABOVE
+   * BORDER BELOW
+   */
+
+  .receipt table.receipt-items
+  tr.receipt-service-heading > td {
+    display: table-cell !important;
+    width: 100% !important;
+
+    padding: 1.3mm .2mm !important;
+
+    border-top: 1px solid #000 !important;
+    border-bottom: 1px solid #000 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
+    font-weight: 900 !important;
+    letter-spacing: .2px !important;
+
+    /* THIS IS THE CENTER ALIGNMENT FIX */
+    text-align: center !important;
+
+    vertical-align: middle !important;
+    white-space: normal !important;
+  }
+
+  /* CATEGORY TITLES */
+
+  .receipt table.receipt-items
+  tr.receipt-category td {
+    padding: 1.5mm .2mm .5mm 0 !important;
+    border: 0 !important;
+    border-top: 1px dotted #333 !important;
+    font-size: 7.4pt !important;
+    line-height: 1.15 !important;
+    font-weight: 900 !important;
+    letter-spacing: .15px !important;
+    text-transform: uppercase !important;
+    text-align: left !important;
+  }
+
+  /* ITEM SERVICE DETAILS */
 
   .receipt .item-service {
-    font-size: 6.5pt !important;
-
-    line-height: 1.1 !important;
-
-    margin: 0 !important;
+    display: block !important;
+    margin: .2mm 0 0 !important;
+    padding: 0 !important;
+    font-size: 6.4pt !important;
+    line-height: 1.12 !important;
+    font-weight: 700 !important;
   }
 
   /* ITEM NOTES */
 
   .receipt .item-note {
-    display: block;
-
-    font-size: 6.5pt !important;
-    line-height: 1.05 !important;
-
-    margin: 0 !important;
+    display: block !important;
+    margin: .2mm 0 0 !important;
     padding: 0 !important;
-
+    font-size: 6.3pt !important;
+    line-height: 1.1 !important;
     white-space: normal !important;
-    overflow-wrap: anywhere;
+    overflow-wrap: anywhere !important;
   }
 
-  /* FINANCE PRINTING */
+  /* ADD-ONS AND TAKEOUT BOXES */
 
-  .receipt .finance-print-row {
-    display: flex;
-
-    align-items: flex-start;
-    justify-content: space-between;
-
-    gap: 1mm;
-
-    font-size: 7.2pt;
-
-    padding: .5mm 0;
-  }
-
-  .receipt .finance-print-row span {
-    flex: 1;
-
-    min-width: 0;
-
-    overflow-wrap: anywhere;
-  }
-
-  .receipt .finance-print-row strong {
-    flex: 0 0 auto;
-
-    text-align: right;
+  .receipt .receipt-extras-title {
+    margin: 1.2mm 0 .5mm !important;
+    padding: 0 !important;
+    font-size: 7.3pt !important;
+    line-height: 1.15 !important;
+    font-weight: 900 !important;
   }
 
   /* TOTALS */
 
   .receipt .totals-row {
-    display: flex;
+    display: flex !important;
+    align-items: baseline !important;
+    justify-content: space-between !important;
+    gap: 1mm !important;
+    padding: .55mm 0 !important;
+    font-size: 7.7pt !important;
+    line-height: 1.2 !important;
+  }
 
-    align-items: baseline;
-    justify-content: space-between;
-
-    gap: 1mm;
-
-    padding: .6mm 0;
-
-    font-size: 8pt;
+  .receipt .totals-row span {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    text-align: left !important;
+    overflow-wrap: anywhere !important;
   }
 
   .receipt .totals-row strong {
-    text-align: right;
+    flex: 0 0 auto !important;
+    text-align: right !important;
+    white-space: nowrap !important;
+    font-weight: 700 !important;
   }
 
+  /* NORMAL ORDER TOTAL */
+
   .receipt .totals-row.grand {
-    font-size: 10pt;
-    font-weight: 900;
+    font-size: 9.5pt !important;
+    line-height: 1.2 !important;
+    font-weight: 900 !important;
+  }
+
+  .receipt .totals-row.grand strong {
+    font-size: 9.5pt !important;
+    font-weight: 900 !important;
+  }
+
+  /* ADD-ON RECEIPT TOTALS */
+
+  .receipt .totals-row.addon-total-line,
+  .receipt .totals-row.addon-total-line span,
+  .receipt .totals-row.addon-total-line strong {
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
+    font-weight: 700 !important;
+  }
+
+  .receipt .totals-row.addon-new-charges,
+  .receipt .totals-row.addon-updated-total {
+    margin: .3mm 0 !important;
+    padding: .6mm 0 !important;
+  }
+
+  /* FINANCE / OWNER REPORT ROWS */
+
+  .receipt .finance-print-row {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 1mm !important;
+    padding: .5mm 0 !important;
+    font-size: 7.1pt !important;
+    line-height: 1.15 !important;
+  }
+
+  .receipt .finance-print-row span {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .receipt .finance-print-row strong {
+    flex: 0 0 auto !important;
+    text-align: right !important;
+    white-space: nowrap !important;
   }
 
   /* FOOTER */
 
   .receipt .footer-note {
-    margin: 1.5mm 0 0;
-
-    font-size: 7pt;
-  }
-
-  /* CATEGORY HEADING */
-
-  .receipt .receipt-category td {
-    font-weight: 900 !important;
-
-    text-transform: uppercase;
-
-    padding: 2mm .3mm .4mm 0 !important;
-
-    border-top:
-      1px dotted #333 !important;
-
-    font-size: 7.5pt !important;
-
-    letter-spacing: .15px;
-  }
-
-  /* ADD-ONS AND BOXES */
-
-  .receipt .receipt-extras-title {
-    font-size: 7.4pt !important;
-    font-weight: 900 !important;
-
-    margin-top: 1.2mm !important;
-  }
-
-  /* =====================================
-     NEW FIX: UPDATED ORDER TOTAL
-
-     The additional-order receipt prints:
-       NEW CHARGES
-       UPDATED ORDER TOTAL
-
-     Keep NEW CHARGES prominent.
-     Make UPDATED ORDER TOTAL smaller.
-  ===================================== */
-
-  .receipt
-  .totals-row.grand
-  + .totals-row.grand {
-    font-size: 7.2pt !important;
-    font-weight: 700 !important;
-
+    margin: 1.5mm 0 0 !important;
+    padding: 0 !important;
+    font-size: 6.7pt !important;
     line-height: 1.15 !important;
-
-    padding: .5mm 0 !important;
-    gap: 1mm !important;
+    overflow-wrap: anywhere !important;
   }
 
-  .receipt
-  .totals-row.grand
-  + .totals-row.grand span {
-    font-size: 7.1pt !important;
-
-    line-height: 1.15 !important;
-
-    letter-spacing: 0 !important;
-  }
-
-  .receipt
-  .totals-row.grand
-  + .totals-row.grand strong {
-    font-size: 7.4pt !important;
-    font-weight: 700 !important;
-
-    white-space: nowrap;
-  }
 }
